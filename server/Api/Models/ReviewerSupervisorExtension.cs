@@ -13,7 +13,5 @@ public partial class ReviewerSupervisorExtension
 
     public virtual Account Account { get; set; } = null!;
 
-    public virtual TblClass? AssignedClass { get; set; }
-
     public virtual Status Status { get; set; } = null!;
 }

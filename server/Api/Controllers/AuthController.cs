@@ -13,10 +13,10 @@ using Microsoft.EntityFrameworkCore;
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
-    private readonly ElsewedySchoolContext _db;
+    private readonly ElsewedySchoolSysDbDevContext _db;
     private readonly IConfiguration _config;
 
-    public AuthController(ElsewedySchoolContext db, IConfiguration config)
+    public AuthController(ElsewedySchoolSysDbDevContext db, IConfiguration config)
     {
         _db = db;
         _config = config;
@@ -126,7 +126,7 @@ public class AuthController : ControllerBase
                 phone = account.Phone,
                 isActive = account.IsActive,
                 createdAt = account.CreatedAt,
-                updatedAt = DateTime.UtcNow // You might want to add an UpdatedAt field to the Account model
+                updatedAt = DateTime.UtcNow 
             });
         }
         catch (Exception ex)

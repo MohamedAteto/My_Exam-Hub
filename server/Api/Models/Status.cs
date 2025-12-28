@@ -35,8 +35,6 @@ public partial class Status
 
     public virtual ICollection<Scholarship> Scholarships { get; set; } = new List<Scholarship>();
 
-    public virtual ICollection<Session> Sessions { get; set; } = new List<Session>();
-
     public virtual ICollection<StudentExtension> StudentExtensions { get; set; } = new List<StudentExtension>();
 
     public virtual ICollection<StudentTask> StudentTasks { get; set; } = new List<StudentTask>();
@@ -44,8 +42,6 @@ public partial class Status
     public virtual ICollection<SubordinateTicket> SubordinateTickets { get; set; } = new List<SubordinateTicket>();
 
     public virtual ICollection<SuperAdminExtension> SuperAdminExtensions { get; set; } = new List<SuperAdminExtension>();
-
-    public virtual ICollection<TblClass> TblClasses { get; set; } = new List<TblClass>();
 
     public virtual ICollection<TblTask> TblTasks { get; set; } = new List<TblTask>();
 

@@ -15,7 +15,5 @@ public partial class StudentExtension
 
     public virtual Account Account { get; set; } = null!;
 
-    public virtual TblClass? Class { get; set; }
-
     public virtual Status Status { get; set; } = null!;
 }

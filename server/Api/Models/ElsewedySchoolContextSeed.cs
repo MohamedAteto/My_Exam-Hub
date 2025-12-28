@@ -7,10 +7,8 @@ namespace QuizesApi.Models;
 
 public static class ElsewedySchoolContextSeed
 {
-	public static async Task SeedAsync(ElsewedySchoolContext db)
+	public static async Task SeedAsync(ElsewedySchoolSysDbDevContext db)
 	{
-		await db.Database.MigrateAsync();
-
 		// Seed roles
 		if (!db.Roles.Any(r => r.BusinessEntity == "Quizes System"))
 		{
@@ -59,39 +57,25 @@ public static class ElsewedySchoolContextSeed
                 new AccountRole { AccountId = student.Id, RoleId = studentRole.Id, BusinessEntityName = "Quizes System" }
             );
             await db.SaveChangesAsync();
-        }
 
-        // Seed test data for class-based quiz visibility
-        if (!db.TblClasses.Any(c => c.ClassName == "Class A" || c.ClassName == "Class B" || c.ClassName == "Class C"))
-        {
-            // Ensure we have a grade
-            var testGrade = await db.Grades.FirstOrDefaultAsync(g => g.GradeName == "Test Grade");
-            if (testGrade == null)
+            // Seed test data for class-based quiz visibility
+            if (!db.TblClasses.Any(c => c.ClassName == "Class A" || c.ClassName == "Class B" || c.ClassName == "Class C"))
             {
-                var statusId = await db.Statuses.Select(s => s.Id).OrderBy(id => id).FirstOrDefaultAsync();
-                if (statusId == 0)
+                // Ensure we have a grade
+                var testGrade = await db.Grades.FirstOrDefaultAsync(g => g.GradeName == "Test Grade");
+                if (testGrade == null)
                 {
-                    db.Statuses.Add(new Status { StatusName = "Active", BusinessEntity = "Quizes System", OrderNo = 1 });
+                    testGrade = new Grade { GradeName = "Test Grade", StatusId = statusId };
+                    db.Grades.Add(testGrade);
                     await db.SaveChangesAsync();
-                    statusId = await db.Statuses.Select(s => s.Id).OrderBy(id => id).FirstAsync();
                 }
-                testGrade = new Grade { GradeName = "Test Grade", StatusId = statusId };
-                db.Grades.Add(testGrade);
+
+                // Create 3 classes
+                var classA = new TblClass { ClassName = "Class A", GradeId = testGrade.Id, StatusId = testGrade.StatusId };
+                var classB = new TblClass { ClassName = "Class B", GradeId = testGrade.Id, StatusId = testGrade.StatusId };
+                var classC = new TblClass { ClassName = "Class C", GradeId = testGrade.Id, StatusId = testGrade.StatusId };
+                db.TblClasses.AddRange(classA, classB, classC);
                 await db.SaveChangesAsync();
-            }
-
-            // Create 3 classes
-            var classA = new TblClass { ClassName = "Class A", GradeId = testGrade.Id, StatusId = testGrade.StatusId };
-            var classB = new TblClass { ClassName = "Class B", GradeId = testGrade.Id, StatusId = testGrade.StatusId };
-            var classC = new TblClass { ClassName = "Class C", GradeId = testGrade.Id, StatusId = testGrade.StatusId };
-            db.TblClasses.AddRange(classA, classB, classC);
-            await db.SaveChangesAsync();
-
-            // Get student role
-            var studentRole = await db.Roles.FirstOrDefaultAsync(r => r.RoleName == "Student" && r.BusinessEntity == "Quizes System");
-            if (studentRole != null)
-            {
-                var statusId = await db.Statuses.Select(s => s.Id).OrderBy(id => id).FirstAsync();
 
                 // Create 6 student accounts (2 per class)
                 var students = new List<Account>
@@ -129,96 +113,53 @@ public static class ElsewedySchoolContextSeed
                 db.StudentExtensions.AddRange(studentExtensions);
                 await db.SaveChangesAsync();
 
-                // Create a subject for quizzes
-                var subject = await db.Subjects.FirstOrDefaultAsync(s => s.SubjectName == "Mathematics");
-                if (subject == null)
-                {
-                    subject = new Subject { SubjectName = "Mathematics", Description = "Math Subject", StatusId = statusId };
-                    db.Subjects.Add(subject);
-                    await db.SaveChangesAsync();
-                }
-
                 // Get teacher account for creating quizzes
                 var teacherAccount = await db.Accounts.FirstOrDefaultAsync(a => a.Email == "teacher@quiz.local");
-                if (teacherAccount == null)
-                {
-                    // Create a teacher if it doesn't exist
-                    var teacherRole = await db.Roles.FirstOrDefaultAsync(r => r.RoleName == "Teacher" && r.BusinessEntity == "Quizes System");
-                    if (teacherRole != null)
-                    {
-                        teacherAccount = new Account 
-                        { 
-                            Email = "teacher@quiz.local", 
-                            PasswordHash = Hash("Teacher#123"), 
-                            FullNameEn = "Teacher User", 
-                            FullNameAr = "معلم", 
-                            NationalId = "TEACHER-NID-0001", 
-                            RoleId = teacherRole.Id, 
-                            IsActive = true, 
-                            StatusId = statusId 
-                        };
-                        db.Accounts.Add(teacherAccount);
-                        await db.SaveChangesAsync();
-                        db.AccountRoles.Add(new AccountRole { AccountId = teacherAccount.Id, RoleId = teacherRole.Id, BusinessEntityName = "Quizes System" });
-                        await db.SaveChangesAsync();
-                    }
-                }
-
+                
                 if (teacherAccount != null)
                 {
                     // Create 3 quizzes with different class assignments
                     var now = DateTime.UtcNow;
+                    string subjectName = "Mathematics";
                     
-                    // Quiz 1: Assigned to Class A only
+                    // Quiz 1: Assigned to Class A
                     var quiz1 = new ExamDetail
                     {
                         Title = "Math Quiz for Class A",
                         ExamDescription = "A mathematics quiz assigned to Class A",
-                        SubjectId = subject.Id,
-                        GradeId = testGrade.Id,
-                        ClassId = classA.Id, // Backward compatibility
+                        ExamSubject = subjectName,
+                        Grade = testGrade.GradeName,
+                        Class = classA.ClassName,
                         StartDate = now.AddDays(1),
                         EndDate = now.AddDays(2),
-                        CreatedBy_AccID = teacherAccount.Id
                     };
                     db.ExamDetails.Add(quiz1);
-                    await db.SaveChangesAsync(); // Save to get ExamId
-                    db.ExamClasses.Add(new ExamClass { ExamId = quiz1.ExamId, ClassId = classA.Id });
-
-                    // Quiz 2: Assigned to Class B and Class C
+                    
+                    // Quiz 2: Assigned to Class B 
                     var quiz2 = new ExamDetail
                     {
-                        Title = "Math Quiz for Classes B & C",
-                        ExamDescription = "A mathematics quiz assigned to Class B and Class C",
-                        SubjectId = subject.Id,
-                        GradeId = testGrade.Id,
-                        ClassId = classB.Id, // Backward compatibility
+                        Title = "Math Quiz for Classes B",
+                        ExamDescription = "A mathematics quiz assigned to Class B",
+                        ExamSubject = subjectName,
+                        Grade = testGrade.GradeName,
+                        Class = classB.ClassName,
                         StartDate = now.AddDays(2),
                         EndDate = now.AddDays(3),
-                        CreatedBy_AccID = teacherAccount.Id
                     };
                     db.ExamDetails.Add(quiz2);
-                    await db.SaveChangesAsync(); // Save to get ExamId
-                    db.ExamClasses.Add(new ExamClass { ExamId = quiz2.ExamId, ClassId = classB.Id });
-                    db.ExamClasses.Add(new ExamClass { ExamId = quiz2.ExamId, ClassId = classC.Id });
 
-                    // Quiz 3: Assigned to all classes (A, B, C)
+                    // Quiz 3: Assigned to Class C
                     var quiz3 = new ExamDetail
                     {
-                        Title = "Math Quiz for All Classes",
-                        ExamDescription = "A mathematics quiz assigned to all classes",
-                        SubjectId = subject.Id,
-                        GradeId = testGrade.Id,
-                        ClassId = classA.Id, // Backward compatibility
+                        Title = "Math Quiz for Class C",
+                        ExamDescription = "A mathematics quiz assigned to Class C",
+                        ExamSubject = subjectName,
+                        Grade = testGrade.GradeName,
+                        Class = classC.ClassName,
                         StartDate = now.AddDays(3),
                         EndDate = now.AddDays(4),
-                        CreatedBy_AccID = teacherAccount.Id
                     };
                     db.ExamDetails.Add(quiz3);
-                    await db.SaveChangesAsync(); // Save to get ExamId
-                    db.ExamClasses.Add(new ExamClass { ExamId = quiz3.ExamId, ClassId = classA.Id });
-                    db.ExamClasses.Add(new ExamClass { ExamId = quiz3.ExamId, ClassId = classB.Id });
-                    db.ExamClasses.Add(new ExamClass { ExamId = quiz3.ExamId, ClassId = classC.Id });
 
                     await db.SaveChangesAsync();
                 }

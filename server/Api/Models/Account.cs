@@ -31,15 +31,11 @@ public partial class Account
 
     public long StatusId { get; set; }
 
-    public virtual ICollection<AbsenceRecord> AbsenceRecords { get; set; } = new List<AbsenceRecord>();
-
     public virtual AdmissionProfile? AdmissionProfile { get; set; }
 
     public virtual ICollection<AttendanceRecord> AttendanceRecords { get; set; } = new List<AttendanceRecord>();
 
     public virtual CapstoneSupervisorExtension? CapstoneSupervisorExtension { get; set; }
-
-    public virtual ICollection<ExamDetail> ExamDetails { get; set; } = new List<ExamDetail>();
 
     public virtual ICollection<Grade> Grades { get; set; } = new List<Grade>();
 
@@ -69,9 +65,7 @@ public partial class Account
 
     public virtual ICollection<StudentTask> StudentTasks { get; set; } = new List<StudentTask>();
 
-    public virtual ICollection<SubordinateTicket> SubordinateTicketSubordinateAccounts { get; set; } = new List<SubordinateTicket>();
-
-    public virtual ICollection<SubordinateTicket> SubordinateTicketSupervisorAccounts { get; set; } = new List<SubordinateTicket>();
+    public virtual ICollection<SubordinateTicket> SubordinateTickets { get; set; } = new List<SubordinateTicket>();
 
     public virtual SuperAdminExtension? SuperAdminExtension { get; set; }
 

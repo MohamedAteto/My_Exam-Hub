@@ -24,7 +24,8 @@ namespace QuizesApi
             builder.Services.AddSwaggerGen();
 
             // Database context
-            builder.Services.AddDbContext<ElsewedySchoolContext>(options =>
+            // Database context
+            builder.Services.AddDbContext<ElsewedySchoolSysDbDevContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
             // Remove ASP.NET Identity; authenticate directly against Account/AccountRole/Role tables
@@ -95,7 +96,7 @@ namespace QuizesApi
             // Seed roles and test accounts
             using (var scope = app.Services.CreateScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ElsewedySchoolContext>();
+                var db = scope.ServiceProvider.GetRequiredService<ElsewedySchoolSysDbDevContext>();
                 Models.ElsewedySchoolContextSeed.SeedAsync(db).GetAwaiter().GetResult();
             }
 

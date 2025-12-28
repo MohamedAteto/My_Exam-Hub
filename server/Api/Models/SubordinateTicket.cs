@@ -21,15 +21,7 @@ public partial class SubordinateTicket
 
     public long StatusId { get; set; }
 
-    public virtual TblClass? Class { get; set; }
-
-    public virtual Grade? Grade { get; set; }
-
-    public virtual Session? Session { get; set; }
-
     public virtual Status Status { get; set; } = null!;
-
-    public virtual Account? SubordinateAccount { get; set; }
 
     public virtual Account? SupervisorAccount { get; set; }
 

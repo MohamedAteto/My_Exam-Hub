@@ -23,17 +23,17 @@ namespace QuizesApi.Controllers
                 var questions = await _repo.GetAllAsync();
                 return Ok(questions.Select(q => new QuestionBankReadDto
                 {
-                    AccountId = q.AccountId,
-                    BankKey = q.BankKey,
-                    BankTitle = q.BankTitle ?? string.Empty,
-                    BankDescription = q.BankDescription,
-                    Grade = q.Grade,
                     QuestionId = q.QuestionId,
                     QuestionTitle = q.QuestionTitle,
                     OptionA = q.OptionA,
                     OptionB = q.OptionB,
                     OptionC = q.OptionC,
                     OptionD = q.OptionD,
+                    OptionE = q.OptionE,
+                    OptionF = q.OptionF,
+                    OptionG = q.OptionG,
+                    OptionH = q.OptionH,
+                    UsedOptions = q.UsedOptions ?? 4,
                     CorrectAnswer = q.CorrectAnswer,
                     QuestionSubject = q.QuestionSubject,
                     Mark = q.Mark ?? 0
@@ -43,25 +43,25 @@ namespace QuizesApi.Controllers
             [HttpGet("{id}")]
             public async Task<ActionResult<QuestionBankReadDto>> GetById(long id)
             {
-                var question = await _repo.GetByIdAsync(id);
-                if (question == null) return NotFound();
+                var q = await _repo.GetByIdAsync(id);
+                if (q == null) return NotFound();
 
                 return Ok(new QuestionBankReadDto
                 {
-                    AccountId = question.AccountId,
-                    BankKey = question.BankKey,
-                    BankTitle = question.BankTitle ?? string.Empty,
-                    BankDescription = question.BankDescription,
-                    Grade = question.Grade,
-                    QuestionId = question.QuestionId,
-                    QuestionTitle = question.QuestionTitle,
-                    OptionA = question.OptionA,
-                    OptionB = question.OptionB,
-                    OptionC = question.OptionC,
-                    OptionD = question.OptionD,
-                    CorrectAnswer = question.CorrectAnswer,
-                    QuestionSubject = question.QuestionSubject,
-                    Mark = question.Mark ?? 0
+                    QuestionId = q.QuestionId,
+                    QuestionTitle = q.QuestionTitle,
+                    OptionA = q.OptionA,
+                    OptionB = q.OptionB,
+                    OptionC = q.OptionC,
+                    OptionD = q.OptionD,
+                    OptionE = q.OptionE,
+                    OptionF = q.OptionF,
+                    OptionG = q.OptionG,
+                    OptionH = q.OptionH,
+                    UsedOptions = q.UsedOptions ?? 4,
+                    CorrectAnswer = q.CorrectAnswer,
+                    QuestionSubject = q.QuestionSubject,
+                    Mark = q.Mark ?? 0
                 });
             }
 
@@ -70,19 +70,11 @@ namespace QuizesApi.Controllers
             {
                 try
                 {
-                    if (dto.AccountId <= 0)
-                        return BadRequest(new { message = "AccountId is required and must be greater than 0" });
-
                     if (string.IsNullOrWhiteSpace(dto.QuestionTitle))
                         return BadRequest(new { message = "Question title is required" });
 
                     var newQuestion = new QuestionBank
                     {
-                        AccountId = dto.AccountId,
-                        BankKey = string.IsNullOrWhiteSpace(dto.BankKey) ? Guid.NewGuid().ToString() : dto.BankKey,
-                        BankTitle = dto.BankTitle,
-                        BankDescription = dto.BankDescription,
-                        Grade = dto.Grade,
                         QuestionTitle = dto.QuestionTitle,
                         OptionA = dto.OptionA,
                         OptionB = dto.OptionB,
@@ -120,11 +112,6 @@ namespace QuizesApi.Controllers
                     if (string.IsNullOrWhiteSpace(dto.QuestionTitle))
                         return BadRequest(new { message = "Question title is required" });
 
-                    question.BankKey = string.IsNullOrWhiteSpace(dto.BankKey) ? question.BankKey : dto.BankKey;
-                    question.AccountId = dto.AccountId;
-                    question.BankTitle = dto.BankTitle;
-                    question.BankDescription = dto.BankDescription;
-                    question.Grade = dto.Grade;
                     question.QuestionTitle = dto.QuestionTitle;
                     question.OptionA = dto.OptionA;
                     question.OptionB = dto.OptionB;
@@ -158,7 +145,7 @@ namespace QuizesApi.Controllers
                 return NoContent();
             }
         [HttpPost("upload")]
-        public async Task<ActionResult<QuestionUploadResultDto>> Upload(IFormFile file, [FromQuery] long accountId, [FromQuery] string? bankKey)
+        public async Task<ActionResult<QuestionUploadResultDto>> Upload(IFormFile file)
         {
             if (file == null || file.Length == 0)
                 return BadRequest(new { message = "File is empty or not provided." });
@@ -181,9 +168,6 @@ namespace QuizesApi.Controllers
 
                 var rows = worksheet.RangeUsed().RowsUsed().Skip(1); // Skip header
 
-                // If bankKey is not provided, generate a new one for this batch (New Bank)
-                string effectiveBankKey = !string.IsNullOrWhiteSpace(bankKey) ? bankKey : Guid.NewGuid().ToString();
-
                 foreach (var row in rows)
                 {
                     result.TotalProcessed++;
@@ -199,8 +183,6 @@ namespace QuizesApi.Controllers
 
                         var q = new QuestionBank
                         {
-                            AccountId = accountId > 0 ? accountId : 1, 
-                            BankKey = effectiveBankKey,
                             QuestionTitle = qText,
                             CorrectAnswer = correct,
                             Mark = marks,
@@ -231,17 +213,17 @@ namespace QuizesApi.Controllers
                 // Map to DTO
                 result.AddedQuestions = addedEntities.Select(q => new QuestionBankReadDto
                 {
-                    AccountId = q.AccountId,
-                    BankKey = q.BankKey,
-                    BankTitle = q.BankTitle ?? string.Empty,
-                    BankDescription = q.BankDescription,
-                    Grade = q.Grade,
                     QuestionId = q.QuestionId,
                     QuestionTitle = q.QuestionTitle,
                     OptionA = q.OptionA,
                     OptionB = q.OptionB,
                     OptionC = q.OptionC,
                     OptionD = q.OptionD,
+                    OptionE = q.OptionE,
+                    OptionF = q.OptionF,
+                    OptionG = q.OptionG,
+                    OptionH = q.OptionH,
+                    UsedOptions = q.UsedOptions ?? 4,
                     CorrectAnswer = q.CorrectAnswer,
                     QuestionSubject = q.QuestionSubject,
                     Mark = q.Mark ?? 0

@@ -19,8 +19,6 @@ public partial class Team
 
     public long StatusId { get; set; }
 
-    public virtual TblClass Class { get; set; } = null!;
-
     public virtual Project? Project { get; set; }
 
     public virtual Status Status { get; set; } = null!;

@@ -20,6 +20,4 @@ public partial class BehaviorNote
     public string? Gen { get; set; }
 
     public virtual AttendanceRecord AttendanceRecord { get; set; } = null!;
-
-    public virtual ICollection<AttendanceRecord> AttendanceRecords { get; set; } = new List<AttendanceRecord>();
 }

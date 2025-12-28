@@ -17,9 +17,9 @@ public partial class AttendanceRecord
 
     public long? NoteId { get; set; }
 
-    public virtual ICollection<BehaviorNote> BehaviorNotes { get; set; } = new List<BehaviorNote>();
+    public long? ClassId { get; set; }
 
-    public virtual BehaviorNote? Note { get; set; }
+    public virtual ICollection<BehaviorNote> BehaviorNotes { get; set; } = new List<BehaviorNote>();
 
     public virtual Account Student { get; set; } = null!;
 }

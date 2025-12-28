@@ -6,9 +6,9 @@ namespace QuizesApi.Repositories
 {
     public class QuestionBankRepo : IQuestionBankRepo
     {
-        private readonly ElsewedySchoolContext _context;
+        private readonly ElsewedySchoolSysDbDevContext _context;
 
-        public QuestionBankRepo(ElsewedySchoolContext context)
+        public QuestionBankRepo(ElsewedySchoolSysDbDevContext context)
         {
             _context = context;
         }

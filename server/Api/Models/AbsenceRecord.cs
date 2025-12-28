@@ -9,15 +9,11 @@ public partial class AbsenceRecord
 
     public long StudentId { get; set; }
 
-    public string StudentName { get; set; } = null!;
-
-    public DateTime Date { get; set; }
-
-    public int Session { get; set; }
-
     public long ClassId { get; set; }
 
-    public virtual TblClass Class { get; set; } = null!;
+    public DateOnly DateOfAbsence { get; set; }
 
-    public virtual Account Student { get; set; } = null!;
+    public long? LectuerId { get; set; }
+
+    public long? SessionId { get; set; }
 }
