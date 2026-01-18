@@ -128,8 +128,8 @@ public static class ElsewedySchoolContextSeed
                         Title = "Math Quiz for Class A",
                         ExamDescription = "A mathematics quiz assigned to Class A",
                         ExamSubject = subjectName,
-                        Grade = testGrade.GradeName,
-                        Class = classA.ClassName,
+                        GradeId = testGrade.Id,
+                        ClassId = classA.Id,
                         StartDate = now.AddDays(1),
                         EndDate = now.AddDays(2),
                     };
@@ -141,8 +141,8 @@ public static class ElsewedySchoolContextSeed
                         Title = "Math Quiz for Classes B",
                         ExamDescription = "A mathematics quiz assigned to Class B",
                         ExamSubject = subjectName,
-                        Grade = testGrade.GradeName,
-                        Class = classB.ClassName,
+                        GradeId = testGrade.Id,
+                        ClassId = classB.Id,
                         StartDate = now.AddDays(2),
                         EndDate = now.AddDays(3),
                     };
@@ -154,8 +154,8 @@ public static class ElsewedySchoolContextSeed
                         Title = "Math Quiz for Class C",
                         ExamDescription = "A mathematics quiz assigned to Class C",
                         ExamSubject = subjectName,
-                        Grade = testGrade.GradeName,
-                        Class = classC.ClassName,
+                        GradeId = testGrade.Id,
+                        ClassId = classC.Id,
                         StartDate = now.AddDays(3),
                         EndDate = now.AddDays(4),
                     };

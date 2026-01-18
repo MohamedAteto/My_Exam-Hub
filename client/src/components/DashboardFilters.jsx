@@ -1,33 +1,19 @@
 import { useState, useEffect } from 'react'
 import api from '../api/axios'
 
-export default function DashboardFilters({ onFilterChange, userRole }) {
-  const [grades, setGrades] = useState([])
-  const [classes, setClasses] = useState([])
+export default function DashboardFilters({ onFilterChange, userRole, grades = [], classes = [] }) {
   const [selectedGrade, setSelectedGrade] = useState('')
   const [selectedClass, setSelectedClass] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [activeFilters, setActiveFilters] = useState([])
 
-  // Fetch grades and classes from backend
-  useEffect(() => {
-    // Hardcoded filters as per user request
-    setGrades([
-      { id: 10, name: 'Junior' },
-      { id: 11, name: 'Wheeler' },
-      { id: 12, name: 'Senior' }
-    ])
-    setClasses([
-      { id: 1, name: 'A', gradeId: null },
-      { id: 2, name: 'B', gradeId: null },
-      { id: 3, name: 'C', gradeId: null },
-      { id: 4, name: 'D', gradeId: null }
-    ])
-  }, [])
+  // Classes are filtered based on selected grade
+  const filteredClasses = selectedGrade
+    ? classes.filter(c => !c.gradeId || String(c.gradeId) === String(selectedGrade))
+    : classes
 
-  // Classes are constant for all grades now
-  const filteredClasses = classes
+
 
   const handleApplyFilters = () => {
     const filters = {
@@ -41,11 +27,11 @@ export default function DashboardFilters({ onFilterChange, userRole }) {
     const active = []
     if (selectedGrade) {
       const grade = grades.find(g => g.id === parseInt(selectedGrade))
-      if (grade) active.push(grade.name)
+      if (grade) active.push(grade.gradeName || grade.name)
     }
     if (selectedClass) {
       const classItem = classes.find(c => c.id === parseInt(selectedClass))
-      if (classItem) active.push(classItem.name)
+      if (classItem) active.push(classItem.className || classItem.name)
     }
     if (startDate && endDate) {
       active.push(`${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}`)
@@ -137,7 +123,7 @@ export default function DashboardFilters({ onFilterChange, userRole }) {
           >
             <option value="">All Grades</option>
             {grades.map(grade => (
-              <option key={grade.id} value={grade.id}>{grade.name}</option>
+              <option key={grade.id} value={grade.id}>{grade.gradeName || grade.name}</option>
             ))}
           </select>
         </div>
@@ -172,7 +158,7 @@ export default function DashboardFilters({ onFilterChange, userRole }) {
           >
             <option value="">All Classes</option>
             {filteredClasses.map(classItem => (
-              <option key={classItem.id} value={classItem.id}>{classItem.name}</option>
+              <option key={classItem.id} value={classItem.id}>{classItem.className || classItem.name}</option>
             ))}
           </select>
         </div>

@@ -17,7 +17,13 @@ public partial class ExamDetail
 
     public DateTime? EndDate { get; set; }
 
-    public string? Grade { get; set; }
+    public long? GradeId { get; set; }
 
-    public string? Class { get; set; }
+    public long? ClassId { get; set; }
+
+    public long? CreatedBy_AccId { get; set; }
+
+    public long? SubjectId { get; set; }
+
+    public virtual ICollection<StudentExamAnswer> StudentExamAnswers { get; set; } = new List<StudentExamAnswer>();
 }

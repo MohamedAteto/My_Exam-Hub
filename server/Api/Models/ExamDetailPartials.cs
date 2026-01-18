@@ -7,7 +7,7 @@ public partial class ExamDetail
     [NotMapped]
     public virtual ICollection<ExamQuestionBank> ExamQuestionBanks { get; set; } = new List<ExamQuestionBank>();
 
-    [NotMapped]
+    // ExamClasses now properly mapped to Exam_Class junction table
     public virtual ICollection<ExamClass> ExamClasses { get; set; } = new List<ExamClass>(); 
 }
 

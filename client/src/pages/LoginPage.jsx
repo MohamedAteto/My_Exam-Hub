@@ -241,11 +241,12 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false)
 
   // Auto-redirect if already logged in
+  // Auto-redirect if already logged in
   useEffect(() => {
     if (storage.isAuthenticated()) {
       const role = storage.getItem('userRole')
       const roleNorm = String(role || '').toLowerCase()
-      if (roleNorm === 'admin') navigate('/superadmin')
+      if (roleNorm === 'admin' || roleNorm === 'board') navigate('/superadmin')
       else if (roleNorm === 'teacher') navigate('/teacher')
       else if (roleNorm === 'student') navigate('/student')
     }
@@ -271,10 +272,6 @@ export default function LoginPage() {
       setErrorMessage('Please use a valid email address format.')
       return false
     }
-    if (password.length < 6) {
-      setErrorMessage('Password must be at least 6 characters.')
-      return false
-    }
     setErrorMessage('')
     return true
   }
@@ -288,10 +285,9 @@ export default function LoginPage() {
       const response = await api.post('/auth/login', { email, password })
       const { token, roles, fullNameEn, fullNameAr } = response.data
 
-      const roleArray = Array.isArray(roles) ? roles.map(r => String(r)) : []
-      const primaryRole = roleArray.find(r => r.toLowerCase() === 'admin')
-        || roleArray.find(r => r.toLowerCase() === 'teacher')
-        || roleArray.find(r => r.toLowerCase() === 'student')
+      const primaryRole = roles.find(r => r.toLowerCase() === 'admin' || r.toLowerCase() === 'board')
+        || roles.find(r => r.toLowerCase() === 'teacher')
+        || roles.find(r => r.toLowerCase() === 'student')
         || ''
 
       // Use storage utility with persistence flag
@@ -302,7 +298,7 @@ export default function LoginPage() {
       setSuccessMessage('Login successful! Redirecting to your dashboard...')
       setTimeout(() => {
         const roleNorm = String(primaryRole || '').toLowerCase()
-        if (roleNorm === 'admin') navigate('/superadmin')
+        if (roleNorm === 'admin' || roleNorm === 'board') navigate('/superadmin')
         else if (roleNorm === 'teacher') navigate('/teacher')
         else if (roleNorm === 'student') navigate('/student')
         else navigate('/')

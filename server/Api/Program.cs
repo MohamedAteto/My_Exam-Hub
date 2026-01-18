@@ -26,7 +26,11 @@ namespace QuizesApi
             // Database context
             // Database context
             builder.Services.AddDbContext<ElsewedySchoolSysDbDevContext>(options =>
-                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection2")));
+                
+                Console.WriteLine(
+    builder.Configuration.GetConnectionString("DefaultConnection")
+);
 
             // Remove ASP.NET Identity; authenticate directly against Account/AccountRole/Role tables
 
@@ -54,8 +58,8 @@ namespace QuizesApi
             {
                 options.AddPolicy("StudentOnly", policy => policy.RequireRole("Student"));
                 options.AddPolicy("TeacherOnly", policy => policy.RequireRole("Teacher"));
-                options.AddPolicy("SuperadminOnly", policy => policy.RequireRole("Superadmin", "Admin"));
-                options.AddPolicy("TeacherOrAdmin", policy => policy.RequireRole("Teacher", "Superadmin", "Admin"));
+                options.AddPolicy("SuperadminOnly", policy => policy.RequireRole("Superadmin", "Admin", "Board"));
+                options.AddPolicy("TeacherOrAdmin", policy => policy.RequireRole("Teacher", "Superadmin", "Admin", "Board"));
             });
 
             // Add CORS
@@ -64,7 +68,7 @@ namespace QuizesApi
                 options.AddPolicy("AllowFrontend",
                     policy =>
                     {
-                        policy.WithOrigins("http://localhost:5173") 
+                        policy.AllowAnyOrigin()
                               .AllowAnyHeader()
                               .AllowAnyMethod();
                     });
@@ -84,7 +88,7 @@ namespace QuizesApi
                 app.UseSwaggerUI();
             }
 
-            app.UseHttpsRedirection();
+            // app.UseHttpsRedirection();
 
             app.UseCors("AllowFrontend"); 
 

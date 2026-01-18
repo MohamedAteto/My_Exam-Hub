@@ -44,6 +44,8 @@ export default function TeacherPage() {
   const [quizModalData, setQuizModalData] = useState(null)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [selectedAnswers, setSelectedAnswers] = useState({})
+  const [dbGrades, setDbGrades] = useState([])
+  const [dbClasses, setDbClasses] = useState([])
 
   // Modal state
   const [isModalActive, setIsModalActive] = useState(false)
@@ -69,11 +71,22 @@ export default function TeacherPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [quizRes, questionRes] = await Promise.all([
+        const [quizRes, questionRes, lookupRes, studentRes] = await Promise.all([
           api.get("/examdetail"),    // quizzes
-          api.get("/questionbank")   // question banks
-          // api.get("/students")    // لو عندك endpoint للطلاب
+          api.get("/questionbank"),  // question banks
+          api.get("/dashboard/lookup-data"), // lookup data (grades/classes)
+          api.get("/dashboard/students") // students
         ])
+
+        if (lookupRes.data) {
+          console.log('🔍 Lookup Data Received:', lookupRes.data);
+          setDbGrades(lookupRes.data.grades || [])
+          setDbClasses(lookupRes.data.classes || [])
+        }
+
+        if (studentRes.data) {
+          setStudents(studentRes.data);
+        }
 
         const mappedQuizzes = quizRes.data.map(quiz => {
           const questions = (quiz.questions || []).map(q => ({
@@ -85,45 +98,53 @@ export default function TeacherPage() {
             marks: q.mark
           }));
 
+          const gradeName = lookupRes.data?.grades?.find(g => g.id == quiz.gradeId)?.gradeName || quiz.grade || '';
+          const className = lookupRes.data?.classes?.find(c => c.id == quiz.classId)?.className || quiz.class || '';
+
           return {
             examId: quiz.examId,
-            id: quiz.examId, // keep both for compatibility across code paths
+            id: quiz.examId,
             title: quiz.title,
             description: quiz.examDescription,
             examDescription: quiz.examDescription,
-            grade: quiz.grade,
-            class: quiz.class,
-            subject: quiz.examSubject, // Assuming examSubject maps to subject
+            grade: gradeName,
+            gradeId: quiz.gradeId,
+            class: className,
+            classId: quiz.classId,
+            subject: quiz.examSubject,
             startDate: quiz.startDate,
-            datetime: quiz.endDate, // Use endDate as datetime for consistency
+            datetime: quiz.endDate,
             endDate: quiz.endDate,
             created: quiz.createdDate,
             questions: questions,
-            questions_data: questions // Add this for compatibility with existing code
+            questions_data: questions
           };
         })
 
-        // Group questions from /questionbank into conceptual question banks
         const groupedQuestionBanks = questionRes.data.reduce((acc, question) => {
-          const key = question.bankKey || `${question.questionSubject}-${question.grade}`;
+          const gradeId = question.gradeId;
+          const gradeName = lookupRes.data?.grades?.find(g => g.id == gradeId)?.gradeName || '';
+
+          const key = question.bankKey || `${question.questionSubject}-${gradeId}`;
           if (!acc[key]) {
             acc[key] = {
               id: key,
               bankKey: key,
-              title: question.bankTitle || `${question.questionSubject} - ${question.grade} Bank`,
-              description: question.bankDescription || `Questions for ${question.questionSubject} in ${question.grade}`,
-              grade: question.grade || '',
+              title: question.bankTitle || `${question.questionSubject} - ${gradeName} Bank`,
+              description: question.bankDescription || `Questions for ${question.questionSubject} in ${gradeName}`,
+              grade: gradeName,
+              gradeId: gradeId,
               subject: question.questionSubject || '',
-              created: new Date().toISOString(), // Placeholder
+              created: new Date().toISOString(),
               questions: []
             };
           }
           acc[key].questions.push({
             id: question.questionId,
-            type: question.optionC ? (question.optionD ? 'mcq' : (question.optionA && question.optionB ? 'true_false' : 'fill_blank')) : 'fill_blank', // Infer type based on options
+            type: question.optionC ? (question.optionD ? 'mcq' : (question.optionA && question.optionB ? 'true_false' : 'fill_blank')) : 'fill_blank',
             question: question.questionTitle,
             options: [question.optionA, question.optionB, question.optionC, question.optionD].filter(Boolean),
-            correct: question.correctAnswer, // Will map this in the component when rendering
+            correct: question.correctAnswer,
             marks: question.mark
           });
           return acc;
@@ -261,11 +282,11 @@ export default function TeacherPage() {
   function createNewQuiz() {
     setCurrentQuizId(null)
     setCurrentQuizQuestions([])
-    setQuizForm({ title: '', description: '', grade: '', className: '', classIds: [], datetime: '', startDate: '' })
+    setQuizForm({ title: '', description: '', grade: '', gradeId: '', className: '', classIds: [], datetime: '', startDate: '' })
     setCurrentSection('quiz-editor')
   }
 
-  const [quizForm, setQuizForm] = useState({ title: '', description: '', grade: '', className: '', classIds: [], datetime: '', startDate: '' })
+  const [quizForm, setQuizForm] = useState({ title: '', description: '', grade: '', gradeId: '', className: '', classIds: [], datetime: '', startDate: '' })
 
   function editQuiz(quizId) {
     const quiz = quizzes.find((q) => q.examId === quizId)
@@ -273,10 +294,10 @@ export default function TeacherPage() {
     setCurrentQuizId(quizId)
     setQuizForm({
       title: quiz.title,
-      description: quiz.examDescription,
+      gradeId: quiz.gradeId || '',
       grade: quiz.grade,
       className: quiz.class,
-      classIds: quiz.classIds || [],
+      classIds: quiz.classIds || (quiz.classId ? [quiz.classId] : []),
       datetime: quiz.endDate || '',
       startDate: quiz.startDate || '',
     })
@@ -486,9 +507,9 @@ export default function TeacherPage() {
   }
 
   async function saveQuiz() {
-    const { title, description, grade, className, classIds, datetime, startDate } = quizForm
+    const { title, description, gradeId, className, classIds, datetime, startDate } = quizForm
     if (!title.trim()) return window.alert('Please enter a quiz title')
-    if (!grade) return window.alert('Please select a grade')
+    if (!gradeId) return window.alert('Please select a grade')
     if ((!className && (!classIds || classIds.length === 0))) return window.alert('Please select at least one class')
     if (!datetime) return window.alert('Please select date and time for the quiz')
     if (!startDate) return window.alert('Please select a start date for the quiz')
@@ -499,9 +520,9 @@ export default function TeacherPage() {
       title,
       examSubject: 'Mathematics',
       examDescription: description,
-      grade,
-      class: className, // Keep for backward compatibility
-      classIds: classIds && classIds.length > 0 ? classIds : (className ? [] : []), // Multiple classes support
+      gradeId: gradeId ? Number(gradeId) : null,
+      classId: classIds[0] ? Number(classIds[0]) : null, // Handle single classId if needed
+      classIds: (classIds || []).map(Number),
       startDate,
       endDate: datetime,
       questionIds: currentQuizQuestions.map(q => q.id).filter(Boolean),
@@ -588,7 +609,7 @@ export default function TeacherPage() {
     })
   }
 
-  const [bankForm, setBankForm] = useState(() => ({ title: '', description: '', grade: '' }))
+  const [bankForm, setBankForm] = useState(() => ({ title: '', description: '', grade: '', gradeId: '' }))
   const [bankEditorQuestions, setBankEditorQuestions] = useState(() => [])
   const [forceRender, setForceRender] = useState(0)
 
@@ -640,7 +661,7 @@ export default function TeacherPage() {
   function createNewQuestionBank() {
     console.log('🔄 Creating new question bank');
     setCurrentBankId(null)
-    setBankForm({ title: '', description: '', grade: '' })
+    setBankForm({ title: '', description: '', grade: '', gradeId: '' })
     setBankEditorQuestions([])
     try {
       bankKeyRef.current = (crypto && crypto.randomUUID) ? crypto.randomUUID() : `bank-${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -655,7 +676,12 @@ export default function TeacherPage() {
     if (!bank) return
     setCurrentBankId(bankId)
     bankKeyRef.current = bank.bankKey || bank.id
-    setBankForm({ title: bank.title, description: bank.description, grade: bank.grade })
+    setBankForm({
+      title: bank.title,
+      description: bank.description,
+      grade: bank.grade,
+      gradeId: bank.gradeId || ''
+    })
     setBankEditorQuestions(bank.questions.map(q => {
       let correctedQuestion = { ...q };
       // Preserve the original question ID
@@ -754,11 +780,11 @@ export default function TeacherPage() {
 
   async function saveQuestionBank() {
     const title = bankForm.title.trim()
-    const grade = bankForm.grade
+    const gradeId = bankForm.gradeId
     const subject = 'Mathematics' // Assuming subject is always Mathematics for now
 
     if (!title) return window.alert('Please enter a bank title')
-    if (!grade) return window.alert('Please select a grade')
+    if (!gradeId) return window.alert('Please select a grade')
     const questionsToSave = bankEditorQuestions.filter((q) => q.question.trim())
     if (questionsToSave.length === 0) return window.alert('Please add at least one question')
 
@@ -792,18 +818,19 @@ export default function TeacherPage() {
         for (const q of questionsToSave) {
           const questionPayload = {
             bankKey: bankKeyRef.current || currentBankId,
+            accountId: accountId,
+            questionTitle: q.question,
+            optionA: q.options[0] || '',
+            optionB: q.options[1] || '',
+            optionC: q.options[2] || '',
+            optionD: q.options[3] || '',
+            usedOptions: q.options.length,
+            correctAnswer: q.type === 'mcq' ? String.fromCharCode(65 + (Number(q.correct) || 0)) : String(q.correct),
+            questionSubject: 'Mathematics',
+            mark: q.marks || 1,
+            gradeId: bankForm.gradeId ? Number(bankForm.gradeId) : null,
             bankTitle: title,
             bankDescription: bankForm.description || '',
-            grade: grade,
-            questionTitle: q.question,
-            optionA: q.options?.[0] || '',
-            optionB: q.options?.[1] || '',
-            optionC: q.options?.[2] || '',
-            optionD: q.options?.[3] || '',
-            correctAnswer: q.type === 'mcq' ? String.fromCharCode(65 + q.correct) : q.correct.toString(),
-            questionSubject: subject,
-            mark: q.marks ?? 1,
-            accountId: accountId
           };
 
           if (q.id && originalQuestionIds.has(q.id)) {
@@ -847,14 +874,15 @@ export default function TeacherPage() {
             bankKey: bankKeyRef.current,
             bankTitle: title,
             bankDescription: bankForm.description || '',
-            grade: grade,
+            gradeId: bankForm.gradeId ? Number(bankForm.gradeId) : null,
             questionTitle: q.question,
             optionA: q.options?.[0] || '',
             optionB: q.options?.[1] || '',
             optionC: q.options?.[2] || '',
             optionD: q.options?.[3] || '',
-            correctAnswer: q.type === 'mcq' ? String.fromCharCode(65 + q.correct) : q.correct.toString(),
-            questionSubject: subject,
+            usedOptions: q.options?.length || 4,
+            correctAnswer: q.type === 'mcq' ? String.fromCharCode(65 + (Number(q.correct) || 0)) : String(q.correct),
+            questionSubject: 'Mathematics',
             mark: q.marks ?? 1,
             accountId: accountId
           };
@@ -894,7 +922,8 @@ export default function TeacherPage() {
           bankKey: bankKeyRef.current,
           title: title,
           description: bankForm.description || '',
-          grade: grade,
+          gradeId: bankForm.gradeId,
+          grade: dbGrades.find(g => g.id == bankForm.gradeId)?.gradeName || '',
           subject: subject,
           created: new Date().toISOString(),
           questions: questionsToSave.map(q => ({
@@ -920,15 +949,12 @@ export default function TeacherPage() {
         errorMessage = "Failed to fetch (API error). Please check if the server is running and try again.";
       } else if (err.response?.data?.message) {
         errorMessage = `Failed to save question bank: ${err.response.data.message}`;
-      } else if (err.response?.status === 400) {
-        errorMessage = "Invalid data. Please check all fields and try again.";
-      } else if (err.response?.status === 401) {
-        errorMessage = "Unauthorized. Please log in again.";
-      } else if (err.response?.status >= 500) {
-        errorMessage = "Server error. Please try again later.";
+      } else if (err.response?.data?.errors) {
+        errorMessage = `Validation errors: ${JSON.stringify(err.response.data.errors)}`;
       } else if (err.message) {
         errorMessage = `Failed to save question bank: ${err.message}`;
       }
+      console.error("Full error response:", err.response?.data);
       window.alert(errorMessage);
     }
   }
@@ -1054,6 +1080,9 @@ export default function TeacherPage() {
               }
               return null
             })()}
+            allExams={quizzes}
+            grades={dbGrades}
+            classes={dbClasses}
           />
         )
       case 'my-quizzes':
@@ -1146,7 +1175,7 @@ export default function TeacherPage() {
                 questionBanks.map((bank) => (
                   <div key={bank.id} className="bank-card" style={{ background: 'var(--bg-main)', borderRadius: '16px', padding: '1.5rem', boxShadow: 'var(--shadow-md)', borderLeft: '4px solid var(--warning)', transition: 'transform 0.2s ease' }}>
                     <div className="bank-header">
-                      <h3 className="bank-title" style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>{bank.bankName}</h3>
+                      <h3 className="bank-title" style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>{bank.title}</h3>
                       <div className="bank-meta" style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <span>{bank.questions ? bank.questions.length : 0} questions</span>
                         <span>•</span>
@@ -1182,7 +1211,7 @@ export default function TeacherPage() {
               </div>
               <div className="form-group" style={{ marginBottom: '1.5rem' }}>
                 <div className="form-row-three" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '1rem', alignItems: 'end' }}>
-                  <div><label className="form-label" htmlFor="bank-grade" style={{ display: 'block', fontSize: '.875rem', fontWeight: 600, color: '#374151', marginBottom: '.5rem' }}>Grade <span className="required" style={{ color: '#dc2626' }}>*</span></label><select id="bank-grade" className="form-select" style={{ width: '100%', padding: '.75rem', border: '2px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', background: 'white', outline: 'none', cursor: 'pointer' }} value={bankForm?.grade || ''} onChange={(e) => { console.log('🔄 Grade changed:', e.target.value); setBankForm(prev => ({ ...prev, grade: e.target.value })); }} onFocus={(e) => e.target.style.borderColor = '#3b82f6'} onBlur={(e) => e.target.style.borderColor = '#d1d5db'}><option value="">Select grade</option><option value="Grade 10">Grade 10</option><option value="Grade 11">Grade 11</option><option value="Grade 12">Grade 12</option></select></div>
+                  <div><label className="form-label" htmlFor="bank-grade" style={{ display: 'block', fontSize: '.875rem', fontWeight: 600, color: '#374151', marginBottom: '.5rem' }}>Grade <span className="required" style={{ color: '#dc2626' }}>*</span></label><select id="bank-grade" className="form-select" style={{ width: '100%', padding: '.75rem', border: '2px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', background: 'white', outline: 'none', cursor: 'pointer' }} value={bankForm?.gradeId || ''} onChange={(e) => { console.log('🔄 Grade changed:', e.target.value); setBankForm(prev => ({ ...prev, gradeId: e.target.value })); }} onFocus={(e) => e.target.style.borderColor = '#3b82f6'} onBlur={(e) => e.target.style.borderColor = '#d1d5db'}><option value="">Select grade</option>{dbGrades.map(g => (<option key={g.id} value={g.id}>{g.gradeName}</option>))}</select></div>
                   <div className="add-question-quiz-button-container" style={{ display: 'flex', gap: '.5rem' }}><button className="add-question-btn" style={{ display: 'inline-flex', alignItems: 'center', gap: '.5rem', padding: '.75rem 1rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }} onClick={() => { console.log('Add Question clicked'); addBankQuestion(); }} ><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" /></svg>Add Question</button><button className="add-question-btn upload-file" style={{ display: 'inline-flex', alignItems: 'center', gap: '.5rem', padding: '.75rem 1rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }} onClick={() => setShowFileUpload(true)} ><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" /></svg>Upload File</button></div>
                 </div>
               </div>
@@ -1437,7 +1466,7 @@ export default function TeacherPage() {
               </div>
               <div className="form-group" style={{ marginBottom: '1.5rem' }}>
                 <div className="form-row-three" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-                  <div><label className="form-label" htmlFor="quiz-grade" style={{ display: 'block', fontSize: '.875rem', fontWeight: 600, color: '#374151', marginBottom: '.5rem' }}>Grade <span className="required" style={{ color: '#dc2626' }}>*</span></label><select id="quiz-grade" className="form-select" style={{ width: '100%', padding: '.75rem', border: '2px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', background: 'white', outline: 'none' }} value={quizForm.grade} onChange={(e) => setQuizForm({ ...quizForm, grade: e.target.value })} onFocus={(e) => e.target.style.borderColor = '#3b82f6'} onBlur={(e) => e.target.style.borderColor = '#d1d5db'}><option value="">Select grade</option><option value="Grade 10">Grade 10</option><option value="Grade 11">Grade 11</option><option value="Grade 12">Grade 12</option></select></div>
+                  <div><label className="form-label" htmlFor="quiz-grade" style={{ display: 'block', fontSize: '.875rem', fontWeight: 600, color: '#374151', marginBottom: '.5rem' }}>Grade <span className="required" style={{ color: '#dc2626' }}>*</span></label><select id="quiz-grade" className="form-select" style={{ width: '100%', padding: '.75rem', border: '2px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', background: 'white', outline: 'none' }} value={quizForm.gradeId || ''} onChange={(e) => setQuizForm({ ...quizForm, gradeId: e.target.value, grade: e.target.options[e.target.selectedIndex].text })} onFocus={(e) => e.target.style.borderColor = '#3b82f6'} onBlur={(e) => e.target.style.borderColor = '#d1d5db'}><option value="">Select grade</option>{dbGrades.map(g => (<option key={g.id} value={g.id}>{g.gradeName}</option>))}</select></div>
                   <div>
                     <label className="form-label" htmlFor="quiz-class" style={{ display: 'block', fontSize: '.875rem', fontWeight: 600, color: '#374151', marginBottom: '.5rem' }}>Classes <span className="required" style={{ color: '#dc2626' }}>*</span></label>
                     <div className="class-checkbox-list" style={{
@@ -1451,9 +1480,35 @@ export default function TeacherPage() {
                       flexDirection: 'column',
                       gap: '.75rem'
                     }}>
-                      {['Class A', 'Class B', 'Class C', 'Class D'].map((className) => (
+                      {(() => {
+                        if (!quizForm.gradeId) {
+                          return (
+                            <div style={{
+                              color: '#6b7280',
+                              fontSize: '.875rem',
+                              fontStyle: 'italic',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              height: '100%',
+                              textAlign: 'center'
+                            }}>
+                              Please select a grade first to see available classes
+                            </div>
+                          );
+                        }
+                        const filtered = dbClasses.filter(c => Number(c.gradeId) === Number(quizForm.gradeId));
+                        if (filtered.length === 0) {
+                          return (
+                            <div style={{ color: '#6b7280', fontSize: '.875rem', fontStyle: 'italic', textAlign: 'center' }}>
+                              No classes found for this grade
+                            </div>
+                          );
+                        }
+                        return filtered;
+                      })().map?.((cls) => (
                         <label
-                          key={className}
+                          key={cls.id}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -1469,17 +1524,18 @@ export default function TeacherPage() {
                         >
                           <input
                             type="checkbox"
-                            value={className}
-                            checked={(quizForm.classIds || []).includes(className)}
+                            value={cls.id}
+                            checked={(quizForm.classIds || []).includes(cls.id)}
                             onChange={(e) => {
                               const currentIds = quizForm.classIds || []
+                              const val = Number(cls.id)
                               const newIds = e.target.checked
-                                ? [...currentIds, className]
-                                : currentIds.filter(id => id !== className)
+                                ? [...currentIds, val]
+                                : currentIds.filter(id => id !== val)
                               setQuizForm({
                                 ...quizForm,
                                 classIds: newIds,
-                                className: newIds.length === 1 ? newIds[0] : ''
+                                // className: newIds.length === 1 ? dbClasses.find(c => c.id === newIds[0])?.className : ''
                               })
                             }}
                             style={{
@@ -1493,7 +1549,7 @@ export default function TeacherPage() {
                             fontSize: '.875rem',
                             color: '#374151',
                             fontWeight: 500
-                          }}>{className}</span>
+                          }}>{cls.className}</span>
                         </label>
                       ))}
                     </div>
@@ -1787,6 +1843,37 @@ export default function TeacherPage() {
           userRole={userRole || 'Teacher'}
         />
         <div className="main-content" style={{ flex: 1, overflowY: 'auto' }}>
+          {/* Welcome Card */}
+          <div style={{ padding: '1.5rem 2rem 0' }}>
+            <div style={{
+              background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+              padding: '1.5rem 2rem',
+              borderRadius: '16px',
+              color: 'white',
+              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '1rem'
+            }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Hello, {teacherName}! 👋</h2>
+                <p style={{ margin: '0.25rem 0 0', opacity: 0.8, fontSize: '0.9rem' }}>
+                  You are logged in as a <span style={{ color: '#60a5fa', fontWeight: 600 }}>{userRole || 'Teacher'}</span>
+                </p>
+              </div>
+              <div style={{
+                background: 'rgba(255,255,255,0.1)',
+                padding: '0.75rem',
+                borderRadius: '12px',
+                border: '1px solid rgba(255,255,255,0.2)',
+                textAlign: 'right'
+              }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 600, opacity: 0.7 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long' })}</div>
+                <div style={{ fontSize: '1rem', fontWeight: 700 }}>{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+              </div>
+            </div>
+          </div>
           {currentView}
         </div>
 

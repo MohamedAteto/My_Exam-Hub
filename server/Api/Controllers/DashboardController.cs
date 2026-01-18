@@ -26,35 +26,39 @@ public class DashboardController : ControllerBase
     public async Task<ActionResult> GetLookupData()
     {
         var grades = await _context.Grades
-            .Select(g => new { g.Id, g.GradeName })
+            .Select(g => new { id = g.Id, gradeName = g.GradeName })
             .ToListAsync();
         
         var classes = await _context.TblClasses
-            .Select(c => new { c.Id, c.ClassName, c.GradeId })
+            .Select(c => new { id = c.Id, className = c.ClassName, gradeId = c.GradeId })
             .ToListAsync();
+        
+        if (classes.Any()) {
+            var s = classes[0];
+            Console.WriteLine($"[DIAG] Sample Class: ID={s.id}, Name={s.className}, GradeId={s.gradeId}");
+        } else {
+            Console.WriteLine("[DIAG] No classes found in Tbl_Class");
+        }
 
         var exams = await _context.ExamDetails.ToListAsync();
 
         var classMap = classes
-            .Where(c => !string.IsNullOrEmpty(c.ClassName))
-            .GroupBy(c => c.ClassName) // Handle duplicates if any
-            .ToDictionary(g => g.Key, g => g.First().Id);
+            .Where(c => !string.IsNullOrEmpty(c.className))
+            .GroupBy(c => c.className)
+            .ToDictionary(g => g.Key, g => g.First().id);
 
         var gradeMap = grades
-            .Where(g => !string.IsNullOrEmpty(g.GradeName))
-            .GroupBy(g => g.GradeName)
-            .ToDictionary(g => g.Key, g => g.First().Id);
+            .Where(g => !string.IsNullOrEmpty(g.gradeName))
+            .GroupBy(g => g.gradeName)
+            .ToDictionary(g => g.Key, g => g.First().id);
 
         var mappedExams = exams.Select(e => {
-            long? gId = (!string.IsNullOrEmpty(e.Grade) && gradeMap.TryGetValue(e.Grade, out var gid)) ? gid : null;
-            long? cId = (!string.IsNullOrEmpty(e.Class) && classMap.TryGetValue(e.Class, out var cid)) ? cid : null;
-            
             return new {
                 e.ExamId,
                 e.Title,
-                GradeId = gId,
-                ClassId = cId,
-                Classes = cId.HasValue ? new List<long> { cId.Value } : new List<long>()
+                GradeId = e.GradeId,
+                ClassId = e.ClassId,
+                Classes = e.ClassId.HasValue ? new List<long> { e.ClassId.Value } : new List<long>()
             };
         });
 

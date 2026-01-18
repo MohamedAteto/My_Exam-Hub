@@ -2,6 +2,7 @@ namespace QuizesApi.Models;
 
 public class ExamClass
 {
+    public long Id { get; set; }
     public long ExamId { get; set; }
     public long ClassId { get; set; }
 

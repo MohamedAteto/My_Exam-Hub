@@ -3,8 +3,12 @@ import DashboardFilters from './DashboardFilters'
 import DashboardCards from './DashboardCards'
 import DashboardLeaderboard from './DashboardLeaderboard'
 import api from '../api/axios'
+import StatsPieChart from './charts/StatsPieChart'
+import StatsLineChart from './charts/StatsLineChart'
+import StatsBarChart from './charts/StatsBarChart'
+import DashboardCharts from './DashboardCharts'
 
-export default function UnifiedDashboard({ userRole, userId }) {
+export default function UnifiedDashboard({ userRole, userId, allExams = [], grades = [], classes = [] }) {
     const [filters, setFilters] = useState({
         gradeId: null,
         classId: null,
@@ -26,6 +30,7 @@ export default function UnifiedDashboard({ userRole, userId }) {
     // Fetch dashboard data based on role and filters
     useEffect(() => {
         console.log('[UnifiedDashboard] Filters changed:', filters)
+        setSelectedExamId(null) // Reset selection when filters change to avoid showing invalid data
         fetchDashboardData()
     }, [userRole, userId, filters])
 
@@ -69,6 +74,11 @@ export default function UnifiedDashboard({ userRole, userId }) {
 
             const response = await api.get(`${endpoint}?${queryParams.toString()}`)
             const data = response.data
+
+            console.log('[UnifiedDashboard] API Response:', data)
+            console.log('[UnifiedDashboard] scoreDistribution:', data.scoreDistribution)
+            console.log('[UnifiedDashboard] recentExams:', data.recentExams)
+            console.log('[UnifiedDashboard] examBreakdown:', data.examBreakdown)
 
             // Transform data to match card component expectations
             const transformedData = {
@@ -224,6 +234,8 @@ export default function UnifiedDashboard({ userRole, userId }) {
                 <DashboardFilters
                     onFilterChange={handleFilterChange}
                     userRole={userRole}
+                    grades={grades}
+                    classes={classes}
                 />
 
                 {/* Statistics Cards */}
@@ -254,7 +266,7 @@ export default function UnifiedDashboard({ userRole, userId }) {
                         <span style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-secondary)' }}>
                             Selected Exam:
                         </span>
-                        {recentExams.length > 0 ? (
+                        {(allExams && allExams.length > 0) || recentExams.length > 0 ? (
                             <select
                                 value={selectedExamId || ''}
                                 onChange={handleExamChange}
@@ -270,11 +282,18 @@ export default function UnifiedDashboard({ userRole, userId }) {
                                     minWidth: '200px'
                                 }}
                             >
-                                {recentExams.map(exam => (
-                                    <option key={exam.examId} value={exam.examId}>
-                                        {exam.title}
-                                    </option>
-                                ))}
+                                <option value="">Select an exam...</option>
+                                {(allExams && allExams.length > 0 ? allExams : recentExams)
+                                    .filter(exam => {
+                                        if (filters.gradeId && String(exam.gradeId) !== String(filters.gradeId)) return false
+                                        if (filters.classId && String(exam.classId) !== String(filters.classId)) return false
+                                        return true
+                                    })
+                                    .map(exam => (
+                                        <option key={exam.examId || exam.id} value={exam.examId || exam.id}>
+                                            {exam.title}
+                                        </option>
+                                    ))}
                             </select>
                         ) : (
                             <span style={{ fontSize: '0.875rem', fontStyle: 'italic', color: 'var(--text-light)' }}>
@@ -289,12 +308,17 @@ export default function UnifiedDashboard({ userRole, userId }) {
                     leaderboard={leaderboardData}
                     loading={leaderboardLoading}
                     examTitle={
-                        recentExams.find(e => String(e.examId) === String(selectedExamId))?.title || 'Exam Leaderboard'
+                        (allExams.find(e => String(e.examId || e.id) === String(selectedExamId)) ||
+                            recentExams.find(e => String(e.examId) === String(selectedExamId)))?.title || 'Exam Leaderboard'
                     }
                     userRole={userRole}
                     currentUserId={roleNorm === 'student' ? parseInt(userId) : null}
                 />
+
+                {/* Performance Charts */}
+                <DashboardCharts dashboardData={dashboardData} userRole={userRole} />
             </div>
         </div>
     )
 }
+

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 
@@ -48,6 +48,8 @@ public partial class ElsewedySchoolSysDbDevContext : DbContext
     public virtual DbSet<EmploymentRequest> EmploymentRequests { get; set; }
 
     public virtual DbSet<ExamDetail> ExamDetails { get; set; }
+
+    public virtual DbSet<ExamClass> ExamClasses { get; set; }
 
     public virtual DbSet<ExamQuestion> ExamQuestions { get; set; }
 
@@ -135,10 +137,7 @@ public partial class ElsewedySchoolSysDbDevContext : DbContext
 
     public virtual DbSet<Wheeler> Wheelers { get; set; }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseSqlServer("Server=Dbserver;Database=ElsewedySchoolSysDB_DEV;User Id=dev;Password=Elsewedyprojects@IATS2025;Encrypt=False;");
-
+    
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.UseCollation("Arabic_100_CI_AI");
@@ -382,6 +381,34 @@ public partial class ElsewedySchoolSysDbDevContext : DbContext
             entity.Property(e => e.ExamId).HasColumnName("Exam_ID");
             entity.Property(e => e.ExamDescription).HasColumnName("Exam_Description");
             entity.Property(e => e.ExamSubject).HasColumnName("Exam_Subject");
+            entity.Property(e => e.GradeId).HasColumnName("Grade_ID");
+            entity.Property(e => e.ClassId).HasColumnName("Class_ID");
+            entity.Property(e => e.CreatedBy_AccId).HasColumnName("CreatedBy_AccID");
+            entity.Property(e => e.SubjectId).HasColumnName("Subject_ID");
+        });
+
+        modelBuilder.Entity<ExamClass>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Exam_Class__ID");
+
+            entity.ToTable("Exam_Class");
+
+            entity.HasIndex(e => new { e.ExamId, e.ClassId }, "UQ_Exam_Class_ExamId_ClassId").IsUnique();
+
+            entity.Property(e => e.ExamId).HasColumnName("Exam_ID");
+            entity.Property(e => e.ClassId).HasColumnName("Class_ID");
+
+            entity.HasOne(d => d.Exam)
+                .WithMany(p => p.ExamClasses)
+                .HasForeignKey(d => d.ExamId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_ExamClass_ExamDetail");
+
+            entity.HasOne(d => d.Class)
+                .WithMany()
+                .HasForeignKey(d => d.ClassId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_ExamClass_TblClass");
         });
 
         modelBuilder.Entity<ExamQuestion>(entity =>
@@ -573,6 +600,9 @@ public partial class ElsewedySchoolSysDbDevContext : DbContext
             entity.Property(e => e.Mark).HasColumnType("decimal(5, 2)");
             entity.Property(e => e.QuestionSubject).HasColumnName("Question_Subject");
             entity.Property(e => e.QuestionTitle).HasColumnName("Question_Title");
+            entity.Property(e => e.AccountId).HasColumnName("AccountId");
+            entity.Property(e => e.GradeId).HasColumnName("Grade_ID");
+            // ClassId is marked [NotMapped] in the model
         });
 
         modelBuilder.Entity<Report>(entity =>
@@ -708,7 +738,7 @@ public partial class ElsewedySchoolSysDbDevContext : DbContext
         {
             entity.ToTable("StudentExamAnswer");
 
-            entity.HasIndex(e => new { e.AccountId, e.ExamId }, "UQ_StudentExamAnswer_AccountExam").IsUnique();
+            entity.HasIndex(e => new { e.AccountId, e.ExamId, e.QuestionId }, "UQ_StudentExamAnswer_AccountExamQuestion").IsUnique();
 
             entity.HasOne(d => d.Account).WithMany(p => p.StudentExamAnswers)
                 .HasForeignKey(d => d.AccountId)
@@ -716,7 +746,11 @@ public partial class ElsewedySchoolSysDbDevContext : DbContext
 
             entity.HasOne(d => d.Exam).WithMany(p => p.StudentExamAnswers)
                 .HasForeignKey(d => d.ExamId)
-                .HasConstraintName("FK_StudentExamAnswer_ExamQuestion");
+                .HasConstraintName("FK_StudentExamAnswer_Exam");
+
+            entity.HasOne(d => d.Question).WithMany()
+                .HasForeignKey(d => d.QuestionId)
+                .HasConstraintName("FK_StudentExamAnswer_QuestionBank");
         });
 
         modelBuilder.Entity<StudentExamResult>(entity =>

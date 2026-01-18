@@ -10,7 +10,23 @@ public class StudentDashboardDto
     public double FailPercentage { get; set; }
     public LeaderboardDto? LatestExamLeaderboard { get; set; }
     public int? StudentRankInLatestExam { get; set; }
-    public List<ExamSelectionDto> RecentExams { get; set; } = new();
+    public List<StudentRecentExamDto> RecentExams { get; set; } = new();
+    public List<ChartDataPointDto> ScoreDistribution { get; set; } = new();
+}
+
+public class ChartDataPointDto
+{
+    public string Name { get; set; } = string.Empty;
+    public double Value { get; set; }
+}
+
+public class StudentRecentExamDto
+{
+    public long ExamId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public double? StudentScore { get; set; }
+    public double? AverageScore { get; set; }
+    public DateTime Date { get; set; }
 }
 
 // Teacher Dashboard Response
@@ -25,6 +41,7 @@ public class TeacherDashboardDto
     public List<ExamStatsDto> ExamBreakdown { get; set; } = new();
     public LeaderboardDto? LatestExamLeaderboard { get; set; }
     public List<ExamSelectionDto> RecentExams { get; set; } = new();
+    public List<ChartDataPointDto> ScoreDistribution { get; set; } = new();
 }
 
 public class ExamSelectionDto

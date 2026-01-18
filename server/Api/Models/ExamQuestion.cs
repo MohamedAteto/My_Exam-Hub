@@ -21,5 +21,5 @@ public partial class ExamQuestion
 
     public long SectionId { get; set; }
 
-    public virtual ICollection<StudentExamAnswer> StudentExamAnswers { get; set; } = new List<StudentExamAnswer>();
+
 }

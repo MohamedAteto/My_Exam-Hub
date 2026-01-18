@@ -234,6 +234,8 @@ namespace QuizesApi.Controllers
                 dto.Answers.Add(new AnswerDto { QuestionId = missingQid, Answer = string.Empty });
             }
 
+
+
             var studentAnswers = new List<StudentExamAnswer>();
             
             foreach (var answerDto in dto.Answers)
@@ -293,7 +295,8 @@ namespace QuizesApi.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error saving answers", details = ex.Message });
+                Console.WriteLine($"Error saving answers: {ex}");
+                return StatusCode(500, new { message = "Error saving answers", details = ex.Message, inner = ex.InnerException?.Message });
             }
 
             var totalMarks = exam.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0);

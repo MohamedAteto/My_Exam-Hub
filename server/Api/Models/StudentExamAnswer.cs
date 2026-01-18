@@ -19,5 +19,7 @@ public partial class StudentExamAnswer
 
     public virtual Account Account { get; set; } = null!;
 
-    public virtual ExamQuestion Exam { get; set; } = null!;
+    public virtual ExamDetail Exam { get; set; } = null!;
+
+    public virtual QuestionBank? Question { get; set; }
 }

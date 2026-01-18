@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace QuizesApi.Models;
 
@@ -32,4 +33,14 @@ public partial class QuestionBank
     public string? QuestionSubject { get; set; }
 
     public decimal? Mark { get; set; }
+
+    public long? AccountId { get; set; }
+    public long? GradeId { get; set; }
+
+    [NotMapped]
+    public long? ClassId { get; set; }
+
+    public string? BankDescription { get; set; }
+    public string? BankKey { get; set; }
+    public string? BankTitle { get; set; }
 }

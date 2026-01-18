@@ -16,4 +16,10 @@ public class QuestionBankReadDto
     public string CorrectAnswer { get; set; } = string.Empty;
     public string QuestionSubject { get; set; } = string.Empty;
     public decimal Mark { get; set; }
+    public string? BankTitle { get; set; }
+    public string? BankDescription { get; set; }
+    public string? BankKey { get; set; }
+    public long? GradeId { get; set; }
+    public long? AccountId { get; set; }
+    public long? ClassId { get; set; }
 }
