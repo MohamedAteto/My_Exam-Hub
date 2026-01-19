@@ -36,6 +36,12 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
 
     // Fetch leaderboard when filters or exam selection changes
     useEffect(() => {
+        // If an exam is selected (manually or default), always fetch its specific leaderboard
+        if (selectedExamId) {
+            fetchLeaderboard()
+            return
+        }
+
         if (roleNorm === 'student' && dashboardData?.latestExamLeaderboard) {
             setLeaderboardData(dashboardData.latestExamLeaderboard.topStudents || [])
             setLeaderboardLoading(false)
@@ -87,7 +93,10 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                 failPercentage: data.failPercentage || data.averageFailPercentage || data.overallFailPercentage || 0,
                 latestExamLeaderboard: data.latestExamLeaderboard || null,
                 studentRankInLatestExam: data.studentRankInLatestExam || null,
-                topPerformingStudents: data.topPerformingStudents || []
+                topPerformingStudents: data.topPerformingStudents || [],
+                scoreDistribution: data.scoreDistribution || [],
+                recentExams: data.recentExams || [],
+                examBreakdown: data.examBreakdown || []
             }
 
             // Common logic for all roles to set recent exams and default selection
@@ -117,18 +126,20 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
         try {
             setLeaderboardLoading(true)
 
-            if (roleNorm === 'admin' || roleNorm === 'superadmin') {
-                if (dashboardData?.topPerformingStudents) {
-                    setLeaderboardData(dashboardData.topPerformingStudents)
-                }
+            // Priority: Fetch specific exam leaderboard if selected
+            if (selectedExamId) {
+                console.log(`[UnifiedDashboard] Fetching leaderboard for exam ${selectedExamId}`)
+                const response = await api.get(`/dashboard/leaderboard/${selectedExamId}`)
+                setLeaderboardData(response.data.topStudents || [])
                 setLeaderboardLoading(false)
                 return
             }
 
-            if (selectedExamId) {
-                // Fetch leaderboard for ANY role if an exam is selected
-                const response = await api.get(`/dashboard/leaderboard/${selectedExamId}`)
-                setLeaderboardData(response.data.topStudents || [])
+            // Fallback: Admin/Superadmin view global top students if no exam selected
+            if (roleNorm === 'admin' || roleNorm === 'superadmin') {
+                if (dashboardData?.topPerformingStudents) {
+                    setLeaderboardData(dashboardData.topPerformingStudents)
+                }
                 setLeaderboardLoading(false)
                 return
             }
@@ -286,7 +297,15 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                                 {(allExams && allExams.length > 0 ? allExams : recentExams)
                                     .filter(exam => {
                                         if (filters.gradeId && String(exam.gradeId) !== String(filters.gradeId)) return false
-                                        if (filters.classId && String(exam.classId) !== String(filters.classId)) return false
+                                        if (filters.classId) {
+                                            // Check legacy classId
+                                            const matchLegacy = String(exam.classId) === String(filters.classId)
+                                            // Check new classIds array (handle both cases if property exists)
+                                            const classIds = exam.classIds || exam.ClassIds || []
+                                            const matchArray = classIds.some(id => String(id) === String(filters.classId))
+
+                                            if (!matchLegacy && !matchArray) return false
+                                        }
                                         return true
                                     })
                                     .map(exam => (
@@ -321,4 +340,3 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
         </div>
     )
 }
-

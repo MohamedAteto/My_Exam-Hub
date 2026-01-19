@@ -5546,11 +5546,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Seif\\Downloads\\msho3\\server\\api\\QuizesApi.csproj",
+      "projectUniqueName": "C:\\Users\\Seif\\Desktop\\ExamsHub\\Quiz-managent\\server\\api\\QuizesApi.csproj",
       "projectName": "QuizesApi",
-      "projectPath": "C:\\Users\\Seif\\Downloads\\msho3\\server\\api\\QuizesApi.csproj",
+      "projectPath": "C:\\Users\\Seif\\Desktop\\ExamsHub\\Quiz-managent\\server\\api\\QuizesApi.csproj",
       "packagesPath": "C:\\Users\\Seif\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Seif\\Downloads\\msho3\\server\\api\\obj\\",
+      "outputPath": "C:\\Users\\Seif\\Desktop\\ExamsHub\\Quiz-managent\\server\\api\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "D:\\Sdk\\NuGetPackages"

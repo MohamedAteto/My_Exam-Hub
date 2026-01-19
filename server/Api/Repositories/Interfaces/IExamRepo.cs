@@ -6,8 +6,8 @@ namespace QuizesApi.Repositories.Interfaces
     {
         Task<IEnumerable<ExamDetail>> GetAllAsync();
         Task<ExamDetail?> GetByIdAsync(long id);
-        Task AddAsync(ExamDetail exam, List<long> questionIds);
-        Task UpdateAsync(ExamDetail exam, List<long> questionIds);
+        Task AddAsync(ExamDetail exam, List<long> questionIds, List<long>? classIds = null);
+        Task UpdateAsync(ExamDetail exam, List<long> questionIds, List<long>? classIds = null);
         Task DeleteAsync(long id);
         Task SaveChangesAsync();
     }

@@ -71,17 +71,32 @@ export default function TeacherPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [quizRes, questionRes, lookupRes, studentRes] = await Promise.all([
-          api.get("/examdetail"),    // quizzes
-          api.get("/questionbank"),  // question banks
-          api.get("/dashboard/lookup-data"), // lookup data (grades/classes)
-          api.get("/dashboard/students") // students
+        const results = await Promise.allSettled([
+          api.get("/examdetail"),    // quizzes [0]
+          api.get("/questionbank"),  // question banks [1]
+          api.get("/dashboard/lookup-data"), // lookup data (grades/classes) [2]
+          api.get("/dashboard/students") // students [3]
         ])
+
+        const quizRes = results[0].status === 'fulfilled' ? results[0].value : { data: [] };
+        const questionRes = results[1].status === 'fulfilled' ? results[1].value : { data: [] };
+        const lookupRes = results[2].status === 'fulfilled' ? results[2].value : { data: null };
+        const studentRes = results[3].status === 'fulfilled' ? results[3].value : { data: [] };
+
+        // Log errors
+        results.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            const endpoints = ['/examdetail', '/questionbank', '/dashboard/lookup-data', '/dashboard/students'];
+            console.error(`❌ API Error for ${endpoints[index]}:`, result.reason);
+          }
+        });
 
         if (lookupRes.data) {
           console.log('🔍 Lookup Data Received:', lookupRes.data);
           setDbGrades(lookupRes.data.grades || [])
           setDbClasses(lookupRes.data.classes || [])
+        } else {
+          console.warn('⚠️ No lookup data received');
         }
 
         if (studentRes.data) {
@@ -111,6 +126,8 @@ export default function TeacherPage() {
             gradeId: quiz.gradeId,
             class: className,
             classId: quiz.classId,
+            classIds: quiz.classIds || quiz.ClassIds || [],
+            classNames: quiz.classNames || [],
             subject: quiz.examSubject,
             startDate: quiz.startDate,
             datetime: quiz.endDate,
@@ -297,7 +314,7 @@ export default function TeacherPage() {
       gradeId: quiz.gradeId || '',
       grade: quiz.grade,
       className: quiz.class,
-      classIds: quiz.classIds || (quiz.classId ? [quiz.classId] : []),
+      classIds: (quiz.classIds && quiz.classIds.length > 0) ? quiz.classIds : (quiz.classId ? [quiz.classId] : []),
       datetime: quiz.endDate || '',
       startDate: quiz.startDate || '',
     })
@@ -519,7 +536,7 @@ export default function TeacherPage() {
     const quizData = {
       title,
       examSubject: 'Mathematics',
-      examDescription: description,
+      examDescription: description || "",
       gradeId: gradeId ? Number(gradeId) : null,
       classId: classIds[0] ? Number(classIds[0]) : null, // Handle single classId if needed
       classIds: (classIds || []).map(Number),
@@ -599,7 +616,19 @@ export default function TeacherPage() {
       })
     } catch (err) {
       console.error("Error saving quiz:", err)
-      window.alert("Failed to save quiz.")
+      console.log("Failed Payload:", quizData) // Log data for debugging
+
+      let errorMsg = err.response?.data?.message || err.message || "Failed to save quiz."
+
+      // Handle ASP.NET Core Validation Errors
+      if (err.response?.data?.errors) {
+        const validationErrors = Object.entries(err.response.data.errors)
+          .map(([field, messages]) => `${field}: ${messages.join(", ")}`)
+          .join("\n")
+        errorMsg += `\n\nValidation Details:\n${validationErrors}`
+      }
+
+      window.alert(`Error: ${errorMsg}`)
     }
   }
 
@@ -1525,7 +1554,7 @@ export default function TeacherPage() {
                           <input
                             type="checkbox"
                             value={cls.id}
-                            checked={(quizForm.classIds || []).includes(cls.id)}
+                            checked={(quizForm.classIds || []).map(Number).includes(Number(cls.id))}
                             onChange={(e) => {
                               const currentIds = quizForm.classIds || []
                               const val = Number(cls.id)
@@ -1668,134 +1697,428 @@ export default function TeacherPage() {
         )
       case 'students':
         return (
-          <div id="students-view">
-            <div className="content-header">
-              <h1 className="content-title"><svg className="title-icon" viewBox="0 0 24 24"><path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A2.996 2.996 0 0 0 17.06 6c-.8 0-1.54.37-2.01.97l-2.05 2.58c-.26.33-.26.8 0 1.13l2.05 2.58c.47.6 1.21.97 2.01.97.35 0 .69-.07 1-.2V18H20v2h-4z" /></svg>My Students</h1>
-              <p className="content-subtitle">View and manage your students organized by grade and class</p>
-            </div>
-            <div className="grades-grid" id="grades-grid">
-              {getGrades().map((grade) => {
-                const gradeStudents = students.filter(s => s.grade === grade)
-                const avgScore = gradeStudents.length > 0 ? Math.round(
-                  gradeStudents.reduce((total, student) => {
-                    const scores = Object.values(student.quizScores || {})
-                    const studentAvg = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0
-                    return total + studentAvg
-                  }, 0) / gradeStudents.length,
-                ) : 0
-                return (
-                  <div key={grade} className="grade-card" onClick={() => showClassesForGrade(grade)}>
-                    <div className="grade-header">
-                      <div className="grade-icon"><svg viewBox="0 0 24 24"><path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z" /></svg></div>
-                      <div className="grade-info"><h3>{grade}</h3><p>Mathematics Students</p></div>
+          <div style={{ padding: '2rem', background: '#f9fafb', minHeight: '100vh' }}>
+            <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+              <div style={{ marginBottom: '2rem' }}>
+                <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#1f2937', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <svg style={{ width: '32px', height: '32px', fill: '#dc2626' }} viewBox="0 0 24 24">
+                    <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
+                  </svg>
+                  My Students
+                </h1>
+                <p style={{ fontSize: '1rem', color: '#6b7280', margin: 0 }}>Select a grade to view classes and students</p>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+                {getGrades().map((grade) => {
+                  const gradeStudents = students.filter(s => s.grade === grade)
+                  const avgScore = gradeStudents.length > 0 ? Math.round(
+                    gradeStudents.reduce((total, student) => {
+                      const scores = Object.values(student.quizScores || {})
+                      const studentAvg = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0
+                      return total + studentAvg
+                    }, 0) / gradeStudents.length,
+                  ) : 0
+                  return (
+                    <div
+                      key={grade}
+                      onClick={() => showClassesForGrade(grade)}
+                      style={{
+                        background: 'white',
+                        borderRadius: '16px',
+                        padding: '1.5rem',
+                        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)',
+                        border: '1px solid #e5e7eb',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        ':hover': { transform: 'translateY(-4px)', boxShadow: '0 8px 16px rgba(0, 0, 0, 0.1)' }
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 8px 16px rgba(0, 0, 0, 0.1)' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.07)' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                        <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <svg style={{ width: '24px', height: '24px', fill: 'white' }} viewBox="0 0 24 24">
+                            <path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z" />
+                          </svg>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#1f2937', margin: 0 }}>{grade}</h3>
+                          <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>Mathematics</p>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '1rem', borderTop: '1px solid #f3f4f6' }}>
+                        <div>
+                          <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>Students</div>
+                          <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#dc2626' }}>{gradeStudents.length}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>Avg Score</div>
+                          <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#10b981' }}>{avgScore}%</div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="grade-stats"><span>{gradeStudents.length} students</span><span>Avg: {avgScore}%</span></div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
           </div>
         )
       case 'classes':
         return currentGrade && (
-          <div id="classes-view">
-            <div className="content-header">
-              <h1 className="content-title"><svg className="title-icon" viewBox="0 0 24 24"><path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z" /></svg>{currentGrade} Classes</h1>
-              <p className="content-subtitle">Select a class to view students</p>
-            </div>
-            <div className="submit-section submit-section-left">
-              <button type="button" className="back-btn" style={{ padding: '.75rem 2rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }} onClick={backToGrades}>← Back to Grades</button>
-            </div>
-            <div className="classes-grid" id="classes-grid">
-              {getClassesForGrade(currentGrade).map((className) => {
-                const classStudents = getStudentsForClass(currentGrade, className)
-                const avgScore = classStudents.length > 0 ? Math.round(
-                  classStudents.reduce((total, student) => {
-                    const scores = Object.values(student.quizScores || {})
-                    const studentAvg = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0
-                    return total + studentAvg
-                  }, 0) / classStudents.length,
-                ) : 0
-                return (
-                  <div key={className} className="class-card" onClick={() => showStudentsForClass(currentGrade, className)}>
-                    <div className="class-header">
-                      <div className="class-icon"><svg viewBox="0 0 24 24"><path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z" /></svg></div>
-                      <div className="class-info"><h3>{className}</h3><p>{currentGrade} Mathematics</p></div>
+          <div style={{ padding: '2rem', background: '#f9fafb', minHeight: '100vh' }}>
+            <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+              <div style={{ marginBottom: '2rem' }}>
+                <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#1f2937', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <svg style={{ width: '32px', height: '32px', fill: '#dc2626' }} viewBox="0 0 24 24">
+                    <path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z" />
+                  </svg>
+                  {currentGrade} Classes
+                </h1>
+                <p style={{ fontSize: '1rem', color: '#6b7280', margin: 0 }}>Select a class to view students</p>
+              </div>
+
+              <button
+                onClick={backToGrades}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: '#6b7280',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  marginBottom: '1.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                <svg style={{ width: '16px', height: '16px', fill: 'white' }} viewBox="0 0 24 24">
+                  <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+                </svg>
+                Back to Grades
+              </button>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+                {getClassesForGrade(currentGrade).map((className) => {
+                  const classStudents = getStudentsForClass(currentGrade, className)
+                  const avgScore = classStudents.length > 0 ? Math.round(
+                    classStudents.reduce((total, student) => {
+                      const scores = Object.values(student.quizScores || {})
+                      const studentAvg = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0
+                      return total + studentAvg
+                    }, 0) / classStudents.length,
+                  ) : 0
+                  return (
+                    <div
+                      key={className}
+                      onClick={() => showStudentsForClass(currentGrade, className)}
+                      style={{
+                        background: 'white',
+                        borderRadius: '16px',
+                        padding: '1.5rem',
+                        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)',
+                        border: '1px solid #e5e7eb',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 8px 16px rgba(0, 0, 0, 0.1)' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.07)' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                        <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <svg style={{ width: '24px', height: '24px', fill: 'white' }} viewBox="0 0 24 24">
+                            <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z" />
+                          </svg>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#1f2937', margin: 0 }}>{className}</h3>
+                          <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>{currentGrade} Mathematics</p>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '1rem', borderTop: '1px solid #f3f4f6' }}>
+                        <div>
+                          <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>Students</div>
+                          <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#059669' }}>{classStudents.length}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>Avg Score</div>
+                          <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#10b981' }}>{avgScore}%</div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="class-stats"><span>{classStudents.length} students</span><span>Avg: {avgScore}%</span></div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
           </div>
         )
       case 'class-students':
         return currentClass && (
-          <div id="class-students-view">
-            <div className="content-header">
-              <h1 className="content-title" id="class-students-title"><svg className="title-icon" viewBox="0 0 24 24"><path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A2.996 2.996 0 0 0 17.06 6c-.8 0-1.54.37-2.01.97l-2.05 2.58c-.26.33-.26.8 0 1.13l2.05 2.58c.47.6 1.21.97 2.01.97.35 0 .69-.07 1-.2V18H20v2h-4z" /></svg>{currentClass.class} Students</h1>
-              <p className="content-subtitle" id="class-students-subtitle">Students in {currentClass.grade} - {currentClass.class}</p>
-            </div>
-            <div className="submit-section submit-section-left">
-              <button type="button" className="back-btn" style={{ padding: '.75rem 2rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }} onClick={backToClasses}>← Back to Classes</button>
-            </div>
-            <div className="students-list" id="class-students-list">
-              {classStudents.length === 0 ? (
-                <div className="empty-state"><svg className="empty-icon" viewBox="0 0 24 24"><path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A2.996 2.996 0 0 0 17.06 6c-.8 0-1.54.37-2.01.97l-2.05 2.58c-.26.33-.26.8 0 1.13l2.05 2.58c.47.6 1.21.97 2.01.97.35 0 .69-.07 1-.2V18H20v2h-4z" /></svg><h3 className="empty-title">No students in this class</h3><p className="empty-description">This class doesn't have any students yet</p></div>
+          <div style={{ padding: '2rem', background: '#f9fafb', minHeight: '100vh' }}>
+            <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+              <div style={{ marginBottom: '2rem' }}>
+                <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#1f2937', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <svg style={{ width: '32px', height: '32px', fill: '#dc2626' }} viewBox="0 0 24 24">
+                    <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
+                  </svg>
+                  {currentClass.class} Students
+                </h1>
+                <p style={{ fontSize: '1rem', color: '#6b7280', margin: 0 }}>Students in {currentClass.grade} - {currentClass.class}</p>
+              </div>
+
+              <button
+                onClick={backToClasses}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: '#6b7280',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  marginBottom: '1.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                <svg style={{ width: '16px', height: '16px', fill: 'white' }} viewBox="0 0 24 24">
+                  <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+                </svg>
+                Back to Classes
+              </button>
+
+              {getStudentsForClass(currentClass.grade, currentClass.class).length === 0 ? (
+                <div style={{ background: 'white', borderRadius: '16px', padding: '4rem 2rem', textAlign: 'center', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)' }}>
+                  <svg style={{ width: '64px', height: '64px', fill: '#d1d5db', margin: '0 auto 1rem' }} viewBox="0 0 24 24">
+                    <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
+                  </svg>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#374151', marginBottom: '0.5rem' }}>No students in this class</h3>
+                  <p style={{ fontSize: '1rem', color: '#6b7280', margin: 0 }}>This class doesn't have any students yet</p>
+                </div>
               ) : (
-                getStudentsForClass(currentClass.grade, currentClass.class).map((student) => {
-                  const scores = Object.values(student.quizScores || {})
-                  const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0
-                  const completedQuizzes = scores.length
-                  return (
-                    <div key={student.id} className="student-item" onClick={() => showStudentDetail(student.id)}>
-                      <div className="student-header">
-                        <div className="student-info"><div className="student-avatar">{student.initials}</div><div className="student-details"><h3>{student.name}</h3><div className="student-meta">{student.grade} - {student.class}</div></div></div>
-                        <div className="student-stats"><span>{completedQuizzes} quizzes completed</span><span>Avg: {avgScore}%</span></div>
+                <div style={{ display: 'grid', gap: '1rem' }}>
+                  {getStudentsForClass(currentClass.grade, currentClass.class).map((student) => {
+                    const scores = Object.values(student.quizScores || {})
+                    const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0
+                    const completedQuizzes = scores.length
+                    return (
+                      <div
+                        key={student.id}
+                        onClick={() => showStudentDetail(student.id)}
+                        style={{
+                          background: 'white',
+                          borderRadius: '12px',
+                          padding: '1.5rem',
+                          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
+                          border: '1px solid #e5e7eb',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between'
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)'; e.currentTarget.style.transform = 'translateX(4px)' }}
+                        onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.05)'; e.currentTarget.style.transform = 'translateX(0)' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <div style={{
+                            width: '56px',
+                            height: '56px',
+                            borderRadius: '50%',
+                            background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '1.25rem',
+                            fontWeight: '700',
+                            color: 'white'
+                          }}>
+                            {student.initials || student.name?.substring(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <h3 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#1f2937', margin: 0 }}>{student.name}</h3>
+                            <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem' }}>{student.grade} - {student.class}</div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>Exams</div>
+                            <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#059669' }}>{completedQuizzes}</div>
+                          </div>
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>Avg Score</div>
+                            <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#10b981' }}>{avgScore}%</div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  )
-                })
+                    )
+                  })}
+                </div>
               )}
             </div>
           </div>
         )
       case 'student-detail':
-        return selectedStudentId && (
-          <div id="student-detail" className="student-detail active">
-            {(() => {
-              const student = students.find((s) => s.id === selectedStudentId)
-              if (!student) return null
-              return (
-                <>
-                  <div className="student-detail-header">
-                    <div className="student-detail-avatar" id="student-detail-avatar">{student.initials}</div>
-                    <h1 id="student-detail-name">{student.name}</h1>
-                    <p id="student-detail-class">{student.grade} - {student.class}</p>
+        return selectedStudentId && (() => {
+          const student = students.find((s) => s.id === selectedStudentId)
+          if (!student) return null
+
+          const scores = Object.values(student.quizScores || {})
+          const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0
+          const completedExams = scores.length
+          const highestScore = scores.length > 0 ? Math.max(...scores) : 0
+          const lowestScore = scores.length > 0 ? Math.min(...scores) : 0
+
+          return (
+            <div style={{ padding: '2rem', background: '#f9fafb', minHeight: '100vh' }}>
+              <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+                {/* Header with Back Button */}
+                <button
+                  onClick={() => showStudentsForClass(currentClass?.grade || currentGrade, currentClass?.class || '')}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    background: '#6b7280',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    marginBottom: '1.5rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  <svg style={{ width: '16px', height: '16px', fill: 'white' }} viewBox="0 0 24 24">
+                    <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+                  </svg>
+                  Back to Students
+                </button>
+
+                {/* Student Profile Card */}
+                <div style={{ background: 'white', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)', marginBottom: '2rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', marginBottom: '2rem' }}>
+                    <div style={{
+                      width: '96px',
+                      height: '96px',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '2rem',
+                      fontWeight: '700',
+                      color: 'white',
+                      boxShadow: '0 8px 16px rgba(220, 38, 38, 0.3)'
+                    }}>
+                      {student.initials || student.name?.substring(0, 2).toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#1f2937', margin: 0 }}>{student.name}</h1>
+                      <p style={{ fontSize: '1.125rem', color: '#6b7280', margin: '0.5rem 0 0 0' }}>{student.grade} - {student.class}</p>
+                    </div>
                   </div>
-                  <div className="student-detail-content">
-                    <h3 className="student-detail-h3">Quiz Scores</h3>
-                    <div className="quiz-scores" id="student-quiz-scores">
+
+                  {/* Stats Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                    <div style={{ background: '#f0f9ff', borderRadius: '12px', padding: '1.5rem', border: '1px solid #bae6fd' }}>
+                      <div style={{ fontSize: '0.875rem', color: '#0c4a6e', marginBottom: '0.5rem', fontWeight: '600' }}>Exams Completed</div>
+                      <div style={{ fontSize: '2rem', fontWeight: '700', color: '#0369a1' }}>{completedExams}</div>
+                    </div>
+                    <div style={{ background: '#f0fdf4', borderRadius: '12px', padding: '1.5rem', border: '1px solid #bbf7d0' }}>
+                      <div style={{ fontSize: '0.875rem', color: '#14532d', marginBottom: '0.5rem', fontWeight: '600' }}>Average Score</div>
+                      <div style={{ fontSize: '2rem', fontWeight: '700', color: '#15803d' }}>{avgScore}%</div>
+                    </div>
+                    <div style={{ background: '#fef3c7', borderRadius: '12px', padding: '1.5rem', border: '1px solid #fde68a' }}>
+                      <div style={{ fontSize: '0.875rem', color: '#78350f', marginBottom: '0.5rem', fontWeight: '600' }}>Highest Score</div>
+                      <div style={{ fontSize: '2rem', fontWeight: '700', color: '#b45309' }}>{highestScore}%</div>
+                    </div>
+                    <div style={{ background: '#fee2e2', borderRadius: '12px', padding: '1.5rem', border: '1px solid #fecaca' }}>
+                      <div style={{ fontSize: '0.875rem', color: '#7f1d1d', marginBottom: '0.5rem', fontWeight: '600' }}>Lowest Score</div>
+                      <div style={{ fontSize: '2rem', fontWeight: '700', color: '#991b1b' }}>{lowestScore}%</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Exam History Card */}
+                <div style={{ background: 'white', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)' }}>
+                  <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1f2937', marginBottom: '1.5rem' }}>Exam History</h2>
+
+                  {Object.entries(student.quizScores || {}).length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '3rem', color: '#6b7280' }}>
+                      <svg style={{ width: '64px', height: '64px', fill: '#d1d5db', margin: '0 auto 1rem' }} viewBox="0 0 24 24">
+                        <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
+                      </svg>
+                      <p style={{ fontSize: '1.125rem', fontWeight: '600', color: '#374151' }}>No exams completed yet</p>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gap: '1rem' }}>
                       {Object.entries(student.quizScores || {}).map(([quizId, score]) => {
                         const quiz = quizzes.find((q) => q.id == quizId)
                         if (!quiz) return null
-                        let scoreClass = 'score-poor'
-                        if (score >= 90) scoreClass = 'score-excellent'
-                        else if (score >= 75) scoreClass = 'score-good'
+
+                        let bgColor = '#fee2e2'
+                        let borderColor = '#fecaca'
+                        let textColor = '#991b1b'
+                        let badgeBg = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+
+                        if (score >= 90) {
+                          bgColor = '#dcfce7'
+                          borderColor = '#bbf7d0'
+                          textColor = '#15803d'
+                          badgeBg = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
+                        } else if (score >= 75) {
+                          bgColor = '#fef3c7'
+                          borderColor = '#fde68a'
+                          textColor = '#b45309'
+                          badgeBg = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+                        }
+
                         return (
-                          <div key={quizId} className="quiz-score-item">
-                            <div className="quiz-score-info"><h4>{quiz.title}</h4><div className="quiz-score-meta">Completed on {new Date(quiz.created).toLocaleDateString()}</div></div>
-                            <div className={`quiz-score-badge ${scoreClass}`}>{score}%</div>
+                          <div
+                            key={quizId}
+                            style={{
+                              background: bgColor,
+                              border: `1px solid ${borderColor}`,
+                              borderRadius: '12px',
+                              padding: '1.5rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between'
+                            }}
+                          >
+                            <div>
+                              <h4 style={{ fontSize: '1.125rem', fontWeight: '600', color: textColor, margin: 0 }}>{quiz.title}</h4>
+                              <div style={{ fontSize: '0.875rem', color: textColor, marginTop: '0.25rem', opacity: 0.8 }}>
+                                Completed on {new Date(quiz.created).toLocaleDateString()}
+                              </div>
+                            </div>
+                            <div style={{
+                              background: badgeBg,
+                              color: 'white',
+                              padding: '0.75rem 1.5rem',
+                              borderRadius: '999px',
+                              fontSize: '1.5rem',
+                              fontWeight: '700',
+                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                              minWidth: '100px',
+                              textAlign: 'center'
+                            }}>
+                              {score}%
+                            </div>
                           </div>
                         )
                       })}
                     </div>
-                  </div>
-                </>
-              )
-            })()}
-          </div>
-        )
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })()
       case 'profile':
         return (
           <UserProfile

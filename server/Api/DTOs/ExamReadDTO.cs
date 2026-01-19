@@ -14,6 +14,8 @@ namespace QuizesApi.DTOs
         public DateTime EndDate { get; set; }
         public long? GradeId { get; set; }
         public long? ClassId { get; set; }
+        public List<long> ClassIds { get; set; } = new();
+        public List<string> ClassNames { get; set; } = new();
 
         public List<QuestionBankReadDto> Questions { get; set; } = new();
     }
