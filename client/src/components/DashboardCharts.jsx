@@ -8,14 +8,24 @@ export default function DashboardCharts({ dashboardData, userRole }) {
     // Prepare line chart data
     const lineChartData = roleNorm === 'teacher'
         ? (dashboardData?.examBreakdown || []).map(exam => ({
-            Title: exam.examTitle,
+            Title: exam.examTitle || exam.title,
             AverageScore: exam.averageScore
         }))
-        : (dashboardData?.recentExams || [])
+        : (dashboardData?.recentExams || []).map(exam => ({
+            Title: exam.title,
+            StudentScore: exam.studentScore,
+            AverageScore: exam.averageScore
+        }))
+
+    // Prepare bar chart data key mapping (API sends camelCase, Recharts expectation setup in component)
+    const barChartData = (dashboardData?.scoreDistribution || []).map(item => ({
+        Name: item.name,
+        Value: item.value
+    }))
 
     console.log('[DashboardCharts] Dashboard data:', dashboardData)
     console.log('[DashboardCharts] Line chart data:', lineChartData)
-    console.log('[DashboardCharts] Score distribution:', dashboardData?.scoreDistribution)
+    console.log('[DashboardCharts] Bar chart data:', barChartData)
 
     if (!dashboardData) return null
 
@@ -39,7 +49,7 @@ export default function DashboardCharts({ dashboardData, userRole }) {
             />
 
             <StatsBarChart
-                data={dashboardData.scoreDistribution || []}
+                data={barChartData}
                 title="Score Distribution"
             />
         </div>

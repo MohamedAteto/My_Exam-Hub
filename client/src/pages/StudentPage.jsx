@@ -31,6 +31,8 @@ export default function StudentPage() {
   // Real data from backend
   const [exams, setExams] = useState({ available: [], upcoming: [] })
   const [completedExams, setCompletedExams] = useState([])
+  const [dbGrades, setDbGrades] = useState([])
+  const [dbClasses, setDbClasses] = useState([])
 
   // Subject metadata (icons + descriptions) used by DashboardView rendering
   const subjectInfo = useMemo(() => ({
@@ -126,13 +128,20 @@ export default function StudentPage() {
           }
         }
 
-        const [examsRes, completedRes] = await Promise.all([
+        const [examsRes, completedRes, lookupRes] = await Promise.all([
           api.get('/examdetail').catch(() => ({ data: [] })),
-          userId ? api.get(`/studentexamanswer/student/${userId}/exams`).catch(() => ({ data: [] })) : Promise.resolve({ data: [] })
+          userId ? api.get(`/studentexamanswer/student/${userId}/exams`).catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
+          api.get('/dashboard/lookup-data').catch(() => ({ data: { grades: [], classes: [] } }))
         ])
 
         const examsData = examsRes.data || []
         const completedData = completedRes.data || []
+        
+        // Set grades and classes for filters
+        if (lookupRes.data) {
+          setDbGrades(lookupRes.data.grades || [])
+          setDbClasses(lookupRes.data.classes || [])
+        }
 
         // Filter exams into categories
         const now = new Date()
@@ -914,6 +923,9 @@ export default function StudentPage() {
                     }
                     return null
                   })()}
+                  allExams={[...exams.available, ...exams.upcoming]}
+                  grades={dbGrades}
+                  classes={dbClasses}
                 />
               )}
 

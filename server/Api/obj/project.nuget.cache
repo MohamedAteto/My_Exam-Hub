@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "91XGtouiiq4=",
+  "dgSpecHash": "3KLR6/gzD8Y=",
   "success": true,
-  "projectFilePath": "C:\\Users\\Seif\\Downloads\\msho3\\server\\Api\\QuizesApi.csproj",
+  "projectFilePath": "C:\\Users\\Seif\\Desktop\\ExamsHub\\Quiz-managent\\server\\api\\QuizesApi.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Seif\\.nuget\\packages\\automapper\\12.0.1\\automapper.12.0.1.nupkg.sha512",
     "C:\\Users\\Seif\\.nuget\\packages\\automapper.extensions.microsoft.dependencyinjection\\12.0.1\\automapper.extensions.microsoft.dependencyinjection.12.0.1.nupkg.sha512",

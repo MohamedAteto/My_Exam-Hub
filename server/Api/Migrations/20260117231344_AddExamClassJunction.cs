@@ -28,12 +28,12 @@ namespace QuizesApi.Migrations
                         principalTable: "Exam_Details",
                         principalColumn: "Exam_ID",
                         onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_ExamClass_TblClass",
-                        column: x => x.Class_ID,
-                        principalTable: "Tbl_Class",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                    // table.ForeignKey(
+                    //    name: "FK_ExamClass_TblClass",
+                    //    column: x => x.Class_ID,
+                    //    principalTable: "Tbl_Class",
+                    //    principalColumn: "Id",
+                    //    onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(

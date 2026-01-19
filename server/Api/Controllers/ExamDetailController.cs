@@ -43,43 +43,17 @@ namespace QuizesApi.Controllers
                 
                 if (studentExtension != null && studentExtension.ClassId.HasValue)
                 {
-                    // Filter using ClassId directly - students only see exams for their class
-                    exams = exams.Where(e => e.ClassId == studentExtension.ClassId.Value);
+                    // Filter using ExamClasses junction table
+                    // Students see exams assigned to their class (either via ClassId legacy or ExamClasses junction)
+                    var classId = studentExtension.ClassId.Value;
+                    exams = exams.Where(e => 
+                        (e.ClassId.HasValue && e.ClassId == classId) || 
+                        e.ExamClasses.Any(ec => ec.ClassId == classId)
+                    );
                 }
             }
 
-            return Ok(exams.Select(e => new ExamReadDto
-            {
-                ExamId = e.ExamId,
-                Title = e.Title,
-                ExamSubject = e.ExamSubject ?? string.Empty,
-                ExamDescription = e.ExamDescription,
-                Grade = e.GradeId?.ToString() ?? string.Empty,
-                Class = e.ClassId?.ToString() ?? string.Empty,
-                GradeId = e.GradeId,
-                ClassId = e.ClassId,
-                StartDate = e.StartDate.GetValueOrDefault(),
-                EndDate = e.EndDate.GetValueOrDefault(),
-                Questions = e.ExamQuestionBanks
-                    .Where(eq => eq.Question != null)
-                    .Select(eq => new QuestionBankReadDto
-                    {
-                        QuestionId = eq.Question.QuestionId,
-                        QuestionTitle = eq.Question.QuestionTitle,
-                        OptionA = eq.Question.OptionA,
-                        OptionB = eq.Question.OptionB,
-                        OptionC = eq.Question.OptionC,
-                        OptionD = eq.Question.OptionD,
-                        OptionE = eq.Question.OptionE,
-                        OptionF = eq.Question.OptionF,
-                        OptionG = eq.Question.OptionG,
-                        OptionH = eq.Question.OptionH,
-                        UsedOptions = eq.Question.UsedOptions ?? 4,
-                        CorrectAnswer = eq.Question.CorrectAnswer,
-                        QuestionSubject = eq.Question.QuestionSubject,
-                        Mark = eq.Question.Mark ?? 0
-                    }).ToList()
-            }));
+            return Ok(exams.Select(MapToDto));
         }
 
         [HttpGet("{id}")]
@@ -105,48 +79,23 @@ namespace QuizesApi.Controllers
                 
                 if (studentExtension != null && studentExtension.ClassId.HasValue)
                 {
-                    // Access check using ClassId
-                    bool hasAccess = !exam.ClassId.HasValue || exam.ClassId == studentExtension.ClassId.Value;
-
-                    if (!hasAccess)
+                    var classId = studentExtension.ClassId.Value;
+                    
+                    // Access check using ExamClasses junction table
+                    bool hasAccess = (!exam.ClassId.HasValue && !exam.ExamClasses.Any()) || // Public/Global if no classes? (Logic depends on requirements, assuming if assignments exist must match)
+                                     (exam.ClassId.HasValue && exam.ClassId == classId) ||
+                                     exam.ExamClasses.Any(ec => ec.ClassId == classId);
+                                     
+                    // If exam has assignments and user is not in any of them
+                    bool isAssigned = exam.ClassId.HasValue || exam.ExamClasses.Any();
+                    if (isAssigned && !hasAccess)
                     {
                         return StatusCode(403, new { message = "You do not have access to this quiz. It is not assigned to your class." });
                     }
                 }
             }
 
-            return Ok(new ExamReadDto
-            {
-                ExamId = exam.ExamId,
-                Title = exam.Title,
-                ExamSubject = exam.ExamSubject ?? string.Empty,
-                ExamDescription = exam.ExamDescription,
-                Grade = exam.GradeId?.ToString() ?? string.Empty,
-                Class = exam.ClassId?.ToString() ?? string.Empty,
-                GradeId = exam.GradeId,
-                ClassId = exam.ClassId,
-                StartDate = exam.StartDate.GetValueOrDefault(),
-                EndDate = exam.EndDate.GetValueOrDefault(),
-                Questions = exam.ExamQuestionBanks
-                    .Where(eq => eq.Question != null)
-                    .Select(eq => new QuestionBankReadDto
-                    {
-                        QuestionId = eq.Question.QuestionId,
-                        QuestionTitle = eq.Question.QuestionTitle,
-                        OptionA = eq.Question.OptionA,
-                        OptionB = eq.Question.OptionB,
-                        OptionC = eq.Question.OptionC,
-                        OptionD = eq.Question.OptionD,
-                        OptionE = eq.Question.OptionE,
-                        OptionF = eq.Question.OptionF,
-                        OptionG = eq.Question.OptionG,
-                        OptionH = eq.Question.OptionH,
-                        UsedOptions = eq.Question.UsedOptions ?? 4,
-                        CorrectAnswer = eq.Question.CorrectAnswer,
-                        QuestionSubject = eq.Question.QuestionSubject,
-                        Mark = eq.Question.Mark ?? 0
-                    }).ToList()
-            });
+            return Ok(MapToDto(exam));
         }
 
     [HttpPost]
@@ -182,11 +131,10 @@ namespace QuizesApi.Controllers
                     return BadRequest(new { message = $"Account with ID {accountId} does not exist." });
                 }
 
-                // Determine which classes to create exams for
+                // Determine which classes to assign
                 var classIdsToProcess = new List<long>();
                 if (dto.ClassIds != null && dto.ClassIds.Count > 0)
                 {
-                    // Extract class IDs from the ClassIds list
                     foreach (var classIdValue in dto.ClassIds)
                     {
                         if (classIdValue is long longId)
@@ -199,7 +147,6 @@ namespace QuizesApi.Controllers
                 }
                 else if (dto.ClassId.HasValue)
                 {
-                    // Fallback to single ClassId if ClassIds is empty
                     classIdsToProcess.Add(dto.ClassId.Value);
                 }
 
@@ -208,71 +155,31 @@ namespace QuizesApi.Controllers
                     return BadRequest(new { message = "At least one class must be selected." });
                 }
 
-                Console.WriteLine($"[DIAG] Creating {classIdsToProcess.Count} exam(s) for classes: {string.Join(", ", classIdsToProcess)}");
+                Console.WriteLine($"[DIAG] Creating exam for classes: {string.Join(", ", classIdsToProcess)}");
 
-                var createdExams = new List<ExamDetail>();
-
-                // Create one exam for each selected class
-                foreach (var classId in classIdsToProcess)
+                // Create SINGLE exam linked to multiple classes
+                var newExam = new ExamDetail
                 {
-                    var newExam = new ExamDetail
-                    {
-                        Title = dto.Title,
-                        ExamSubject = dto.ExamSubject,
-                        ExamDescription = dto.ExamDescription,
-                        GradeId = dto.GradeId, 
-                        ClassId = classId,
-                        StartDate = dto.StartDate,
-                        EndDate = dto.EndDate,
-                        CreatedBy_AccId = accountId,
-                        SubjectId = dto.SubjectId
-                    };
-                    
-                    await _repo.AddAsync(newExam, dto.QuestionIds);
-                    createdExams.Add(newExam);
-                }
+                    Title = dto.Title,
+                    ExamSubject = dto.ExamSubject,
+                    ExamDescription = dto.ExamDescription,
+                    GradeId = dto.GradeId, 
+                    // Set primary ClassId to first one for backward compatibility, or null
+                    ClassId = classIdsToProcess.FirstOrDefault(),
+                    StartDate = dto.StartDate,
+                    EndDate = dto.EndDate,
+                    CreatedBy_AccId = accountId,
+                    SubjectId = dto.SubjectId
+                };
+                
+                await _repo.AddAsync(newExam, dto.QuestionIds, classIdsToProcess);
 
-                await _repo.SaveChangesAsync();
-
-                // Return the first created exam for backward compatibility
-                var firstExam = createdExams.First();
-                var savedExam = await _repo.GetByIdAsync(firstExam.ExamId);
+                var savedExam = await _repo.GetByIdAsync(newExam.ExamId);
                 if (savedExam == null) return NotFound();
 
-                var examDto = new ExamReadDto
-                {
-                    ExamId = savedExam.ExamId,
-                    Title = savedExam.Title,
-                    ExamSubject = savedExam.ExamSubject ?? string.Empty,
-                    ExamDescription = savedExam.ExamDescription,
-                    Grade = savedExam.GradeId?.ToString() ?? string.Empty,
-                    Class = savedExam.ClassId?.ToString() ?? string.Empty,
-                    GradeId = savedExam.GradeId,
-                    ClassId = savedExam.ClassId,
-                    StartDate = savedExam.StartDate.GetValueOrDefault(),
-                    EndDate = savedExam.EndDate.GetValueOrDefault(),
-                    Questions = savedExam.ExamQuestionBanks
-                        .Where(eq => eq.Question != null)
-                        .Select(eq => new QuestionBankReadDto
-                        {
-                            QuestionId = eq.Question.QuestionId,
-                            QuestionTitle = eq.Question.QuestionTitle,
-                            OptionA = eq.Question.OptionA,
-                            OptionB = eq.Question.OptionB,
-                            OptionC = eq.Question.OptionC,
-                            OptionD = eq.Question.OptionD,
-                            OptionE = eq.Question.OptionE,
-                            OptionF = eq.Question.OptionF,
-                            OptionG = eq.Question.OptionG,
-                            OptionH = eq.Question.OptionH,
-                            UsedOptions = eq.Question.UsedOptions ?? 4,
-                            CorrectAnswer = eq.Question.CorrectAnswer,
-                            QuestionSubject = eq.Question.QuestionSubject,
-                            Mark = eq.Question.Mark ?? 0
-                        }).ToList()
-                };
+                var examDto = MapToDto(savedExam);
 
-                return CreatedAtAction(nameof(GetById), new { id = firstExam.ExamId }, examDto);
+                return CreatedAtAction(nameof(GetById), new { id = savedExam.ExamId }, examDto);
             }
             catch (Exception ex)
             {
@@ -285,37 +192,80 @@ namespace QuizesApi.Controllers
         [HttpPut("{id}")]
         public async Task<ActionResult<ExamReadDto>> Update(long id, ExamUpdateDto dto)
         {
-            var exam = await _repo.GetByIdAsync(id);
-            if (exam == null) return NotFound();
-
-            exam.Title = dto.Title;
-            exam.ExamSubject = dto.ExamSubject;
-            exam.ExamDescription = dto.ExamDescription;
-            exam.GradeId = dto.GradeId;
-            exam.ClassId = dto.ClassId;
-            exam.StartDate = dto.StartDate;
-            exam.EndDate = dto.EndDate;
-            exam.SubjectId = dto.SubjectId;
-
-            await _repo.UpdateAsync(exam, dto.QuestionIds);
-            await _repo.SaveChangesAsync();
-
-            var updatedExam = await _repo.GetByIdAsync(id);
-            if (updatedExam == null) return NotFound();
-
-             var examDto = new ExamReadDto
+            try
             {
-                ExamId = updatedExam.ExamId,
-                Title = updatedExam.Title,
-                ExamSubject = updatedExam.ExamSubject ?? string.Empty,
-                ExamDescription = updatedExam.ExamDescription,
-                Grade = updatedExam.GradeId?.ToString() ?? string.Empty,
-                Class = updatedExam.ClassId?.ToString() ?? string.Empty,
-                GradeId = updatedExam.GradeId,
-                ClassId = updatedExam.ClassId,
-                StartDate = updatedExam.StartDate.GetValueOrDefault(),
-                EndDate = updatedExam.EndDate.GetValueOrDefault(),
-                Questions = updatedExam.ExamQuestionBanks
+                var exam = await _repo.GetByIdAsync(id);
+                if (exam == null) return NotFound();
+
+                exam.Title = dto.Title;
+                exam.ExamSubject = dto.ExamSubject;
+                exam.ExamDescription = dto.ExamDescription;
+                exam.GradeId = dto.GradeId;
+                exam.ClassId = dto.ClassId; // Legacy field
+                exam.StartDate = dto.StartDate;
+                exam.EndDate = dto.EndDate;
+                exam.SubjectId = dto.SubjectId;
+                
+                // Determine ClassIds
+                List<long> classIds = new List<long>();
+                if (dto.ClassIds != null && dto.ClassIds.Any())
+                {
+                    classIds.AddRange(dto.ClassIds);
+                }
+                else if (dto.ClassId.HasValue)
+                {
+                    classIds.Add(dto.ClassId.Value);
+                }
+                
+                // Should ensure ClassId matches the first storage or is handled:
+                if (classIds.Any()) exam.ClassId = classIds.First();
+
+
+                await _repo.UpdateAsync(exam, dto.QuestionIds, classIds);
+                await _repo.SaveChangesAsync();
+
+                var updatedExam = await _repo.GetByIdAsync(id);
+                if (updatedExam == null) return NotFound();
+
+                 var examDto = MapToDto(updatedExam);
+
+                return Ok(examDto);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] Update Quiz Failed: {ex.Message} \nStack: {ex.StackTrace}");
+                if (ex.InnerException != null)
+                     Console.WriteLine($"[Inner] {ex.InnerException.Message}");
+                
+                return StatusCode(500, new { message = $"Failed to save exam: {ex.Message} {(ex.InnerException != null ? " | " + ex.InnerException.Message : "")}" });
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<ActionResult> Delete(long id)
+        {
+            await _repo.DeleteAsync(id);
+            await _repo.SaveChangesAsync();
+            return NoContent();
+        }
+
+        private ExamReadDto MapToDto(ExamDetail e)
+        {
+             return new ExamReadDto
+            {
+                ExamId = e.ExamId,
+                Title = e.Title,
+                ExamSubject = e.ExamSubject ?? string.Empty,
+                ExamDescription = e.ExamDescription,
+                Grade = e.GradeId?.ToString() ?? string.Empty,
+                Class = e.ClassId?.ToString() ?? string.Empty,
+                GradeId = e.GradeId,
+                ClassId = e.ClassId,
+                ClassIds = e.ExamClasses?.Select(ec => ec.ClassId).ToList() ?? new List<long>(),
+                ClassNames = e.ExamClasses?.Select(ec => ec.Class?.ClassName ?? "").Where(n => !string.IsNullOrEmpty(n)).ToList() ?? new List<string>(),
+                StartDate = e.StartDate.GetValueOrDefault(),
+                EndDate = e.EndDate.GetValueOrDefault(),
+                Questions = e.ExamQuestionBanks
                     .Where(eq => eq.Question != null)
                     .Select(eq => new QuestionBankReadDto
                     {
@@ -335,16 +285,6 @@ namespace QuizesApi.Controllers
                         Mark = eq.Question.Mark ?? 0
                     }).ToList()
             };
-
-            return Ok(examDto);
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<ActionResult> Delete(long id)
-        {
-            await _repo.DeleteAsync(id);
-            await _repo.SaveChangesAsync();
-            return NoContent();
         }
     }
 }

@@ -43,14 +43,24 @@ public class DashboardRepo : IDashboardRepo
 
         foreach (var exam in exams)
         {
-            var examLinks = links.Where(l => l.ExamId == exam.ExamId).ToList();
-            foreach (var link in examLinks)
+            try 
             {
-                if (link.QuestionId.HasValue && questions.TryGetValue(link.QuestionId.Value, out var q))
+                var examLinks = links.Where(l => l.ExamId == exam.ExamId).ToList();
+                foreach (var link in examLinks)
                 {
-                    link.Question = q;
-                    exam.ExamQuestionBanks.Add(link);
+                    if (link.QuestionId.HasValue && questions.TryGetValue(link.QuestionId.Value, out var q))
+                    {
+                        link.Question = q;
+                        if (exam.ExamQuestionBanks != null) 
+                        {
+                            exam.ExamQuestionBanks.Add(link);
+                        }
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                 Console.WriteLine($"[ERROR] Failed to populate questions for examid {exam.ExamId}: {ex.Message}");
             }
         }
     }
@@ -313,6 +323,9 @@ public class DashboardRepo : IDashboardRepo
 
                 var score = totalMarks > 0 ? (double)(earnedMarks * 100m / totalMarks) : 0.0;
 
+                // Skip if total marks is 0 (empty exam), don't count as failure
+                if (totalMarks == 0) continue;
+
                 if (score < 50) scoreBuckets["0-50%"]++;
                 else if (score < 70) scoreBuckets["50-70%"]++;
                 else if (score < 85) scoreBuckets["70-85%"]++;
@@ -423,31 +436,11 @@ public class DashboardRepo : IDashboardRepo
             .Include(sea => sea.Account)
             .AsQueryable();
 
-        if (filters != null)
-        {
-            if (filters.GradeId.HasValue)
-            {
-                 if (exam.GradeId != filters.GradeId.Value)
-                 {
-                      return new LeaderboardDto { ExamId = examId, ExamTitle = exam.Title, TopStudents = new(), HighlightedStudents = new(), TotalParticipants = 0 };
-                 }
-            }
-
-            if (filters.ClassId.HasValue)
-            {
-                var studentIdsInClass = await _context.StudentExtensions
-                    .Where(se => se.ClassId == filters.ClassId.Value)
-                    .Select(se => se.AccountId)
-                    .ToListAsync();
-
-                studentAnswersQuery = studentAnswersQuery.Where(sea => studentIdsInClass.Contains(sea.AccountId));
-            }
-
-            if (filters.StartDate.HasValue && exam.EndDate.HasValue && exam.EndDate < filters.StartDate.Value)
-                return new LeaderboardDto { ExamId = examId, ExamTitle = exam.Title, TopStudents = new(), HighlightedStudents = new(), TotalParticipants = 0 };
-            if (filters.EndDate.HasValue && exam.StartDate.HasValue && exam.StartDate > filters.EndDate.Value)
-                return new LeaderboardDto { ExamId = examId, ExamTitle = exam.Title, TopStudents = new(), HighlightedStudents = new(), TotalParticipants = 0 };
-        }
+        // IMPORTANT: Filters are NOT applied to leaderboards.
+        // Leaderboards ALWAYS show ALL students who took the exam.
+        // Filters only control which exams appear in the dashboard exam list.
+        // This ensures that when you select an exam, you see the complete leaderboard
+        // for that exam, regardless of any grade/class/date filters you've applied.
 
         var studentAnswers = await studentAnswersQuery.ToListAsync();
         var studentIds = studentAnswers.Select(sa => sa.AccountId).Distinct().ToList();
@@ -679,13 +672,15 @@ public class DashboardRepo : IDashboardRepo
 
             query = query.Where(e => 
                 e.GradeId == filters.GradeId.Value || 
-                (e.ClassId.HasValue && allowedClassIds.Contains(e.ClassId.Value))
+                (e.ClassId.HasValue && allowedClassIds.Contains(e.ClassId.Value)) ||
+                e.ExamClasses.Any(ec => allowedClassIds.Contains(ec.ClassId))
             );
         }
 
         if (filters.ClassId.HasValue)
         {
-            query = query.Where(e => e.ClassId == filters.ClassId.Value);
+            var filterClassId = filters.ClassId.Value;
+            query = query.Where(e => e.ClassId == filterClassId || e.ExamClasses.Any(ec => ec.ClassId == filterClassId));
         }
 
         if (filters.StartDate.HasValue)

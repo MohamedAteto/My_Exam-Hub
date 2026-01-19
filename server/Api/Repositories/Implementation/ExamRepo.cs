@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using QuizesApi.Models;
 using QuizesApi.Repositories.Interfaces;
+using System.Linq;
 
 public class ExamRepo : IExamRepo
 {
@@ -13,7 +14,10 @@ public class ExamRepo : IExamRepo
 
     public async Task<IEnumerable<ExamDetail>> GetAllAsync()
     {
-        var exams = await _context.ExamDetails.ToListAsync();
+        var exams = await _context.ExamDetails
+            .Include(e => e.ExamClasses)
+                .ThenInclude(ec => ec.Class)
+            .ToListAsync();
         
         // Manual population of ExamQuestionBanks
         var allLinks = await _context.ExamQuestionBanks.ToListAsync();
@@ -37,7 +41,10 @@ public class ExamRepo : IExamRepo
 
     public async Task<ExamDetail?> GetByIdAsync(long id)
     {
-        var exam = await _context.ExamDetails.FirstOrDefaultAsync(e => e.ExamId == id);
+        var exam = await _context.ExamDetails
+            .Include(e => e.ExamClasses)
+                .ThenInclude(ec => ec.Class)
+            .FirstOrDefaultAsync(e => e.ExamId == id);
         if (exam == null) return null;
 
         // Manual population
@@ -58,7 +65,7 @@ public class ExamRepo : IExamRepo
         return exam;
     }
 
-    public async Task AddAsync(ExamDetail exam, List<long> questionIds)
+    public async Task AddAsync(ExamDetail exam, List<long> questionIds, List<long>? classIds = null)
     {
         await _context.ExamDetails.AddAsync(exam);
         await _context.SaveChangesAsync(); // Save to get ExamId
@@ -72,25 +79,72 @@ public class ExamRepo : IExamRepo
             };
             await _context.ExamQuestionBanks.AddAsync(link);
         }
+
+        if (classIds != null && classIds.Any())
+        {
+            foreach (var cId in classIds)
+            {
+                var examClass = new ExamClass
+                {
+                    ExamId = exam.ExamId,
+                    ClassId = cId
+                };
+                await _context.Set<ExamClass>().AddAsync(examClass);
+            }
+            await _context.SaveChangesAsync();
+        }
     }
 
-    public async Task UpdateAsync(ExamDetail exam, List<long> questionIds)
+    public async Task UpdateAsync(ExamDetail exam, List<long> questionIds, List<long>? classIds = null)
     {
         // Update ExamDetail fields
         _context.ExamDetails.Update(exam);
 
-        // Update Links
-        var oldLinks = await _context.ExamQuestionBanks.Where(eq => eq.ExamId == exam.ExamId).ToListAsync();
-        _context.ExamQuestionBanks.RemoveRange(oldLinks);
+        // SYNC ExamQuestionBanks
+        var currentLinks = await _context.ExamQuestionBanks.Where(eq => eq.ExamId == exam.ExamId).ToListAsync();
+        var currentQIds = currentLinks.Select(l => l.QuestionId ?? 0).ToList();
 
-        foreach (var qId in questionIds)
+        // Identify removal
+        var linksToRemove = currentLinks.Where(l => l.QuestionId.HasValue && !questionIds.Contains(l.QuestionId.Value)).ToList();
+        if (linksToRemove.Any())
         {
-            var link = new ExamQuestionBank
+            _context.ExamQuestionBanks.RemoveRange(linksToRemove);
+        }
+
+        // Identify additions
+        var qIdsToAdd = questionIds.Where(id => !currentQIds.Contains(id)).Distinct().ToList();
+        foreach (var qId in qIdsToAdd)
+        {
+            await _context.ExamQuestionBanks.AddAsync(new ExamQuestionBank
             {
                 ExamId = exam.ExamId,
                 QuestionId = qId
-            };
-            await _context.ExamQuestionBanks.AddAsync(link);
+            });
+        }
+
+        // SYNC ExamClasses (Junction Table)
+        if (classIds != null)
+        {
+            // Note: Since we are using Set<ExamClass>(), we don't have a direct DbSet property exposed maybe? 
+            // The code previously used Set<ExamClass>().
+            var currentClassLinks = await _context.Set<ExamClass>().Where(ec => ec.ExamId == exam.ExamId).ToListAsync();
+            var currentCIds = currentClassLinks.Select(c => c.ClassId).ToList();
+
+            var classesToRemove = currentClassLinks.Where(c => !classIds.Contains(c.ClassId)).ToList();
+            if (classesToRemove.Any())
+            {
+                _context.Set<ExamClass>().RemoveRange(classesToRemove);
+            }
+
+            var classesToAdd = classIds.Where(id => !currentCIds.Contains(id)).Distinct().ToList();
+            foreach (var cId in classesToAdd)
+            {
+                await _context.Set<ExamClass>().AddAsync(new ExamClass
+                {
+                    ExamId = exam.ExamId,
+                    ClassId = cId
+                });
+            }
         }
     }
 
@@ -102,6 +156,9 @@ public class ExamRepo : IExamRepo
             // Manual specific cascade delete if needed, usually DB handles it or we should remove links
             var links = await _context.ExamQuestionBanks.Where(eq => eq.ExamId == id).ToListAsync();
             _context.ExamQuestionBanks.RemoveRange(links);
+            
+            var classLinks = await _context.Set<ExamClass>().Where(ec => ec.ExamId == id).ToListAsync();
+            _context.Set<ExamClass>().RemoveRange(classLinks);
             
             _context.ExamDetails.Remove(entity);
         }
