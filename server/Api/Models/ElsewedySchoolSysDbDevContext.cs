@@ -714,10 +714,11 @@ public partial class ElsewedySchoolSysDbDevContext : DbContext
         {
             entity.ToTable("StudentExamAnswer");
 
-            entity.Property(e => e.QuestionbankId).HasColumnName("QuestionbankId");
+            entity.Property(e => e.QuestionBankId).HasColumnName("QuestionBankID");
             entity.Property(e => e.ExamDetailsId).HasColumnName("ExamDetailsID");
+            entity.Property(e => e.ExamQuestionId).HasColumnName("ExamQuestionID");
 
-            entity.HasIndex(e => new { e.AccountId, e.ExamDetailsId, e.QuestionbankId }, "UQ_StudentExamAnswer_AccountExamQuestion").IsUnique();
+            entity.HasIndex(e => new { e.AccountId, e.ExamDetailsId, e.QuestionBankId }, "UQ_StudentExamAnswer_AccountExamQuestion").IsUnique();
 
             entity.HasOne(d => d.Account).WithMany(p => p.StudentExamAnswers)
                 .HasForeignKey(d => d.AccountId)
@@ -727,8 +728,8 @@ public partial class ElsewedySchoolSysDbDevContext : DbContext
                 .HasForeignKey(d => d.ExamDetailsId)
                 .HasConstraintName("FK_StudentExamAnswer_ExamDetail");
 
-            entity.HasOne(d => d.Questionbank).WithMany()
-                .HasForeignKey(d => d.QuestionbankId)
+            entity.HasOne(d => d.QuestionBank).WithMany()
+                .HasForeignKey(d => d.QuestionBankId)
                 .HasConstraintName("FK_StudentExamAnswer_QuestionBank");
         });
 

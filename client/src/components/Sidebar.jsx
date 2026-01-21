@@ -60,7 +60,7 @@ const Sidebar = ({
   const role = userRole ? userRole.toLowerCase() : '';
   const isStudent = role === 'student';
   const isTeacher = role === 'teacher';
-  const isAdmin = role === 'admin' || role === 'superadmin';
+  const isAdmin = role === 'admin' || role === 'superadmin' || role === 'board';
 
   return (
     <>

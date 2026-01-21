@@ -61,6 +61,9 @@ public class SuperadminDashboardDto
     public List<LeaderboardEntryDto> TopPerformingStudents { get; set; } = new();
     public List<TopTeacherDto> TopPerformingTeachers { get; set; } = new();
     public List<RecentActivityDto> RecentActivity { get; set; } = new();
+    public List<ExamSelectionDto> RecentExams { get; set; } = new();
+    public List<ChartDataPointDto> ScoreDistribution { get; set; } = new();
+    public List<ExamStatsDto> ExamBreakdown { get; set; } = new();
 }
 
 // Leaderboard Response

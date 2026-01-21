@@ -190,7 +190,7 @@ public class DashboardController : ControllerBase
     /// </summary>
     /// <returns>Superadmin dashboard with global statistics</returns>
     [HttpGet("superadmin")]
-    [Authorize(Roles = "Superadmin,Admin")] // Only superadmin/admin can access
+    [Authorize(Roles = "Superadmin,Admin,Board")] // Only superadmin/admin/board can access
     public async Task<ActionResult<SuperadminDashboardDto>> GetSuperadminDashboard(
         [FromQuery] long? gradeId = null,
         [FromQuery] long? classId = null,

@@ -280,7 +280,8 @@ namespace QuizesApi.Controllers
                         CorrectAnswer = eq.Question.CorrectAnswer,
                         QuestionSubject = eq.Question.QuestionSubject,
                         Mark = eq.Question.Mark ?? 0
-                    }).ToList()
+                    }).ToList(),
+                TotalMarks = e.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0)
             };
         }
     }

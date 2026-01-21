@@ -141,6 +141,7 @@ export default function DashboardCards({ data, loading, userRole }) {
             {cards.map((card, index) => (
                 <div
                     key={index}
+                    className={`animate-card stagger-${index + 1}`}
                     style={{
                         background: 'var(--bg-main)',
                         borderRadius: '16px',

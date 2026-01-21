@@ -32,7 +32,7 @@ const router = createBrowserRouter([
   {
     path: '/superadmin',
     element: (
-      <ProtectedRoute allowedRoles={['admin']}>
+      <ProtectedRoute allowedRoles={['admin', 'superadmin', 'board']}>
         <SuperAdminPage />
       </ProtectedRoute>
     )
@@ -40,7 +40,7 @@ const router = createBrowserRouter([
   {
     path: '/student-details',
     element: (
-      <ProtectedRoute allowedRoles={['admin']}>
+      <ProtectedRoute allowedRoles={['admin', 'superadmin', 'board']}>
         <StudentDetailsPage />
       </ProtectedRoute>
     )

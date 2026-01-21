@@ -73,6 +73,7 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                     break
                 case 'superadmin':
                 case 'admin':
+                case 'board':
                     endpoint = '/dashboard/superadmin'
                     break
                 default:

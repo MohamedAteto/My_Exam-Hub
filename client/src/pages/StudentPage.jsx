@@ -136,7 +136,7 @@ export default function StudentPage() {
 
         const examsData = examsRes.data || []
         const completedData = completedRes.data || []
-        
+
         // Set grades and classes for filters
         if (lookupRes.data) {
           setDbGrades(lookupRes.data.grades || [])
@@ -746,7 +746,11 @@ export default function StudentPage() {
       }
     })
 
-    return { available, upcoming, completed }
+    return {
+      available,
+      upcoming,
+      completed: completed.sort((a, b) => new Date(b.deadline) - new Date(a.deadline))
+    }
   }, [exams, completedExams])
 
   return (
@@ -759,7 +763,7 @@ export default function StudentPage() {
         userRole="Student"
       />
 
-      <div className="main-content">
+      <div className="main-content section-transition">
         {loading ? (
           <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
             <div style={{ marginBottom: '2rem' }}>

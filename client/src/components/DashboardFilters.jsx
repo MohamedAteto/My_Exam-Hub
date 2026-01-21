@@ -64,8 +64,9 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
       background: 'var(--bg-main)',
       borderRadius: '16px',
       padding: '1.5rem',
-      boxShadow: 'var(--shadow-sm)',
-      marginBottom: '2rem'
+      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
+      marginBottom: '1.5rem',
+      border: '1px solid #f1f3f5'
     }}>
       <div style={{
         display: 'flex',

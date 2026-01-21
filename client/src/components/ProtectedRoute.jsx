@@ -44,7 +44,7 @@ export default function ProtectedRoute({ children, allowedRoles }) {
 
         if (!hasAccess) {
             // Redirect to appropriate page based on user's actual role
-            if (userRoles.includes('admin')) {
+            if (userRoles.includes('admin') || userRoles.includes('board') || userRoles.includes('superadmin')) {
                 return <Navigate to="/superadmin" replace />
             } else if (userRoles.includes('teacher')) {
                 return <Navigate to="/teacher" replace />

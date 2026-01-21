@@ -102,7 +102,7 @@ public class DashboardRepo : IDashboardRepo
 
             var totalMarks = (double)exam.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0);
             var earnedMarks = (double)answers.Where(a => a.Score).Sum(a =>
-                exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId == a.QuestionbankId)?.Question?.Mark ?? 0);
+                exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId == a.QuestionBankId)?.Question?.Mark ?? 0);
 
             var score = totalMarks > 0 ? (earnedMarks * 100.0 / totalMarks) : 0.0;
 
@@ -152,7 +152,7 @@ public class DashboardRepo : IDashboardRepo
 
             var totalMarks = (double)exam.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0);
             var earnedMarks = (double)answers.Where(a => a.Score).Sum(a =>
-                exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId == a.QuestionbankId)?.Question?.Mark ?? 0);
+                exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId == a.QuestionBankId)?.Question?.Mark ?? 0);
 
             var studentScore = totalMarks > 0 ? (earnedMarks * 100.0 / totalMarks) : 0.0;
 
@@ -166,7 +166,7 @@ public class DashboardRepo : IDashboardRepo
             {
                 var studentAns = examAnswers.Where(a => a.AccountId == sid).ToList();
                 var earned = (double)studentAns.Where(a => a.Score).Sum(a =>
-                    exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId == a.QuestionbankId)?.Question?.Mark ?? 0);
+                    exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId == a.QuestionBankId)?.Question?.Mark ?? 0);
                 var scoreForStudent = totalMarks > 0 ? (earned * 100.0 / totalMarks) : 0.0;
                 totalScoreForExam += scoreForStudent;
                 studentCount++;
@@ -257,7 +257,7 @@ public class DashboardRepo : IDashboardRepo
 
                 var totalMarks = exam.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0);
                 var earnedMarks = studentAnswers.Where(a => a.Score).Sum(a =>
-                    exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId.HasValue && eq.QuestionId.Value == a.QuestionbankId)?.Question?.Mark ?? 0);
+                    exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId.HasValue && eq.QuestionId.Value == a.QuestionBankId)?.Question?.Mark ?? 0);
 
                 var score = totalMarks > 0 ? (double)(earnedMarks * 100m / totalMarks) : 0.0;
                 examTotalScore += score;
@@ -322,7 +322,7 @@ public class DashboardRepo : IDashboardRepo
                 var studentAnswers = examAnswers.Where(a => a.AccountId == studentId).ToList();
                 var totalMarks = exam.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0);
                 var earnedMarks = studentAnswers.Where(a => a.Score).Sum(a =>
-                    exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId.HasValue && eq.QuestionId.Value == a.QuestionbankId)?.Question?.Mark ?? 0);
+                    exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId.HasValue && eq.QuestionId.Value == a.QuestionBankId)?.Question?.Mark ?? 0);
 
                 var score = totalMarks > 0 ? (double)(earnedMarks * 100m / totalMarks) : 0.0;
 
@@ -388,29 +388,82 @@ public class DashboardRepo : IDashboardRepo
 
         int totalPassed = 0;
         int totalFailed = 0;
+        
+        var scoreBuckets = new Dictionary<string, int>
+        {
+            { "0-50%", 0 },
+            { "50-70%", 0 },
+            { "70-85%", 0 },
+            { "85-100%", 0 }
+        };
+
+        var examBreakdown = new List<ExamStatsDto>();
 
         foreach (var exam in allFilteredExams)
         {
             var answers = allStudentAnswers.Where(sea => sea.ExamDetailsId == exam.ExamId).ToList();
-            var studentIds = answers.Select(a => a.AccountId).Distinct();
+            var studentIds = answers.Select(a => a.AccountId).Distinct().ToList();
             
+            int examPassed = 0;
+            int examFailed = 0;
+            double examTotalScore = 0;
+
             foreach (var studentId in studentIds)
             {
                 var studentAnswers = answers.Where(a => a.AccountId == studentId).ToList();
                 var totalMarks = (double)exam.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0);
                 var earnedMarks = (double)studentAnswers.Where(a => a.Score).Sum(a =>
-                    exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId == a.QuestionbankId)?.Question?.Mark ?? 0);
+                    exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId == a.QuestionBankId)?.Question?.Mark ?? 0);
 
                 var score = totalMarks > 0 ? (earnedMarks * 100.0 / totalMarks) : 0.0;
+                examTotalScore += score;
 
-                if (score >= PassThreshold) totalPassed++;
-                else totalFailed++;
+                if (score >= PassThreshold) 
+                {
+                    totalPassed++;
+                    examPassed++;
+                }
+                else 
+                {
+                    totalFailed++;
+                    examFailed++;
+                }
+
+                if (totalMarks > 0)
+                {
+                    if (score < 50) scoreBuckets["0-50%"]++;
+                    else if (score < 70) scoreBuckets["50-70%"]++;
+                    else if (score < 85) scoreBuckets["70-85%"]++;
+                    else scoreBuckets["85-100%"]++;
+                }
+            }
+
+            if (studentIds.Any())
+            {
+                examBreakdown.Add(new ExamStatsDto
+                {
+                    ExamId = exam.ExamId,
+                    ExamTitle = exam.Title,
+                    TotalStudents = studentIds.Count,
+                    PassedStudents = examPassed,
+                    FailedStudents = examFailed,
+                    PassPercentage = Math.Round((double)examPassed / studentIds.Count * 100, 2),
+                    FailPercentage = Math.Round((double)examFailed / studentIds.Count * 100, 2),
+                    AverageScore = Math.Round(examTotalScore / studentIds.Count, 2)
+                });
             }
         }
 
         int totalStudentExamInstances = totalPassed + totalFailed;
         double overallPassPercentage = totalStudentExamInstances > 0 ? Math.Round((double)totalPassed / totalStudentExamInstances * 100, 2) : 0;
         double overallFailPercentage = totalStudentExamInstances > 0 ? Math.Round(100 - overallPassPercentage, 2) : 0;
+
+        var scoreDistribution = scoreBuckets.Select(b => new ChartDataPointDto { Name = b.Key, Value = b.Value }).ToList();
+        var recentExams = allFilteredExams
+            .OrderByDescending(e => e.StartDate)
+            .Take(10)
+            .Select(e => new ExamSelectionDto { ExamId = e.ExamId, Title = e.Title ?? "Untitled Exam" })
+            .ToList();
 
         var topStudents = await GetTopPerformingStudentsAsync(10);
         var topTeachers = new List<TopTeacherDto>(); 
@@ -425,7 +478,10 @@ public class DashboardRepo : IDashboardRepo
             OverallFailPercentage = overallFailPercentage,
             TopPerformingStudents = topStudents,
             TopPerformingTeachers = topTeachers,
-            RecentActivity = recentActivity
+            RecentActivity = recentActivity,
+            RecentExams = recentExams,
+            ScoreDistribution = scoreDistribution,
+            ExamBreakdown = examBreakdown
         };
     }
 
@@ -453,7 +509,7 @@ public class DashboardRepo : IDashboardRepo
             
             var totalMarks = (double)exam.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0);
             var earnedMarks = (double)answers.Where(a => a.Score).Sum(a =>
-                exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId == a.QuestionbankId)?.Question?.Mark ?? 0);
+                exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId == a.QuestionBankId)?.Question?.Mark ?? 0);
 
             var score = totalMarks > 0 ? Math.Round((earnedMarks * 100.0 / totalMarks), 2) : 0.0;
 
@@ -505,7 +561,7 @@ public class DashboardRepo : IDashboardRepo
 
             var totalMarks = (double)exam.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0);
             var earnedMarks = (double)answers.Where(a => a.Score).Sum(a =>
-                exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId == a.QuestionbankId)?.Question?.Mark ?? 0);
+                exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId == a.QuestionBankId)?.Question?.Mark ?? 0);
 
             var score = totalMarks > 0 ? (earnedMarks * 100.0 / totalMarks) : 0.0;
             totalScore += score;
@@ -581,7 +637,7 @@ public class DashboardRepo : IDashboardRepo
 
                 var totalMarks = (double)exam.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0);
                 var earnedMarks = (double)group.Where(a => a.Score).Sum(a =>
-                    exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId == a.QuestionbankId)?.Question?.Mark ?? 0);
+                    exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId == a.QuestionBankId)?.Question?.Mark ?? 0);
 
                 var score = totalMarks > 0 ? (earnedMarks * 100.0 / totalMarks) : 0.0;
                 totalScore += score;
@@ -757,7 +813,7 @@ public class DashboardRepo : IDashboardRepo
                 var totalMarks = (double)exam.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0);
                 
                 var earnedMarks = (double)answers.Where(a => a.Score).Sum(a =>
-                    exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId == a.QuestionbankId)?.Question?.Mark ?? 0);
+                    exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId == a.QuestionBankId)?.Question?.Mark ?? 0);
 
                 var score = totalMarks > 0 ? Math.Round((earnedMarks * 100.0 / totalMarks), 2) : 0.0;
                 studentScores[examId.ToString()] = score;

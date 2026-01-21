@@ -111,6 +111,7 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                     return (
                         <div
                             key={entry.studentId || index}
+                            className={`animate-card stagger-${(index % 5) + 1}`}
                             style={{
                                 background: isTopThree ? medal.bg : 'var(--bg-surface)',
                                 border: `2px solid ${isCurrentUser ? 'var(--primary)' : medal.border}`,

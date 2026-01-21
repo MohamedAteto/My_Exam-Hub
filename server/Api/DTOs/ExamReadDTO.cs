@@ -18,5 +18,6 @@ namespace QuizesApi.DTOs
         public List<string> ClassNames { get; set; } = new();
 
         public List<QuestionBankReadDto> Questions { get; set; } = new();
+        public decimal TotalMarks { get; set; }
     }
 }

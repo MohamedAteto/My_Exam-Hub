@@ -9,6 +9,7 @@ import DashboardView from '../components/DashboardView'
 import QuizModal from '../components/QuizModal'
 import ErrorBoundary from '../components/ErrorBoundary'
 import UnifiedDashboard from '../components/UnifiedDashboard'
+import DashboardFilters from '../components/DashboardFilters'
 import api from '../api/axios.js'
 import { storage } from '../utils/storage'
 
@@ -46,6 +47,12 @@ export default function TeacherPage() {
   const [selectedAnswers, setSelectedAnswers] = useState({})
   const [dbGrades, setDbGrades] = useState([])
   const [dbClasses, setDbClasses] = useState([])
+  const [filters, setFilters] = useState({
+    gradeId: null,
+    classId: null,
+    startDate: null,
+    endDate: null
+  })
 
   // Modal state
   const [isModalActive, setIsModalActive] = useState(false)
@@ -103,36 +110,40 @@ export default function TeacherPage() {
           setStudents(studentRes.data);
         }
 
-        const mappedQuizzes = quizRes.data.map(quiz => {
+        const mappedQuizzes = (quizRes.data || []).map(quiz => {
           const questions = (quiz.questions || []).map(q => ({
-            id: q.questionId,
+            id: q.questionId || q.QuestionId,
             type: q.optionC ? (q.optionD ? 'mcq' : (q.optionA && q.optionB ? 'true_false' : 'fill_blank')) : 'fill_blank',
-            question: q.questionTitle,
+            question: q.questionTitle || q.QuestionTitle,
             options: [q.optionA, q.optionB, q.optionC, q.optionD].filter(Boolean),
-            correct: q.correctAnswer,
-            marks: q.mark
+            correct: q.correctAnswer || q.CorrectAnswer,
+            marks: q.mark || q.Mark
           }));
 
-          const gradeName = lookupRes.data?.grades?.find(g => g.id == quiz.gradeId)?.gradeName || quiz.grade || '';
-          const className = lookupRes.data?.classes?.find(c => c.id == quiz.classId)?.className || quiz.class || '';
+          const gradeId = quiz.gradeId || quiz.GradeId || quiz.GradeID;
+          const classId = quiz.classId || quiz.ClassId || quiz.ClassID;
+          const classIds = quiz.classIds || quiz.ClassIds || (classId ? [classId] : []);
+
+          const gradeName = lookupRes.data?.grades?.find(g => String(g.id) === String(gradeId))?.gradeName || quiz.grade || '';
+          const className = lookupRes.data?.classes?.find(c => String(c.id) === String(classId))?.className || quiz.class || '';
 
           return {
-            examId: quiz.examId,
-            id: quiz.examId,
-            title: quiz.title,
-            description: quiz.examDescription,
-            examDescription: quiz.examDescription,
+            examId: quiz.examId || quiz.ExamId,
+            id: quiz.examId || quiz.ExamId,
+            title: quiz.title || quiz.Title,
+            description: quiz.examDescription || quiz.ExamDescription || quiz.description,
+            examDescription: quiz.examDescription || quiz.ExamDescription || quiz.description,
             grade: gradeName,
-            gradeId: quiz.gradeId,
+            gradeId: gradeId,
             class: className,
-            classId: quiz.classId,
-            classIds: quiz.classIds || quiz.ClassIds || [],
-            classNames: quiz.classNames || [],
-            subject: quiz.examSubject,
-            startDate: quiz.startDate,
-            datetime: quiz.endDate,
-            endDate: quiz.endDate,
-            created: quiz.createdDate,
+            classId: classId,
+            classIds: classIds,
+            classNames: quiz.classNames || quiz.ClassNames || [],
+            subject: quiz.examSubject || quiz.ExamSubject || quiz.subject,
+            startDate: quiz.startDate || quiz.StartDate,
+            datetime: quiz.endDate || quiz.EndDate || quiz.datetime,
+            endDate: quiz.endDate || quiz.EndDate,
+            created: quiz.createdDate || quiz.CreatedDate || quiz.created,
             questions: questions,
             questions_data: questions
           };
@@ -1005,8 +1016,16 @@ export default function TeacherPage() {
   }
 
   function getGrades() {
-    const grades = [...new Set(students.map(s => s.grade))]
-    return grades.sort()
+    const grades = [...new Set(students.map(s => s.grade))].filter(g => g && g !== 'N/A')
+    const order = ['Junior', 'Wheeler', 'Senior']
+    return grades.sort((a, b) => {
+      const idxA = order.indexOf(a)
+      const idxB = order.indexOf(b)
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB
+      if (idxA !== -1) return -1
+      if (idxB !== -1) return 1
+      return a.localeCompare(b)
+    })
   }
 
   function getClassesForGrade(grade) {
@@ -1117,23 +1136,52 @@ export default function TeacherPage() {
       case 'my-quizzes':
         return (
           <div id="quizzes-view">
-            <div className="content-header">
-              <h1 className="content-title"><svg className="title-icon" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" /></svg>My Exams</h1>
-              <p className="content-subtitle">Create and manage your exams</p>
+            <div className="content-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+              <div>
+                <h1 className="content-title" style={{ margin: 0 }}><svg className="title-icon" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" /></svg>My Exams</h1>
+                <p className="content-subtitle" style={{ marginTop: '0.25rem' }}>Create and manage your exams</p>
+              </div>
+              <button className="create-quiz-btn" style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '.75rem 1.5rem', borderRadius: '12px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '.5rem', boxShadow: '0 4px 12px rgba(229, 57, 53, 0.3)', cursor: 'pointer', transition: 'all .2s ease' }} onClick={createNewQuiz}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" /></svg>
+                Create New Exam
+              </button>
             </div>
-            <div className="quiz-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}><div />
-              <button className="create-quiz-btn" style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '.75rem 1.25rem', borderRadius: '10px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '.5rem', boxShadow: '0 4px 12px rgba(229, 57, 53, 0.3)', cursor: 'pointer', transition: 'all .2s ease' }} onClick={createNewQuiz}><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" /></svg>Create New Exam</button>
+            <div style={{ marginBottom: '2rem' }}>
+              <DashboardFilters
+                onFilterChange={(newFilters) => setFilters(newFilters)}
+                userRole="Teacher"
+                grades={dbGrades}
+                classes={dbClasses}
+              />
             </div>
             <div className="quiz-list" id="quiz-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
-              {quizzes.length === 0 ? (
-                <div className="empty-state" style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--bg-main)', borderRadius: '16px', boxShadow: 'var(--shadow-sm)', gridColumn: '1 / -1' }}>
+              {quizzes.filter(quiz => {
+                if (filters.gradeId && String(quiz.gradeId) !== String(filters.gradeId)) return false
+                if (filters.classId) {
+                  const cIds = quiz.classIds || []
+                  if (!cIds.some(id => String(id) === String(filters.classId)) && String(quiz.classId) !== String(filters.classId)) return false
+                }
+                if (filters.startDate && new Date(quiz.startDate) < new Date(filters.startDate)) return false
+                if (filters.endDate && new Date(quiz.endDate) > new Date(filters.endDate)) return false
+                return true
+              }).length === 0 ? (
+                <div className="empty-state animate-card" style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--bg-main)', borderRadius: '16px', boxShadow: 'var(--shadow-sm)', gridColumn: '1 / -1' }}>
                   <svg className="empty-icon" style={{ width: '80px', height: '80px', fill: 'var(--text-light)', margin: '0 auto 1.5rem' }} viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" /></svg>
-                  <h3 className="empty-title" style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '.5rem' }}>No exams yet</h3>
-                  <p className="empty-description" style={{ fontSize: '1rem', color: 'var(--text-secondary)' }}>Create your first exam to get started</p>
+                  <h3 className="empty-title" style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '.5rem' }}>No exams match your filters</h3>
+                  <p className="empty-description" style={{ fontSize: '1rem', color: 'var(--text-secondary)' }}>Try adjusting your filters or create a new exam</p>
                 </div>
               ) : (
-                quizzes.map((quiz) => (
-                  <div key={quiz.id} className="quiz-item" style={{ background: 'var(--bg-main)', borderRadius: '16px', padding: '1.5rem', boxShadow: 'var(--shadow-md)', borderLeft: '4px solid var(--primary)', transition: 'transform 0.2s ease' }}>
+                quizzes.filter(quiz => {
+                  if (filters.gradeId && String(quiz.gradeId) !== String(filters.gradeId)) return false
+                  if (filters.classId) {
+                    const cIds = quiz.classIds || []
+                    if (!cIds.some(id => String(id) === String(filters.classId)) && String(quiz.classId) !== String(filters.classId)) return false
+                  }
+                  if (filters.startDate && new Date(quiz.startDate) < new Date(filters.startDate)) return false
+                  if (filters.endDate && new Date(quiz.endDate) > new Date(filters.endDate)) return false
+                  return true
+                }).map((quiz, index) => (
+                  <div key={quiz.id} className={`quiz-item animate-card stagger-${(index % 5) + 1}`} style={{ background: 'var(--bg-main)', borderRadius: '16px', padding: '1.5rem', boxShadow: 'var(--shadow-md)', borderLeft: '4px solid var(--primary)', transition: 'transform 0.2s ease' }}>
                     <div className="quiz-info">
                       <h3 className="quiz-title" style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>{quiz.title}</h3>
                       <p className="quiz-meta" style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1195,14 +1243,14 @@ export default function TeacherPage() {
             </div>
             <div className="question-banks-grid" id="question-banks-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
               {questionBanks.length === 0 ? (
-                <div className="empty-state" style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--bg-main)', borderRadius: '16px', boxShadow: 'var(--shadow-sm)', gridColumn: '1 / -1' }}>
+                <div className="empty-state animate-card" style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--bg-main)', borderRadius: '16px', boxShadow: 'var(--shadow-sm)', gridColumn: '1 / -1' }}>
                   <svg className="empty-icon" style={{ width: '80px', height: '80px', fill: 'var(--text-light)', margin: '0 auto 1.5rem' }} viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
                   <h3 className="empty-title" style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '.5rem' }}>No question banks yet</h3>
                   <p className="empty-description" style={{ fontSize: '1rem', color: 'var(--text-secondary)' }}>Create your first question bank to get started</p>
                 </div>
               ) : (
-                questionBanks.map((bank) => (
-                  <div key={bank.id} className="bank-card" style={{ background: 'var(--bg-main)', borderRadius: '16px', padding: '1.5rem', boxShadow: 'var(--shadow-md)', borderLeft: '4px solid var(--warning)', transition: 'transform 0.2s ease' }}>
+                questionBanks.map((bank, index) => (
+                  <div key={bank.id} className={`bank-card animate-card stagger-${(index % 5) + 1}`} style={{ background: 'var(--bg-main)', borderRadius: '16px', padding: '1.5rem', boxShadow: 'var(--shadow-md)', borderLeft: '4px solid var(--warning)', transition: 'transform 0.2s ease' }}>
                     <div className="bank-header">
                       <h3 className="bank-title" style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>{bank.title}</h3>
                       <div className="bank-meta" style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1510,6 +1558,7 @@ export default function TeacherPage() {
                       gap: '.75rem'
                     }}>
                       {(() => {
+                        const filtered = dbClasses.filter(c => Number(c.gradeId) === Number(quizForm.gradeId));
                         if (!quizForm.gradeId) {
                           return (
                             <div style={{
@@ -1526,7 +1575,6 @@ export default function TeacherPage() {
                             </div>
                           );
                         }
-                        const filtered = dbClasses.filter(c => Number(c.gradeId) === Number(quizForm.gradeId));
                         if (filtered.length === 0) {
                           return (
                             <div style={{ color: '#6b7280', fontSize: '.875rem', fontStyle: 'italic', textAlign: 'center' }}>
@@ -1534,53 +1582,52 @@ export default function TeacherPage() {
                             </div>
                           );
                         }
-                        return filtered;
-                      })().map?.((cls) => (
-                        <label
-                          key={cls.id}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '.75rem',
-                            padding: '.5rem',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease',
-                            userSelect: 'none'
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
-                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                        >
-                          <input
-                            type="checkbox"
-                            value={cls.id}
-                            checked={(quizForm.classIds || []).map(Number).includes(Number(cls.id))}
-                            onChange={(e) => {
-                              const currentIds = quizForm.classIds || []
-                              const val = Number(cls.id)
-                              const newIds = e.target.checked
-                                ? [...currentIds, val]
-                                : currentIds.filter(id => id !== val)
-                              setQuizForm({
-                                ...quizForm,
-                                classIds: newIds,
-                                // className: newIds.length === 1 ? dbClasses.find(c => c.id === newIds[0])?.className : ''
-                              })
-                            }}
+                        return filtered.map?.((cls) => (
+                          <label
+                            key={cls.id}
                             style={{
-                              width: '18px',
-                              height: '18px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '.75rem',
+                              padding: '.5rem',
+                              borderRadius: '6px',
                               cursor: 'pointer',
-                              accentColor: '#dc2626'
+                              transition: 'all 0.2s ease',
+                              userSelect: 'none'
                             }}
-                          />
-                          <span style={{
-                            fontSize: '.875rem',
-                            color: '#374151',
-                            fontWeight: 500
-                          }}>{cls.className}</span>
-                        </label>
-                      ))}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                          >
+                            <input
+                              type="checkbox"
+                              value={cls.id}
+                              checked={(quizForm.classIds || []).map(Number).includes(Number(cls.id))}
+                              onChange={(e) => {
+                                const currentIds = quizForm.classIds || []
+                                const val = Number(cls.id)
+                                const newIds = e.target.checked
+                                  ? [...currentIds, val]
+                                  : currentIds.filter(id => id !== val)
+                                setQuizForm({
+                                  ...quizForm,
+                                  classIds: newIds,
+                                })
+                              }}
+                              style={{
+                                width: '18px',
+                                height: '18px',
+                                cursor: 'pointer',
+                                accentColor: '#dc2626'
+                              }}
+                            />
+                            <span style={{
+                              fontSize: '.875rem',
+                              color: '#374151',
+                              fontWeight: 500
+                            }}>{cls.className}</span>
+                          </label>
+                        ));
+                      })()}
                     </div>
                   </div>
                   <div><label className="form-label" htmlFor="quiz-start-date" style={{ display: 'block', fontSize: '.875rem', fontWeight: 600, color: '#374151', marginBottom: '.5rem' }}>Start Date & Time <span className="required" style={{ color: '#dc2626' }}>*</span></label><input type="datetime-local" id="quiz-start-date" className="form-input" style={{ width: '100%', padding: '.75rem', border: '2px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', background: 'white', outline: 'none' }} value={quizForm.startDate} onChange={(e) => setQuizForm({ ...quizForm, startDate: e.target.value })} onFocus={(e) => e.target.style.borderColor = '#3b82f6'} onBlur={(e) => e.target.style.borderColor = '#d1d5db'} /></div>
@@ -1710,7 +1757,7 @@ export default function TeacherPage() {
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
-                {getGrades().map((grade) => {
+                {getGrades().map((grade, index) => {
                   const gradeStudents = students.filter(s => s.grade === grade)
                   const avgScore = gradeStudents.length > 0 ? Math.round(
                     gradeStudents.reduce((total, student) => {
@@ -1723,6 +1770,7 @@ export default function TeacherPage() {
                     <div
                       key={grade}
                       onClick={() => showClassesForGrade(grade)}
+                      className={`animate-card stagger-${(index % 5) + 1}`}
                       style={{
                         background: 'white',
                         borderRadius: '16px',
@@ -2152,7 +2200,8 @@ export default function TeacherPage() {
     quizForm,
     currentQuizQuestions,
     selectedBankQuestions,
-    userRole
+    userRole,
+    filters // REQUIRED for filtering to work!
   ])
 
   return (
@@ -2165,7 +2214,7 @@ export default function TeacherPage() {
           handleLogout={handleLogout}
           userRole={userRole || 'Teacher'}
         />
-        <div className="main-content" style={{ flex: 1, overflowY: 'auto' }}>
+        <div className="main-content section-transition" style={{ flex: 1, overflowY: 'auto' }}>
           {/* Welcome Card */}
           <div style={{ padding: '1.5rem 2rem 0' }}>
             <div style={{
