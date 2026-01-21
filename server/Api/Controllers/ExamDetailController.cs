@@ -43,13 +43,10 @@ namespace QuizesApi.Controllers
                 
                 if (studentExtension != null && studentExtension.ClassId.HasValue)
                 {
-                    // Filter using ExamClasses junction table
-                    // Students see exams assigned to their class (either via ClassId legacy or ExamClasses junction)
-                    var classId = studentExtension.ClassId.Value;
-                    exams = exams.Where(e => 
-                        (e.ClassId.HasValue && e.ClassId == classId) || 
-                        e.ExamClasses.Any(ec => ec.ClassId == classId)
-                    );
+                    // Students see exams assigned to their class (multi-class support)
+                    var filterClassId = studentExtension.ClassId.Value.ToString();
+                    exams = exams.Where(e => !string.IsNullOrEmpty(e.ClassId) && 
+                        e.ClassId.Split(',', StringSplitOptions.RemoveEmptyEntries).Contains(filterClassId));
                 }
             }
 
@@ -79,16 +76,13 @@ namespace QuizesApi.Controllers
                 
                 if (studentExtension != null && studentExtension.ClassId.HasValue)
                 {
-                    var classId = studentExtension.ClassId.Value;
+                    var studentClassId = studentExtension.ClassId.Value.ToString();
                     
-                    // Access check using ExamClasses junction table
-                    bool hasAccess = (!exam.ClassId.HasValue && !exam.ExamClasses.Any()) || // Public/Global if no classes? (Logic depends on requirements, assuming if assignments exist must match)
-                                     (exam.ClassId.HasValue && exam.ClassId == classId) ||
-                                     exam.ExamClasses.Any(ec => ec.ClassId == classId);
+                    // Access check using multi-class ID string
+                    bool hasAccess = string.IsNullOrEmpty(exam.ClassId) || 
+                                     exam.ClassId.Split(',', StringSplitOptions.RemoveEmptyEntries).Contains(studentClassId);
                                      
-                    // If exam has assignments and user is not in any of them
-                    bool isAssigned = exam.ClassId.HasValue || exam.ExamClasses.Any();
-                    if (isAssigned && !hasAccess)
+                    if (!hasAccess)
                     {
                         return StatusCode(403, new { message = "You do not have access to this quiz. It is not assigned to your class." });
                     }
@@ -164,8 +158,7 @@ namespace QuizesApi.Controllers
                     ExamSubject = dto.ExamSubject,
                     ExamDescription = dto.ExamDescription,
                     GradeId = dto.GradeId, 
-                    // Set primary ClassId to first one for backward compatibility, or null
-                    ClassId = classIdsToProcess.FirstOrDefault(),
+                    // ClassId will be set in AddAsync
                     StartDate = dto.StartDate,
                     EndDate = dto.EndDate,
                     CreatedBy_AccId = accountId,
@@ -201,12 +194,10 @@ namespace QuizesApi.Controllers
                 exam.ExamSubject = dto.ExamSubject;
                 exam.ExamDescription = dto.ExamDescription;
                 exam.GradeId = dto.GradeId;
-                exam.ClassId = dto.ClassId; // Legacy field
                 exam.StartDate = dto.StartDate;
                 exam.EndDate = dto.EndDate;
                 exam.SubjectId = dto.SubjectId;
                 
-                // Determine ClassIds
                 List<long> classIds = new List<long>();
                 if (dto.ClassIds != null && dto.ClassIds.Any())
                 {
@@ -216,9 +207,6 @@ namespace QuizesApi.Controllers
                 {
                     classIds.Add(dto.ClassId.Value);
                 }
-                
-                // Should ensure ClassId matches the first storage or is handled:
-                if (classIds.Any()) exam.ClassId = classIds.First();
 
 
                 await _repo.UpdateAsync(exam, dto.QuestionIds, classIds);
@@ -251,18 +239,27 @@ namespace QuizesApi.Controllers
 
         private ExamReadDto MapToDto(ExamDetail e)
         {
-             return new ExamReadDto
+            var classIds = new List<long>();
+            if (!string.IsNullOrEmpty(e.ClassId))
+            {
+                classIds = e.ClassId.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                   .Select(s => long.TryParse(s, out long id) ? id : 0)
+                                   .Where(id => id > 0)
+                                   .ToList();
+            }
+
+            return new ExamReadDto
             {
                 ExamId = e.ExamId,
                 Title = e.Title,
                 ExamSubject = e.ExamSubject ?? string.Empty,
                 ExamDescription = e.ExamDescription,
                 Grade = e.GradeId?.ToString() ?? string.Empty,
-                Class = e.ClassId?.ToString() ?? string.Empty,
+                Class = string.Join(", ", classIds),
                 GradeId = e.GradeId,
-                ClassId = e.ClassId,
-                ClassIds = e.ExamClasses?.Select(ec => ec.ClassId).ToList() ?? new List<long>(),
-                ClassNames = e.ExamClasses?.Select(ec => ec.Class?.ClassName ?? "").Where(n => !string.IsNullOrEmpty(n)).ToList() ?? new List<string>(),
+                ClassId = classIds.FirstOrDefault(),
+                ClassIds = classIds,
+                ClassNames = new List<string>(),
                 StartDate = e.StartDate.GetValueOrDefault(),
                 EndDate = e.EndDate.GetValueOrDefault(),
                 Questions = e.ExamQuestionBanks

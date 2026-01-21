@@ -1646,24 +1646,29 @@ namespace QuizesApi.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<long?>("ExamDetailsId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("ExamDetailsID");
+
                     b.Property<long>("ExamId")
                         .HasColumnType("bigint");
 
-                    b.Property<long?>("QuestionId")
-                        .HasColumnType("bigint");
+                    b.Property<long?>("QuestionbankId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("QuestionbankId");
 
                     b.Property<bool>("Score")
                         .HasColumnType("bit");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ExamId");
+                    b.HasIndex("ExamDetailsId");
 
-                    b.HasIndex("QuestionId");
+                    b.HasIndex("QuestionbankId");
 
-                    b.HasIndex(new[] { "AccountId", "ExamId", "QuestionId" }, "UQ_StudentExamAnswer_AccountExamQuestion")
+                    b.HasIndex(new[] { "AccountId", "ExamDetailsId", "QuestionbankId" }, "UQ_StudentExamAnswer_AccountExamQuestion")
                         .IsUnique()
-                        .HasFilter("[QuestionId] IS NOT NULL");
+                        .HasFilter("[ExamDetailsID] IS NOT NULL AND [QuestionbankId] IS NOT NULL");
 
                     b.ToTable("StudentExamAnswer", (string)null);
                 });
@@ -2655,23 +2660,21 @@ namespace QuizesApi.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_StudentExamAnswer_Account");
 
-                    b.HasOne("QuizesApi.Models.ExamDetail", "Exam")
+                    b.HasOne("QuizesApi.Models.ExamDetail", "ExamDetailNav")
                         .WithMany("StudentExamAnswers")
-                        .HasForeignKey("ExamId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_StudentExamAnswer_Exam");
+                        .HasForeignKey("ExamDetailsId")
+                        .HasConstraintName("FK_StudentExamAnswer_ExamDetail");
 
-                    b.HasOne("QuizesApi.Models.QuestionBank", "Question")
+                    b.HasOne("QuizesApi.Models.QuestionBank", "Questionbank")
                         .WithMany()
-                        .HasForeignKey("QuestionId")
+                        .HasForeignKey("QuestionbankId")
                         .HasConstraintName("FK_StudentExamAnswer_QuestionBank");
 
                     b.Navigation("Account");
 
-                    b.Navigation("Exam");
+                    b.Navigation("ExamDetailNav");
 
-                    b.Navigation("Question");
+                    b.Navigation("Questionbank");
                 });
 
             modelBuilder.Entity("QuizesApi.Models.StudentExamResult", b =>

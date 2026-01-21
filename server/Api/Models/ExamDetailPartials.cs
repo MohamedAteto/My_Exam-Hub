@@ -6,9 +6,6 @@ public partial class ExamDetail
 {
     [NotMapped]
     public virtual ICollection<ExamQuestionBank> ExamQuestionBanks { get; set; } = new List<ExamQuestionBank>();
-
-    // ExamClasses now properly mapped to Exam_Class junction table
-    public virtual ICollection<ExamClass> ExamClasses { get; set; } = new List<ExamClass>(); 
 }
 
 // Defining ExamClass if it is missing, just to satisfy compilation of legacy code before I remove it,

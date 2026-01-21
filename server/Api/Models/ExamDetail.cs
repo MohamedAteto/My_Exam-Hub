@@ -19,7 +19,7 @@ public partial class ExamDetail
 
     public long? GradeId { get; set; }
 
-    public long? ClassId { get; set; }
+    public string? ClassId { get; set; }
 
     public long? CreatedBy_AccId { get; set; }
 

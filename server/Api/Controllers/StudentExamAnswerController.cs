@@ -60,14 +60,14 @@ namespace QuizesApi.Controllers
                     .ToList();
                 
                 var answers = studentAnswers
-                    .Where(a => a.ExamId == exam.ExamId && a.QuestionId.HasValue && examQuestionIds.Contains(a.QuestionId.Value))
+                    .Where(a => a.ExamDetailsId == exam.ExamId && a.QuestionbankId.HasValue && examQuestionIds.Contains(a.QuestionbankId.Value))
                     .ToList();
 
                 if (examQuestionIds.Count == 0 || answers.Count == 0 || answers.Count < examQuestionIds.Count) return null;
 
                 var totalMarks = exam.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0);
                 var earnedMarks = answers.Where(a => a.Score).Sum(a =>
-                    exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId.HasValue && eq.QuestionId.Value == a.QuestionId)?.Question?.Mark ?? 0);
+                    exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId.HasValue && eq.QuestionId.Value == a.QuestionbankId)?.Question?.Mark ?? 0);
 
                 return new
                 {
@@ -102,7 +102,7 @@ namespace QuizesApi.Controllers
                         .Where(eq => eq.Question != null)
                         .Select(eq =>
                         {
-                            var answer = ea.Answers.FirstOrDefault(a => a.QuestionId == eq.Question.QuestionId);
+                            var answer = ea.Answers.FirstOrDefault(a => a.QuestionbankId == eq.Question.QuestionId);
                             return new
                             {
                                 QuestionId = eq.Question.QuestionId,
@@ -137,12 +137,12 @@ namespace QuizesApi.Controllers
                 .ToList();
             
             var answers = await _context.StudentExamAnswers
-                .Where(sea => sea.AccountId == accountId && sea.ExamId == examId && sea.QuestionId.HasValue && questionIds.Contains(sea.QuestionId.Value))
+                .Where(sea => sea.AccountId == accountId && sea.ExamDetailsId == examId && sea.QuestionbankId.HasValue && questionIds.Contains(sea.QuestionbankId.Value))
                 .ToListAsync();
 
             var totalMarks = exam.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0);
             var earnedMarks = answers.Where(a => a.Score).Sum(a => 
-                exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId.HasValue && eq.QuestionId.Value == a.QuestionId)?.Question?.Mark ?? 0);
+                exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId.HasValue && eq.QuestionId.Value == a.QuestionbankId)?.Question?.Mark ?? 0);
 
             var result = new
             {
@@ -159,7 +159,7 @@ namespace QuizesApi.Controllers
                     .Where(eq => eq.Question != null)
                     .Select(eq =>
                     {
-                        var answer = answers.FirstOrDefault(a => a.QuestionId == eq.Question.QuestionId);
+                        var answer = answers.FirstOrDefault(a => a.QuestionbankId == eq.Question.QuestionId);
                         return new
                         {
                             QuestionId = eq.Question.QuestionId,
@@ -210,7 +210,7 @@ namespace QuizesApi.Controllers
             await PopulateExamQuestions(new List<ExamDetail> { exam });
 
             var existingAnswers = await _context.StudentExamAnswers
-                .Where(sea => sea.AccountId == accountId && sea.ExamId == dto.ExamId)
+                .Where(sea => sea.AccountId == accountId && sea.ExamDetailsId == dto.ExamId)
                 .ToListAsync();
 
             if (existingAnswers.Any()) return BadRequest(new { message = "You have already submitted answers for this exam." });
@@ -281,8 +281,9 @@ namespace QuizesApi.Controllers
                 studentAnswers.Add(new StudentExamAnswer
                 {
                     AccountId = accountId,
-                    ExamId = dto.ExamId,
-                    QuestionId = answerDto.QuestionId,
+                    ExamId = -1,
+                    ExamDetailsId = dto.ExamId,
+                    QuestionbankId = answerDto.QuestionId,
                     ChoosedAnswer = chosenAnswer,
                     Score = isCorrect
                 });
@@ -301,7 +302,7 @@ namespace QuizesApi.Controllers
 
             var totalMarks = exam.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0);
             var earnedMarks = studentAnswers.Where(a => a.Score).Sum(a =>
-                exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId.HasValue && eq.QuestionId.Value == a.QuestionId)?.Question?.Mark ?? 0);
+                exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId.HasValue && eq.QuestionId.Value == a.QuestionbankId)?.Question?.Mark ?? 0);
 
             return Ok(new
             {

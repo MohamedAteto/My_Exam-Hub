@@ -49,7 +49,6 @@ public partial class ElsewedySchoolSysDbDevContext : DbContext
 
     public virtual DbSet<ExamDetail> ExamDetails { get; set; }
 
-    public virtual DbSet<ExamClass> ExamClasses { get; set; }
 
     public virtual DbSet<ExamQuestion> ExamQuestions { get; set; }
 
@@ -387,29 +386,6 @@ public partial class ElsewedySchoolSysDbDevContext : DbContext
             entity.Property(e => e.SubjectId).HasColumnName("Subject_ID");
         });
 
-        modelBuilder.Entity<ExamClass>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PK__Exam_Class__ID");
-
-            entity.ToTable("Exam_Class");
-
-            entity.HasIndex(e => new { e.ExamId, e.ClassId }, "UQ_Exam_Class_ExamId_ClassId").IsUnique();
-
-            entity.Property(e => e.ExamId).HasColumnName("Exam_ID");
-            entity.Property(e => e.ClassId).HasColumnName("Class_ID");
-
-            entity.HasOne(d => d.Exam)
-                .WithMany(p => p.ExamClasses)
-                .HasForeignKey(d => d.ExamId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("FK_ExamClass_ExamDetail");
-
-            entity.HasOne(d => d.Class)
-                .WithMany()
-                .HasForeignKey(d => d.ClassId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("FK_ExamClass_TblClass");
-        });
 
         modelBuilder.Entity<ExamQuestion>(entity =>
         {
@@ -738,18 +714,21 @@ public partial class ElsewedySchoolSysDbDevContext : DbContext
         {
             entity.ToTable("StudentExamAnswer");
 
-            entity.HasIndex(e => new { e.AccountId, e.ExamId, e.QuestionId }, "UQ_StudentExamAnswer_AccountExamQuestion").IsUnique();
+            entity.Property(e => e.QuestionbankId).HasColumnName("QuestionbankId");
+            entity.Property(e => e.ExamDetailsId).HasColumnName("ExamDetailsID");
+
+            entity.HasIndex(e => new { e.AccountId, e.ExamDetailsId, e.QuestionbankId }, "UQ_StudentExamAnswer_AccountExamQuestion").IsUnique();
 
             entity.HasOne(d => d.Account).WithMany(p => p.StudentExamAnswers)
                 .HasForeignKey(d => d.AccountId)
                 .HasConstraintName("FK_StudentExamAnswer_Account");
 
-            entity.HasOne(d => d.Exam).WithMany(p => p.StudentExamAnswers)
-                .HasForeignKey(d => d.ExamId)
-                .HasConstraintName("FK_StudentExamAnswer_Exam");
+            entity.HasOne(d => d.ExamDetailNav).WithMany(p => p.StudentExamAnswers)
+                .HasForeignKey(d => d.ExamDetailsId)
+                .HasConstraintName("FK_StudentExamAnswer_ExamDetail");
 
-            entity.HasOne(d => d.Question).WithMany()
-                .HasForeignKey(d => d.QuestionId)
+            entity.HasOne(d => d.Questionbank).WithMany()
+                .HasForeignKey(d => d.QuestionbankId)
                 .HasConstraintName("FK_StudentExamAnswer_QuestionBank");
         });
 

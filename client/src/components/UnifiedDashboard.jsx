@@ -7,6 +7,7 @@ import StatsPieChart from './charts/StatsPieChart'
 import StatsLineChart from './charts/StatsLineChart'
 import StatsBarChart from './charts/StatsBarChart'
 import DashboardCharts from './DashboardCharts'
+import LoadingSpinner from './LoadingSpinner'
 
 export default function UnifiedDashboard({ userRole, userId, allExams = [], grades = [], classes = [] }) {
     const [filters, setFilters] = useState({
@@ -161,6 +162,21 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
         setSelectedExamId(e.target.value)
     }
 
+    if (loading) {
+        return (
+            <div style={{
+                padding: '2rem',
+                background: 'var(--bg-surface)',
+                minHeight: '100vh',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+            }}>
+                <LoadingSpinner message="Fetching your performance data..." />
+            </div>
+        )
+    }
+
     if (error) {
         return (
             <div style={{
@@ -211,8 +227,17 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
         <div style={{
             padding: '2rem',
             background: 'var(--bg-surface)',
-            minHeight: '100vh'
+            minHeight: '100vh',
+            animation: 'fadeIn 0.5s ease-out'
         }}>
+            <style>
+                {`
+                    @keyframes fadeIn {
+                        from { opacity: 0; transform: translateY(10px); }
+                        to { opacity: 1; transform: translateY(0); }
+                    }
+                `}
+            </style>
             <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
                 {/* Header */}
                 <div style={{ marginBottom: '2rem' }}>

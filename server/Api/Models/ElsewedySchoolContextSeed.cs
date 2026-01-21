@@ -129,7 +129,7 @@ public static class ElsewedySchoolContextSeed
                         ExamDescription = "A mathematics quiz assigned to Class A",
                         ExamSubject = subjectName,
                         GradeId = testGrade.Id,
-                        ClassId = classA.Id,
+                        ClassId = $",{classA.Id},",
                         StartDate = now.AddDays(1),
                         EndDate = now.AddDays(2),
                     };
@@ -142,7 +142,7 @@ public static class ElsewedySchoolContextSeed
                         ExamDescription = "A mathematics quiz assigned to Class B",
                         ExamSubject = subjectName,
                         GradeId = testGrade.Id,
-                        ClassId = classB.Id,
+                        ClassId = $",{classB.Id},",
                         StartDate = now.AddDays(2),
                         EndDate = now.AddDays(3),
                     };
@@ -155,7 +155,7 @@ public static class ElsewedySchoolContextSeed
                         ExamDescription = "A mathematics quiz assigned to Class C",
                         ExamSubject = subjectName,
                         GradeId = testGrade.Id,
-                        ClassId = classC.Id,
+                        ClassId = $",{classC.Id},",
                         StartDate = now.AddDays(3),
                         EndDate = now.AddDays(4),
                     };

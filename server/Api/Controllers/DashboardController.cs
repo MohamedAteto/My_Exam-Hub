@@ -58,7 +58,12 @@ public class DashboardController : ControllerBase
                 e.Title,
                 GradeId = e.GradeId,
                 ClassId = e.ClassId,
-                Classes = e.ClassId.HasValue ? new List<long> { e.ClassId.Value } : new List<long>()
+                Classes = !string.IsNullOrEmpty(e.ClassId) 
+                    ? e.ClassId.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                               .Select(s => long.TryParse(s, out long id) ? id : 0)
+                               .Where(id => id > 0)
+                               .ToList()
+                    : new List<long>()
             };
         });
 

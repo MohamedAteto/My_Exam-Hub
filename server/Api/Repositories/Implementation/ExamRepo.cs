@@ -15,8 +15,6 @@ public class ExamRepo : IExamRepo
     public async Task<IEnumerable<ExamDetail>> GetAllAsync()
     {
         var exams = await _context.ExamDetails
-            .Include(e => e.ExamClasses)
-                .ThenInclude(ec => ec.Class)
             .ToListAsync();
         
         // Manual population of ExamQuestionBanks
@@ -42,8 +40,6 @@ public class ExamRepo : IExamRepo
     public async Task<ExamDetail?> GetByIdAsync(long id)
     {
         var exam = await _context.ExamDetails
-            .Include(e => e.ExamClasses)
-                .ThenInclude(ec => ec.Class)
             .FirstOrDefaultAsync(e => e.ExamId == id);
         if (exam == null) return null;
 
@@ -67,6 +63,11 @@ public class ExamRepo : IExamRepo
 
     public async Task AddAsync(ExamDetail exam, List<long> questionIds, List<long>? classIds = null)
     {
+        if (classIds != null && classIds.Any())
+        {
+            exam.ClassId = "," + string.Join(",", classIds) + ",";
+        }
+
         await _context.ExamDetails.AddAsync(exam);
         await _context.SaveChangesAsync(); // Save to get ExamId
         
@@ -79,24 +80,17 @@ public class ExamRepo : IExamRepo
             };
             await _context.ExamQuestionBanks.AddAsync(link);
         }
-
-        if (classIds != null && classIds.Any())
-        {
-            foreach (var cId in classIds)
-            {
-                var examClass = new ExamClass
-                {
-                    ExamId = exam.ExamId,
-                    ClassId = cId
-                };
-                await _context.Set<ExamClass>().AddAsync(examClass);
-            }
-            await _context.SaveChangesAsync();
-        }
+        
+        await _context.SaveChangesAsync();
     }
 
     public async Task UpdateAsync(ExamDetail exam, List<long> questionIds, List<long>? classIds = null)
     {
+        if (classIds != null && classIds.Any())
+        {
+            exam.ClassId = "," + string.Join(",", classIds) + ",";
+        }
+
         // Update ExamDetail fields
         _context.ExamDetails.Update(exam);
 
@@ -121,31 +115,6 @@ public class ExamRepo : IExamRepo
                 QuestionId = qId
             });
         }
-
-        // SYNC ExamClasses (Junction Table)
-        if (classIds != null)
-        {
-            // Note: Since we are using Set<ExamClass>(), we don't have a direct DbSet property exposed maybe? 
-            // The code previously used Set<ExamClass>().
-            var currentClassLinks = await _context.Set<ExamClass>().Where(ec => ec.ExamId == exam.ExamId).ToListAsync();
-            var currentCIds = currentClassLinks.Select(c => c.ClassId).ToList();
-
-            var classesToRemove = currentClassLinks.Where(c => !classIds.Contains(c.ClassId)).ToList();
-            if (classesToRemove.Any())
-            {
-                _context.Set<ExamClass>().RemoveRange(classesToRemove);
-            }
-
-            var classesToAdd = classIds.Where(id => !currentCIds.Contains(id)).Distinct().ToList();
-            foreach (var cId in classesToAdd)
-            {
-                await _context.Set<ExamClass>().AddAsync(new ExamClass
-                {
-                    ExamId = exam.ExamId,
-                    ClassId = cId
-                });
-            }
-        }
     }
 
     public async Task DeleteAsync(long id)
@@ -153,12 +122,9 @@ public class ExamRepo : IExamRepo
         var entity = await _context.ExamDetails.FindAsync(id);
         if (entity != null)
         {
-            // Manual specific cascade delete if needed, usually DB handles it or we should remove links
+            // Manual specific cascade delete if needed
             var links = await _context.ExamQuestionBanks.Where(eq => eq.ExamId == id).ToListAsync();
             _context.ExamQuestionBanks.RemoveRange(links);
-            
-            var classLinks = await _context.Set<ExamClass>().Where(ec => ec.ExamId == id).ToListAsync();
-            _context.Set<ExamClass>().RemoveRange(classLinks);
             
             _context.ExamDetails.Remove(entity);
         }
