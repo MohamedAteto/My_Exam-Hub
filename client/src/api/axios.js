@@ -2,8 +2,9 @@ import axios from "axios";
 import { storage } from "../utils/storage";
 
 const api = axios.create({
-  baseURL: "http://localhost:5051/api", // adjust to your backend
+  baseURL: import.meta.env.VITE_API_BASE_URL, // adjust to your backend
 });
+console.log(import.meta.env.VITE_API_BASE_URL);
 
 // Later when you add JWT:
 api.interceptors.request.use((config) => {

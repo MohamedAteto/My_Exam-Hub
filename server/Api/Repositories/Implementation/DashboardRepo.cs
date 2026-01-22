@@ -17,6 +17,7 @@ public class DashboardRepo : IDashboardRepo
 
     private async Task PopulateExamQuestions(ExamDetail exam)
     {
+        exam.ExamQuestionBanks.Clear();
         var links = await _context.ExamQuestionBanks.Where(eq => eq.ExamId == exam.ExamId).ToListAsync();
         foreach (var link in links)
         {
@@ -43,6 +44,7 @@ public class DashboardRepo : IDashboardRepo
 
         foreach (var exam in exams)
         {
+            exam.ExamQuestionBanks.Clear();
             try 
             {
                 var examLinks = links.Where(l => l.ExamId == exam.ExamId).ToList();

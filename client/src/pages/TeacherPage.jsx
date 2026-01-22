@@ -2216,36 +2216,40 @@ export default function TeacherPage() {
         />
         <div className="main-content section-transition" style={{ flex: 1, overflowY: 'auto' }}>
           {/* Welcome Card */}
-          <div style={{ padding: '1.5rem 2rem 0' }}>
-            <div style={{
-              background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
-              padding: '1.5rem 2rem',
-              borderRadius: '16px',
-              color: 'white',
-              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '1rem'
-            }}>
-              <div>
-                <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Hello, {teacherName}! 👋</h2>
-                <p style={{ margin: '0.25rem 0 0', opacity: 0.8, fontSize: '0.9rem' }}>
-                  You are logged in as a <span style={{ color: '#60a5fa', fontWeight: 600 }}>{userRole || 'Teacher'}</span>
-                </p>
-              </div>
+          {currentSection !== 'profile' && (
+            <div style={{ padding: '1.5rem 2rem 0' }}>
               <div style={{
-                background: 'rgba(255,255,255,0.1)',
-                padding: '0.75rem',
-                borderRadius: '12px',
-                border: '1px solid rgba(255,255,255,0.2)',
-                textAlign: 'right'
+                background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+                padding: '1.5rem 2rem',
+                borderRadius: '16px',
+                color: 'white',
+                boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '1rem'
               }}>
-                <div style={{ fontSize: '0.8rem', fontWeight: 600, opacity: 0.7 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long' })}</div>
-                <div style={{ fontSize: '1rem', fontWeight: 700 }}>{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Hello, {teacherName}! 👋</h2>
+                  <p style={{ margin: '0.25rem 0 0', opacity: 0.8, fontSize: '0.9rem' }}>
+                    You are logged in as a <span style={{ color: '#60a5fa', fontWeight: 600 }}>{userRole || 'Teacher'}</span>
+                  </p>
+                </div>
+                <div style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  padding: '0.75rem',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  textAlign: 'right'
+                }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 600, opacity: 0.7 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long' })}</div>
+                  <div style={{ fontSize: '1rem', fontWeight: 700 }}>{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
+          {/* Debug Indicator - Hidden in production but helps us confirm routing */}
+          <div style={{ display: 'none' }} data-section={currentSection}></div>
           {currentView}
         </div>
 

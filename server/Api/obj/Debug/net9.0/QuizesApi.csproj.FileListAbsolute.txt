@@ -2304,3 +2304,4 @@ C:\Users\Seif\Desktop\ExamsHub\Quiz-managent\server\Api\obj\Debug\net9.0\refint\
 C:\Users\Seif\Desktop\ExamsHub\Quiz-managent\server\Api\obj\Debug\net9.0\QuizesApi.pdb
 C:\Users\Seif\Desktop\ExamsHub\Quiz-managent\server\Api\obj\Debug\net9.0\QuizesApi.genruntimeconfig.cache
 C:\Users\Seif\Desktop\ExamsHub\Quiz-managent\server\Api\obj\Debug\net9.0\ref\QuizesApi.dll
+C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\api\bin\Debug\net9.0\appsettings.Production.json

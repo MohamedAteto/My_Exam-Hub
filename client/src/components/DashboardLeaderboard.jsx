@@ -102,7 +102,17 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                 </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem',
+                maxHeight: '450px',
+                overflowY: 'auto',
+                paddingRight: '0.5rem',
+                paddingBottom: '0.5rem',
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'var(--primary) transparent'
+            }}>
                 {leaderboard.map((entry, index) => {
                     const medal = getMedalColor(entry.rank)
                     const isCurrentUser = currentUserId && entry.studentId === currentUserId

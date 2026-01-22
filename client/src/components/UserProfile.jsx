@@ -3,6 +3,9 @@ import api from '../api/axios'
 import { storage } from '../utils/storage'
 
 export default function UserProfile({ userRole, onBack }) {
+  console.log('🚀 UserProfile component executing');
+  window.USER_PROFILE_LOADED = Date.now();
+
   const [userData, setUserData] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -18,16 +21,44 @@ export default function UserProfile({ userRole, onBack }) {
   const parseUserFromToken = () => {
     try {
       const token = storage.getItem('token')
-      if (!token) return null
+      if (!token) {
+        console.warn('No token found in storage')
+        return null
+      }
 
-      const payload = JSON.parse(atob(token.split('.')[1]))
+      const parts = token.split('.')
+      if (parts.length < 2) {
+        console.error('Invalid token format')
+        return null
+      }
+
+      // Handle URL-safe base64 and potential padding issues
+      let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+      while (base64.length % 4) {
+        base64 += '='
+      }
+
+      const payload = JSON.parse(atob(base64))
+      console.log('Decoded Token Payload:', payload)
+
+      const userId = payload.sub || payload.id || payload.nameid || payload.uid || storage.getItem('userId')
+
       return {
-        id: payload.sub,
-        email: payload.email,
-        roles: payload.roles || []
+        id: userId,
+        email: payload.email || payload.name || storage.getItem('userEmail'),
+        roles: payload.roles || payload.role || (storage.getItem('userRole') ? [storage.getItem('userRole')] : [])
       }
     } catch (error) {
       console.error('Error parsing token:', error)
+      // Final fallback from storage directly if token parsing fails
+      const fallbackId = storage.getItem('userId') || storage.getItem('accountId')
+      if (fallbackId) {
+        return {
+          id: fallbackId,
+          email: storage.getItem('userEmail'),
+          roles: storage.getItem('userRole') ? [storage.getItem('userRole')] : []
+        }
+      }
       return null
     }
   }
@@ -123,7 +154,10 @@ export default function UserProfile({ userRole, onBack }) {
 
   if (loading) {
     return (
-      <div className="profile-page" style={{ padding: '2rem', background: '#f9fafb', minHeight: '100vh' }}>
+      <div className="profile-page" style={{ padding: '2rem', background: '#f9fafb', minHeight: '100vh', border: '5px solid blue' }}>
+        <div style={{ background: 'blue', color: 'white', padding: '0.5rem', textAlign: 'center', fontWeight: 'bold' }}>
+          PROFILE LOADING...
+        </div>
         <div className="loading-container" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
           <div className="loading-spinner" style={{
             width: '48px',
@@ -142,7 +176,10 @@ export default function UserProfile({ userRole, onBack }) {
 
   if (error) {
     return (
-      <div className="profile-page" style={{ padding: '2rem', background: '#f9fafb', minHeight: '100vh' }}>
+      <div className="profile-page" style={{ padding: '2rem', background: '#f9fafb', minHeight: '100vh', border: '5px solid orange' }}>
+        <div style={{ background: 'orange', color: 'black', padding: '0.5rem', textAlign: 'center', fontWeight: 'bold' }}>
+          PROFILE ERROR: {error}
+        </div>
         <div className="error-container" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
           <div className="error-icon" style={{
             width: '48px',
@@ -175,7 +212,10 @@ export default function UserProfile({ userRole, onBack }) {
   }
 
   return (
-    <div className="profile-page" style={{ padding: '2rem', background: '#f9fafb', minHeight: '100vh' }}>
+    <div className="profile-page" style={{ padding: '2rem', background: '#f9fafb', minHeight: '100vh', border: '5px solid red' }}>
+      <div style={{ background: 'red', color: 'white', padding: '0.5rem', textAlign: 'center', fontWeight: 'bold' }}>
+        PROFILE COMPONENT LOADED - USER: {userData?.email || 'Loading...'}
+      </div>
       <div className="profile-container" style={{
         maxWidth: '800px',
         margin: '0 auto',
