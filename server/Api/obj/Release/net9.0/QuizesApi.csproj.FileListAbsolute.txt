@@ -1,5 +1,6 @@
 C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\api\bin\Release\net9.0\appsettings.Development.json
 C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\api\bin\Release\net9.0\appsettings.json
+C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\api\bin\Release\net9.0\appsettings.Production.json
 C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\api\bin\Release\net9.0\QuizesApi.staticwebassets.endpoints.json
 C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\api\bin\Release\net9.0\QuizesApi.exe
 C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\api\bin\Release\net9.0\QuizesApi.deps.json
@@ -181,4 +182,3 @@ C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\api\obj\Release\net
 C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\api\obj\Release\net9.0\QuizesApi.pdb
 C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\api\obj\Release\net9.0\QuizesApi.genruntimeconfig.cache
 C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\api\obj\Release\net9.0\ref\QuizesApi.dll
-C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\api\bin\Release\net9.0\appsettings.Production.json

@@ -3,7 +3,7 @@ import api from '../api/axios'
 import { storage } from '../utils/storage'
 
 export default function UserProfile({ userRole, onBack }) {
-  console.log('🚀 UserProfile component executing');
+  console.log('🚀 UserProfile component executing', { userRole, onBack });
   window.USER_PROFILE_LOADED = Date.now();
 
   const [userData, setUserData] = useState(null)
@@ -67,13 +67,28 @@ export default function UserProfile({ userRole, onBack }) {
   const fetchUserProfile = async () => {
     try {
       setLoading(true)
+      setError(null)
       const tokenData = parseUserFromToken()
-      if (!tokenData) {
-        setError('Unable to parse user information')
+      console.log('[UserProfile] Parsed token data:', tokenData)
+      
+      if (!tokenData || !tokenData.id) {
+        const errorMsg = 'Unable to parse user information from token'
+        console.error('[UserProfile]', errorMsg)
+        setError(errorMsg)
+        setLoading(false)
         return
       }
 
+      console.log('[UserProfile] Fetching profile for user ID:', tokenData.id)
       const response = await api.get(`/auth/profile/${tokenData.id}`)
+      console.log('[UserProfile] Profile response:', response.data)
+      
+      if (!response.data) {
+        setError('No data received from server')
+        setLoading(false)
+        return
+      }
+
       setUserData(response.data)
       setEditForm({
         fullNameEn: response.data.fullNameEn || '',
@@ -82,8 +97,9 @@ export default function UserProfile({ userRole, onBack }) {
         phone: response.data.phone || ''
       })
     } catch (err) {
-      console.error('Error fetching profile:', err)
-      setError('Failed to load profile data')
+      console.error('[UserProfile] Error fetching profile:', err)
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to load profile data'
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -146,7 +162,7 @@ export default function UserProfile({ userRole, onBack }) {
   const getRoleColor = (role) => {
     switch (role?.toLowerCase()) {
       case 'admin': return '#dc2626'
-      case 'teacher': return '#059669'
+      case 'teacher': return '#dc2626'
       case 'student': return '#2563eb'
       default: return '#6b7280'
     }
@@ -154,10 +170,13 @@ export default function UserProfile({ userRole, onBack }) {
 
   if (loading) {
     return (
-      <div className="profile-page" style={{ padding: '2rem', background: '#f9fafb', minHeight: '100vh', border: '5px solid blue' }}>
-        <div style={{ background: 'blue', color: 'white', padding: '0.5rem', textAlign: 'center', fontWeight: 'bold' }}>
-          PROFILE LOADING...
-        </div>
+      <div className="profile-page" style={{ padding: '2rem', background: 'var(--bg-surface)', minHeight: '100vh' }}>
+        <style>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
         <div className="loading-container" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
           <div className="loading-spinner" style={{
             width: '48px',
@@ -176,10 +195,7 @@ export default function UserProfile({ userRole, onBack }) {
 
   if (error) {
     return (
-      <div className="profile-page" style={{ padding: '2rem', background: '#f9fafb', minHeight: '100vh', border: '5px solid orange' }}>
-        <div style={{ background: 'orange', color: 'black', padding: '0.5rem', textAlign: 'center', fontWeight: 'bold' }}>
-          PROFILE ERROR: {error}
-        </div>
+      <div className="profile-page" style={{ padding: '2rem', background: 'var(--bg-surface)', minHeight: '100vh' }}>
         <div className="error-container" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
           <div className="error-icon" style={{
             width: '48px',
@@ -188,20 +204,22 @@ export default function UserProfile({ userRole, onBack }) {
             margin: '0 auto 1rem'
           }}>
             <svg viewBox="0 0 24 24">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
             </svg>
           </div>
-          <h3 style={{ color: '#ef4444', marginBottom: '0.5rem' }}>Error Loading Profile</h3>
+          <h3 style={{ color: '#ef4444', marginBottom: '0.5rem', fontSize: '1.25rem', fontWeight: '600' }}>Error Loading Profile</h3>
           <p style={{ color: '#6b7280', marginBottom: '1rem' }}>{error}</p>
           <button
             onClick={fetchUserProfile}
             style={{
-              padding: '0.5rem 1rem',
+              padding: '0.75rem 1.5rem',
               background: '#3b82f6',
               color: 'white',
               border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer'
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '0.875rem'
             }}
           >
             Try Again
@@ -211,18 +229,81 @@ export default function UserProfile({ userRole, onBack }) {
     )
   }
 
-  return (
-    <div className="profile-page" style={{ padding: '2rem', background: '#f9fafb', minHeight: '100vh', border: '5px solid red' }}>
-      <div style={{ background: 'red', color: 'white', padding: '0.5rem', textAlign: 'center', fontWeight: 'bold' }}>
-        PROFILE COMPONENT LOADED - USER: {userData?.email || 'Loading...'}
+  if (!userData) {
+    return (
+      <div className="profile-page" style={{ padding: '2rem', background: 'var(--bg-surface)', minHeight: '100vh' }}>
+        <div className="error-container" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+          <h3 style={{ color: '#6b7280', marginBottom: '0.5rem', fontSize: '1.25rem', fontWeight: '600' }}>No Profile Data</h3>
+          <p style={{ color: '#6b7280', marginBottom: '1rem' }}>Unable to load profile information.</p>
+          <button
+            onClick={fetchUserProfile}
+            style={{
+              padding: '0.75rem 1.5rem',
+              background: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '0.875rem'
+            }}
+          >
+            Retry
+          </button>
+        </div>
       </div>
+    )
+  }
+
+  console.log('[UserProfile] Rendering with state:', { loading, error, userData: !!userData, isEditing, userRole })
+
+  // Always render something visible - even if there's an error
+  return (
+    <div 
+      className="profile-page" 
+      data-testid="user-profile-page"
+      style={{ 
+        padding: '2rem', 
+        background: '#f9fafb', 
+        minHeight: '100vh',
+        width: '100%',
+        display: 'block',
+        position: 'relative',
+        zIndex: 1,
+        boxSizing: 'border-box'
+      }}
+    >
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+      
+      {/* Always visible header to confirm component is rendering */}
+      <div style={{
+        maxWidth: '800px',
+        margin: '0 auto 2rem',
+        padding: '1rem',
+        background: '#3b82f6',
+        color: 'white',
+        borderRadius: '8px',
+        textAlign: 'center',
+        fontWeight: '600'
+      }}>
+        My Profile - {userRole || 'User'}
+      </div>
+
       <div className="profile-container" style={{
         maxWidth: '800px',
         margin: '0 auto',
         background: 'white',
         borderRadius: '16px',
         boxShadow: '0 4px 18px rgba(0,0,0,.06)',
-        overflow: 'hidden'
+        overflow: 'visible',
+        position: 'relative',
+        zIndex: 2,
+        minHeight: '400px'
       }}>
         {/* Header */}
         <div className="profile-header" style={{

@@ -273,6 +273,10 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                     userRole={userRole}
                     grades={grades}
                     classes={classes}
+                    allExams={allExams}
+                    recentExams={recentExams}
+                    selectedExamId={selectedExamId}
+                    onExamChange={handleExamChange}
                 />
 
                 {/* Statistics Cards */}
@@ -280,73 +284,8 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                     data={dashboardData}
                     loading={loading}
                     userRole={userRole}
+                    selectedExamId={selectedExamId}
                 />
-
-                {/* Leaderboard Section Header with Dropdown for Teachers */}
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '1rem'
-                }}>
-                    <div></div> {/* Spacer */}
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '1rem',
-                        background: 'white',
-                        padding: '0.5rem 1rem',
-                        borderRadius: '12px',
-                        boxShadow: 'var(--shadow-sm)',
-                        border: '1px solid #e5e7eb'
-                    }}>
-                        <span style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-secondary)' }}>
-                            Selected Exam:
-                        </span>
-                        {(allExams && allExams.length > 0) || recentExams.length > 0 ? (
-                            <select
-                                value={selectedExamId || ''}
-                                onChange={handleExamChange}
-                                style={{
-                                    padding: '0.5rem',
-                                    borderRadius: '8px',
-                                    border: '1px solid #e5e7eb',
-                                    fontSize: '0.875rem',
-                                    color: 'var(--text-primary)',
-                                    background: 'var(--bg-main)',
-                                    cursor: 'pointer',
-                                    outline: 'none',
-                                    minWidth: '200px'
-                                }}
-                            >
-                                <option value="">Select an exam...</option>
-                                {(allExams && allExams.length > 0 ? allExams : recentExams)
-                                    .filter(exam => {
-                                        if (filters.gradeId && String(exam.gradeId) !== String(filters.gradeId)) return false
-                                        if (filters.classId) {
-                                            // Check legacy classId
-                                            const matchLegacy = String(exam.classId) === String(filters.classId)
-                                            // Check new classIds array (handle both cases if property exists)
-                                            const classIds = exam.classIds || exam.ClassIds || []
-                                            const matchArray = classIds.some(id => String(id) === String(filters.classId))
-
-                                            if (!matchLegacy && !matchArray) return false
-                                        }
-                                        return true
-                                    })
-                                    .map(exam => (
-                                        <option key={exam.examId || exam.id} value={exam.examId || exam.id}>
-                                            {exam.title}
-                                        </option>
-                                    ))}
-                            </select>
-                        ) : (
-                            <span style={{ fontSize: '0.875rem', fontStyle: 'italic', color: 'var(--text-light)' }}>
-                                No exams found
-                            </span>
-                        )}
-                    </div>
-                </div>
 
                 {/* Leaderboard */}
                 <DashboardLeaderboard
@@ -361,7 +300,12 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                 />
 
                 {/* Performance Charts */}
-                <DashboardCharts dashboardData={dashboardData} userRole={userRole} />
+                <DashboardCharts 
+                    dashboardData={dashboardData} 
+                    userRole={userRole} 
+                    selectedExamId={selectedExamId}
+                    filters={filters}
+                />
             </div>
         </div>
     )

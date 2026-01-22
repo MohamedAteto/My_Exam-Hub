@@ -1,9 +1,39 @@
 import { useEffect, useState } from 'react'
 
-export default function DashboardCards({ data, loading, userRole }) {
+export default function DashboardCards({ data, loading, userRole, selectedExamId = null }) {
     const [animatedTotal, setAnimatedTotal] = useState(0)
     const [animatedPass, setAnimatedPass] = useState(0)
     const [animatedFail, setAnimatedFail] = useState(0)
+    const [animatedAverage, setAnimatedAverage] = useState(0)
+
+    // Calculate average score based on selected exam or overall
+    const calculateAverageScore = () => {
+        if (!data) return 0
+        
+        // If an exam is selected, get its average score
+        if (selectedExamId && data.examBreakdown) {
+            const exam = data.examBreakdown.find(e => 
+                String(e.examId) === String(selectedExamId)
+            )
+            if (exam && exam.averageScore) {
+                return exam.averageScore
+            }
+        }
+        
+        // Otherwise calculate overall average
+        if (data.examBreakdown && data.examBreakdown.length > 0) {
+            const total = data.examBreakdown.reduce((sum, exam) => sum + (exam.averageScore || 0), 0)
+            return total / data.examBreakdown.length
+        }
+        
+        // For students, calculate from recent exams
+        if (data.recentExams && data.recentExams.length > 0) {
+            const total = data.recentExams.reduce((sum, exam) => sum + (exam.averageScore || 0), 0)
+            return total / data.recentExams.length
+        }
+        
+        return data.averageScore || 0
+    }
 
     // Animate numbers when data changes
     useEffect(() => {
@@ -11,8 +41,9 @@ export default function DashboardCards({ data, loading, userRole }) {
             animateValue(0, data.totalExams || 0, 1000, setAnimatedTotal)
             animateValue(0, data.passPercentage || 0, 1000, setAnimatedPass)
             animateValue(0, data.failPercentage || 0, 1000, setAnimatedFail)
+            animateValue(0, calculateAverageScore(), 1000, setAnimatedAverage)
         }
-    }, [data, loading])
+    }, [data, loading, selectedExamId])
 
     const animateValue = (start, end, duration, setter) => {
         const range = end - start
@@ -35,20 +66,23 @@ export default function DashboardCards({ data, loading, userRole }) {
                 return {
                     total: 'Total Exams Created',
                     pass: 'Average Pass %',
-                    fail: 'Average Fail %'
+                    fail: 'Average Fail %',
+                    average: 'Average Score'
                 }
             case 'Superadmin':
             case 'Admin':
                 return {
                     total: 'Total Exams',
                     pass: 'Overall Pass %',
-                    fail: 'Overall Fail %'
+                    fail: 'Overall Fail %',
+                    average: 'Average Score'
                 }
             default: // Student
                 return {
                     total: 'Total Exams Taken',
                     pass: 'Pass %',
-                    fail: 'Fail %'
+                    fail: 'Fail %',
+                    average: 'Average Score'
                 }
         }
     }
@@ -59,15 +93,15 @@ export default function DashboardCards({ data, loading, userRole }) {
         return (
             <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                gap: '1.5rem',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '1rem',
                 marginBottom: '2rem'
             }}>
-                {[1, 2, 3].map(i => (
+                {[1, 2, 3, 4].map(i => (
                     <div key={i} style={{
                         background: 'var(--bg-main)',
-                        borderRadius: '16px',
-                        padding: '1.5rem',
+                        borderRadius: '12px',
+                        padding: '1rem',
                         boxShadow: 'var(--shadow-sm)'
                     }}>
                         <div style={{
@@ -93,10 +127,13 @@ export default function DashboardCards({ data, loading, userRole }) {
         )
     }
 
+    // Calculate total exams value - if an exam is selected, show 1, otherwise show the total
+    const totalExamsValue = selectedExamId ? 1 : Math.round(animatedTotal)
+
     const cards = [
         {
             label: labels.total,
-            value: animatedTotal,
+            value: totalExamsValue,
             icon: (
                 <svg viewBox="0 0 24 24">
                     <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
@@ -107,7 +144,7 @@ export default function DashboardCards({ data, loading, userRole }) {
         },
         {
             label: labels.pass,
-            value: animatedPass,
+            value: Math.ceil(animatedPass), // Round up (ceiling) for pass rate
             suffix: '%',
             icon: (
                 <svg viewBox="0 0 24 24">
@@ -119,7 +156,7 @@ export default function DashboardCards({ data, loading, userRole }) {
         },
         {
             label: labels.fail,
-            value: animatedFail,
+            value: Math.floor(animatedFail), // Round down (floor) for fail rate
             suffix: '%',
             icon: (
                 <svg viewBox="0 0 24 24">
@@ -128,14 +165,26 @@ export default function DashboardCards({ data, loading, userRole }) {
             ),
             color: '#ef4444',
             bgColor: 'rgba(239, 68, 68, 0.1)'
+        },
+        {
+            label: labels.average,
+            value: Math.round(animatedAverage), // Round to nearest integer for average score
+            suffix: '%',
+            icon: (
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                </svg>
+            ),
+            color: '#8b5cf6',
+            bgColor: 'rgba(139, 92, 246, 0.1)'
         }
     ]
 
     return (
         <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '1.5rem',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '1rem',
             marginBottom: '2rem'
         }}>
             {cards.map((card, index) => (
@@ -144,8 +193,8 @@ export default function DashboardCards({ data, loading, userRole }) {
                     className={`animate-card stagger-${index + 1}`}
                     style={{
                         background: 'var(--bg-main)',
-                        borderRadius: '16px',
-                        padding: '1.5rem',
+                        borderRadius: '12px',
+                        padding: '1rem',
                         boxShadow: 'var(--shadow-sm)',
                         border: '2px solid transparent',
                         transition: 'all 0.3s ease',
@@ -166,10 +215,10 @@ export default function DashboardCards({ data, loading, userRole }) {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        marginBottom: '1rem'
+                        marginBottom: '0.75rem'
                     }}>
                         <div style={{
-                            fontSize: '0.875rem',
+                            fontSize: '0.75rem',
                             fontWeight: '500',
                             color: 'var(--text-secondary)',
                             textTransform: 'uppercase',
@@ -178,26 +227,26 @@ export default function DashboardCards({ data, loading, userRole }) {
                             {card.label}
                         </div>
                         <div style={{
-                            width: '40px',
-                            height: '40px',
-                            borderRadius: '10px',
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
                             background: card.bgColor,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center'
                         }}>
-                            <div style={{ width: '24px', height: '24px', fill: card.color }}>
+                            <div style={{ width: '18px', height: '18px', fill: card.color }}>
                                 {card.icon}
                             </div>
                         </div>
                     </div>
                     <div style={{
-                        fontSize: '2.5rem',
+                        fontSize: '2rem',
                         fontWeight: '700',
                         color: card.color,
                         lineHeight: 1
                     }}>
-                        {card.value.toFixed(card.suffix ? 2 : 0)}{card.suffix || ''}
+                        {card.value}{card.suffix || ''}
                     </div>
                 </div>
             ))}

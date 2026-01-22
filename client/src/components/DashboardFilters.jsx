@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import api from '../api/axios'
 
-export default function DashboardFilters({ onFilterChange, userRole, grades = [], classes = [] }) {
+export default function DashboardFilters({ onFilterChange, userRole, grades = [], classes = [], allExams = [], recentExams = [], selectedExamId = null, onExamChange }) {
   const [selectedGrade, setSelectedGrade] = useState('')
   const [selectedClass, setSelectedClass] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [activeFilters, setActiveFilters] = useState([])
+
+  const hasExamFilter = ((allExams && allExams.length > 0) || recentExams.length > 0)
 
   // Classes are filtered based on selected grade
   const filteredClasses = selectedGrade
@@ -14,6 +16,19 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
     : classes
 
 
+
+  // Filter exams based on grade and class
+  const filteredExams = (allExams && allExams.length > 0 ? allExams : recentExams)
+    .filter(exam => {
+      if (selectedGrade && String(exam.gradeId) !== String(selectedGrade)) return false
+      if (selectedClass) {
+        const matchLegacy = String(exam.classId) === String(selectedClass)
+        const classIds = exam.classIds || exam.ClassIds || []
+        const matchArray = classIds.some(id => String(id) === String(selectedClass))
+        if (!matchLegacy && !matchArray) return false
+      }
+      return true
+    })
 
   const handleApplyFilters = () => {
     const filters = {
@@ -222,12 +237,63 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
         </div>
       </div>
 
-      {/* Action Buttons */}
       <div style={{
         display: 'flex',
-        gap: '0.75rem',
-        flexWrap: 'wrap'
+        gap: '1rem',
+        flexWrap: 'wrap',
+        alignItems: 'flex-end'
       }}>
+        {/* Exam Filter */}
+        {hasExamFilter ? (
+          <div style={{
+            flex: '2 1 420px'
+          }}>
+            <label style={{
+              display: 'block',
+              fontSize: '0.875rem',
+              fontWeight: '500',
+              color: 'var(--text-secondary)',
+              marginBottom: '0.5rem'
+            }}>
+              Selected Exam
+            </label>
+            <select
+              value={selectedExamId || ''}
+              onChange={(e) => {
+                if (onExamChange) {
+                  onExamChange(e)
+                }
+              }}
+              style={{
+                width: '100%',
+                padding: '0.625rem',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                background: 'var(--bg-surface)',
+                color: 'var(--text-primary)',
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              <option value="">All Exams</option>
+              {filteredExams.map(exam => (
+                <option key={exam.examId || exam.id} value={exam.examId || exam.id}>
+                  {exam.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
+
+        {/* Action Buttons */}
+        <div style={{
+          display: 'flex',
+          gap: '0.75rem',
+          flexWrap: 'wrap',
+          justifyContent: 'flex-end',
+          flex: '1 1 260px'
+        }}>
         <button
           onClick={handleApplyFilters}
           style={{
@@ -280,6 +346,7 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
         >
           Clear Filters
         </button>
+        </div>
       </div>
 
       {/* Active Filters Summary */}

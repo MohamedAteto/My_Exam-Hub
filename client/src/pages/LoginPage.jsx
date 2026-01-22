@@ -19,7 +19,7 @@ export default function LoginPage() {
     html, body { 
       height: 100%; 
       font-family: 'Inter', system-ui, -apple-system, sans-serif; 
-      background-color: #f8fafc;
+      background-color: #ffffff;
       overflow: hidden;
     }
     .login-container { 
@@ -27,8 +27,7 @@ export default function LoginPage() {
       justify-content: center; 
       align-items: center; 
       min-height: 100vh;
-      background: radial-gradient(circle at top left, rgba(239, 68, 68, 0.05) 0%, transparent 40%),
-                  radial-gradient(circle at bottom right, rgba(239, 68, 68, 0.05) 0%, transparent 40%);
+      background: #ffffff;
       padding: 1.5rem;
     }
     .login-card { 
@@ -52,13 +51,14 @@ export default function LoginPage() {
     .brand-logo {
       width: 64px;
       height: 64px;
-      background: #ef4444;
+      background: #ffffff;
       border-radius: 16px;
       display: flex;
       align-items: center;
       justify-content: center;
       margin: 0 auto 1.25rem;
-      box-shadow: 0 8px 16px rgba(239, 68, 68, 0.2);
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
     }
     .brand-logo svg {
       width: 32px;

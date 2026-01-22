@@ -1,7 +1,8 @@
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts'
 
-export default function StatsLineChart({ data, title, userRole }) {
+export default function StatsLineChart({ data, title, userRole, selectedExamId = null }) {
     const hasData = data && data.length > 0
+    const isSingleExam = selectedExamId && data && data.length === 1
 
     return (
         <div style={{
@@ -32,88 +33,131 @@ export default function StatsLineChart({ data, title, userRole }) {
             {hasData ? (
                 <div style={{ flex: 1, minHeight: 0 }}>
                     <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                            <defs>
-                                <linearGradient id="gradientAreaStudent" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                                </linearGradient>
-                                <linearGradient id="gradientAreaClass" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                            <XAxis
-                                dataKey="Title"
-                                tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
-                                stroke="transparent"
-                                tickMargin={10}
-                            />
-                            <YAxis
-                                domain={[0, 100]}
-                                tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
-                                stroke="transparent"
-                                tickCount={6}
-                            />
-                            <Tooltip
-                                contentStyle={{
-                                    background: 'rgba(255, 255, 255, 0.95)',
-                                    border: 'none',
-                                    borderRadius: '12px',
-                                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                                    fontSize: '0.9rem',
-                                    fontWeight: '600',
-                                    padding: '12px'
-                                }}
-                                itemStyle={{ color: '#374151' }}
-                            />
-                            <Legend
-                                verticalAlign="top"
-                                height={36}
-                                iconType="rect"
-                                wrapperStyle={{ fontSize: '0.85rem', fontWeight: '500', right: 0 }}
-                            />
+                        {isSingleExam ? (
+                            // Show as bar chart for single exam selection
+                            <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id="gradientBarAverage" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#3b82f6" />
+                                        <stop offset="100%" stopColor="#2563eb" />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                                <XAxis
+                                    dataKey="Title"
+                                    tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
+                                    stroke="transparent"
+                                    tickMargin={10}
+                                />
+                                <YAxis
+                                    domain={[0, 100]}
+                                    tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
+                                    stroke="transparent"
+                                    tickCount={6}
+                                />
+                                <Tooltip
+                                    contentStyle={{
+                                        background: 'rgba(255, 255, 255, 0.95)',
+                                        border: 'none',
+                                        borderRadius: '12px',
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                        fontSize: '0.9rem',
+                                        fontWeight: '600',
+                                        padding: '12px'
+                                    }}
+                                    itemStyle={{ color: '#374151' }}
+                                    cursor={{ fill: '#f3f4f6', opacity: 0.5 }}
+                                />
+                                <Bar dataKey="AverageScore" radius={[6, 6, 0, 0]} maxBarSize={120}>
+                                    {data.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill="url(#gradientBarAverage)" />
+                                    ))}
+                                </Bar>
+                            </BarChart>
+                        ) : (
+                            <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id="gradientAreaStudent" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                    </linearGradient>
+                                    <linearGradient id="gradientAreaClass" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                                <XAxis
+                                    dataKey="Title"
+                                    tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
+                                    stroke="transparent"
+                                    tickMargin={10}
+                                />
+                                <YAxis
+                                    domain={[0, 100]}
+                                    tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
+                                    stroke="transparent"
+                                    tickCount={6}
+                                />
+                                <Tooltip
+                                    contentStyle={{
+                                        background: 'rgba(255, 255, 255, 0.95)',
+                                        border: 'none',
+                                        borderRadius: '12px',
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                        fontSize: '0.9rem',
+                                        fontWeight: '600',
+                                        padding: '12px'
+                                    }}
+                                    itemStyle={{ color: '#374151' }}
+                                />
+                                <Legend
+                                    verticalAlign="top"
+                                    height={36}
+                                    iconType="rect"
+                                    wrapperStyle={{ fontSize: '0.85rem', fontWeight: '500', right: 0 }}
+                                />
 
-                            {userRole === 'student' ? (
-                                <>
+                                {userRole === 'student' ? (
+                                    <>
+                                        <Area
+                                            type="monotone"
+                                            dataKey="StudentScore"
+                                            stroke="#3b82f6"
+                                            strokeWidth={3}
+                                            fillOpacity={1}
+                                            fill="url(#gradientAreaStudent)"
+                                            name="My Score (%)"
+                                            dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+                                            activeDot={{ r: 6, strokeWidth: 0 }}
+                                        />
+                                        <Area
+                                            type="monotone"
+                                            dataKey="AverageScore"
+                                            stroke="#10b981"
+                                            strokeWidth={2}
+                                            strokeDasharray="5 5"
+                                            fillOpacity={1}
+                                            fill="url(#gradientAreaClass)"
+                                            name="Class Avg (%)"
+                                            dot={{ r: 3, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }}
+                                        />
+                                    </>
+                                ) : (
                                     <Area
                                         type="monotone"
-                                        dataKey="StudentScore"
+                                        dataKey="AverageScore"
                                         stroke="#3b82f6"
                                         strokeWidth={3}
                                         fillOpacity={1}
                                         fill="url(#gradientAreaStudent)"
-                                        name="My Score (%)"
+                                        name="Average Score (%)"
                                         dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
                                         activeDot={{ r: 6, strokeWidth: 0 }}
                                     />
-                                    <Area
-                                        type="monotone"
-                                        dataKey="AverageScore"
-                                        stroke="#10b981"
-                                        strokeWidth={2}
-                                        strokeDasharray="5 5"
-                                        fillOpacity={1}
-                                        fill="url(#gradientAreaClass)"
-                                        name="Class Avg (%)"
-                                        dot={{ r: 3, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }}
-                                    />
-                                </>
-                            ) : (
-                                <Area
-                                    type="monotone"
-                                    dataKey="AverageScore"
-                                    stroke="#3b82f6"
-                                    strokeWidth={3}
-                                    fillOpacity={1}
-                                    fill="url(#gradientAreaStudent)"
-                                    name="Average Score (%)"
-                                    dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
-                                    activeDot={{ r: 6, strokeWidth: 0 }}
-                                />
-                            )}
-                        </AreaChart>
+                                )}
+                            </AreaChart>
+                        )}
                     </ResponsiveContainer>
                 </div>
             ) : (

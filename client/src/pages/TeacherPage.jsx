@@ -47,6 +47,14 @@ export default function TeacherPage() {
   const [selectedAnswers, setSelectedAnswers] = useState({})
   const [dbGrades, setDbGrades] = useState([])
   const [dbClasses, setDbClasses] = useState([])
+  const [isClassesDropdownOpen, setIsClassesDropdownOpen] = useState(false)
+  const classesDropdownRef = useRef(null)
+  const buttonClickRef = useRef(false)
+
+  // Debug: Track state changes
+  useEffect(() => {
+    console.log('🔄 isClassesDropdownOpen changed to:', isClassesDropdownOpen)
+  }, [isClassesDropdownOpen])
   const [filters, setFilters] = useState({
     gradeId: null,
     classId: null,
@@ -234,6 +242,49 @@ export default function TeacherPage() {
       }
     }
   }, [navigate])
+
+  // Handle clicks outside the classes dropdown
+  useEffect(() => {
+    if (!isClassesDropdownOpen) {
+      console.log('🚫 Dropdown closed, removing click listener')
+      return
+    }
+
+    console.log('👂 Adding click outside listener')
+    const handleClickOutside = (event) => {
+      // If we just clicked the button, ignore this click
+      if (buttonClickRef.current) {
+        console.log('✅ Ignoring click - button was just clicked')
+        return
+      }
+
+      console.log('🖱️ Click detected outside handler', {
+        target: event.target,
+        isInRef: classesDropdownRef.current?.contains(event.target),
+        isButton: event.target.closest('button[type="button"]')
+      })
+
+      // Check if click is outside the dropdown container
+      if (classesDropdownRef.current && !classesDropdownRef.current.contains(event.target)) {
+        console.log('❌ Closing dropdown - click outside')
+        setIsClassesDropdownOpen(false)
+      } else {
+        console.log('✅ Click inside dropdown - keeping open')
+      }
+    }
+
+    // Add a delay to ensure button click completes first before adding listener
+    const timeoutId = setTimeout(() => {
+      console.log('⏰ Adding click listener after delay')
+      document.addEventListener('click', handleClickOutside, false)
+    }, 200)
+
+    return () => {
+      console.log('🧹 Cleaning up click listener')
+      clearTimeout(timeoutId)
+      document.removeEventListener('click', handleClickOutside, false)
+    }
+  }, [isClassesDropdownOpen])
 
   function showModal(title, message) {
     return new Promise((resolve) => {
@@ -1534,7 +1585,7 @@ export default function TeacherPage() {
         return (
           <div id="quiz-editor" className="quiz-editor active" style={{ padding: '2rem', background: '#f9fafb', minHeight: '100vh' }}>
             <div className="editor-header" style={{ marginBottom: '2rem' }}><h1 className="editor-title" id="editor-title" style={{ fontSize: '2rem', fontWeight: 700, color: '#1f2937', margin: '0 0 .5rem 0' }}>{currentQuizId ? 'Edit Exam' : 'Create New Exam'}</h1><p style={{ fontSize: '1rem', color: '#6b7280', margin: 0 }}>Design your exam with multiple question types</p></div>
-            <div className="editor-content" style={{ background: 'white', borderRadius: '12px', padding: '2rem', boxShadow: '0 4px 18px rgba(0,0,0,.06)' }}>
+            <div className="editor-content" style={{ background: 'white', borderRadius: '12px', padding: '2rem', boxShadow: '0 4px 18px rgba(0,0,0,.06)', overflow: 'visible', position: 'relative' }}>
               <div className="form-group" style={{ marginBottom: '1.5rem' }}>
                 <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div><label className="form-label" htmlFor="quiz-title" style={{ display: 'block', fontSize: '.875rem', fontWeight: 600, color: '#374151', marginBottom: '.5rem' }}>Exam Title <span className="required" style={{ color: '#dc2626' }}>*</span></label><input type="text" id="quiz-title" className="form-input" style={{ width: '100%', padding: '.75rem', border: '2px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', background: 'white', outline: 'none' }} placeholder="Enter exam title" value={quizForm.title} onChange={(e) => setQuizForm({ ...quizForm, title: e.target.value })} onFocus={(e) => e.target.style.borderColor = '#3b82f6'} onBlur={(e) => e.target.style.borderColor = '#d1d5db'} /></div>
@@ -1542,100 +1593,211 @@ export default function TeacherPage() {
                 </div>
               </div>
               <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                <div className="form-row-three" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-                  <div><label className="form-label" htmlFor="quiz-grade" style={{ display: 'block', fontSize: '.875rem', fontWeight: 600, color: '#374151', marginBottom: '.5rem' }}>Grade <span className="required" style={{ color: '#dc2626' }}>*</span></label><select id="quiz-grade" className="form-select" style={{ width: '100%', padding: '.75rem', border: '2px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', background: 'white', outline: 'none' }} value={quizForm.gradeId || ''} onChange={(e) => setQuizForm({ ...quizForm, gradeId: e.target.value, grade: e.target.options[e.target.selectedIndex].text })} onFocus={(e) => e.target.style.borderColor = '#3b82f6'} onBlur={(e) => e.target.style.borderColor = '#d1d5db'}><option value="">Select grade</option>{dbGrades.map(g => (<option key={g.id} value={g.id}>{g.gradeName}</option>))}</select></div>
-                  <div>
+                <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div><label className="form-label" htmlFor="quiz-grade" style={{ display: 'block', fontSize: '.875rem', fontWeight: 600, color: '#374151', marginBottom: '.5rem' }}>Grade <span className="required" style={{ color: '#dc2626' }}>*</span></label><select id="quiz-grade" className="form-select" style={{ width: '100%', padding: '.75rem', border: '2px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', background: 'white', outline: 'none' }} value={quizForm.gradeId || ''} onChange={(e) => {
+                    const newGradeId = e.target.value
+                    console.log('📚 Grade changed to:', newGradeId)
+                    setQuizForm({
+                      ...quizForm,
+                      gradeId: newGradeId,
+                      grade: e.target.options[e.target.selectedIndex].text,
+                      classIds: [] // Clear classes when grade changes
+                    })
+                    setIsClassesDropdownOpen(false) // Close dropdown when grade changes
+                  }} onFocus={(e) => e.target.style.borderColor = '#3b82f6'} onBlur={(e) => e.target.style.borderColor = '#d1d5db'}><option value="">Select grade</option>{dbGrades.map(g => (<option key={g.id} value={g.id}>{g.gradeName}</option>))}</select></div>
+                  <div style={{ position: 'relative', zIndex: 1000 }} ref={classesDropdownRef}>
                     <label className="form-label" htmlFor="quiz-class" style={{ display: 'block', fontSize: '.875rem', fontWeight: 600, color: '#374151', marginBottom: '.5rem' }}>Classes <span className="required" style={{ color: '#dc2626' }}>*</span></label>
-                    <div className="class-checkbox-list" style={{
-                      width: '100%',
-                      padding: '.75rem',
-                      border: '2px solid #d1d5db',
-                      borderRadius: '8px',
-                      background: 'white',
-                      minHeight: '100px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '.75rem'
-                    }}>
-                      {(() => {
-                        const filtered = dbClasses.filter(c => Number(c.gradeId) === Number(quizForm.gradeId));
-                        if (!quizForm.gradeId) {
-                          return (
-                            <div style={{
-                              color: '#6b7280',
-                              fontSize: '.875rem',
-                              fontStyle: 'italic',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              height: '100%',
-                              textAlign: 'center'
-                            }}>
-                              Please select a grade first to see available classes
-                            </div>
-                          );
-                        }
-                        if (filtered.length === 0) {
-                          return (
-                            <div style={{ color: '#6b7280', fontSize: '.875rem', fontStyle: 'italic', textAlign: 'center' }}>
-                              No classes found for this grade
-                            </div>
-                          );
-                        }
-                        return filtered.map?.((cls) => (
-                          <label
-                            key={cls.id}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '.75rem',
-                              padding: '.5rem',
-                              borderRadius: '6px',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s ease',
-                              userSelect: 'none'
-                            }}
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                          >
-                            <input
-                              type="checkbox"
-                              value={cls.id}
-                              checked={(quizForm.classIds || []).map(Number).includes(Number(cls.id))}
-                              onChange={(e) => {
-                                const currentIds = quizForm.classIds || []
-                                const val = Number(cls.id)
-                                const newIds = e.target.checked
-                                  ? [...currentIds, val]
-                                  : currentIds.filter(id => id !== val)
-                                setQuizForm({
-                                  ...quizForm,
-                                  classIds: newIds,
-                                })
-                              }}
-                              style={{
-                                width: '18px',
-                                height: '18px',
-                                cursor: 'pointer',
-                                accentColor: '#dc2626'
-                              }}
-                            />
-                            <span style={{
-                              fontSize: '.875rem',
-                              color: '#374151',
-                              fontWeight: 500
-                            }}>{cls.className}</span>
-                          </label>
-                        ));
-                      })()}
+                    <div style={{ position: 'relative' }}>
+                      <button
+                        type="button"
+                        id="quiz-class"
+                        disabled={!quizForm.gradeId}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          if (quizForm.gradeId) {
+                            setIsClassesDropdownOpen(!isClassesDropdownOpen)
+                          }
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '.75rem',
+                          border: `2px solid ${isClassesDropdownOpen ? '#3b82f6' : '#d1d5db'}`,
+                          borderRadius: '8px',
+                          fontSize: '1rem',
+                          background: (!quizForm.gradeId) ? '#f3f4f6' : 'white',
+                          outline: 'none',
+                          cursor: (!quizForm.gradeId) ? 'not-allowed' : 'pointer',
+                          opacity: (!quizForm.gradeId) ? 0.6 : 1,
+                          color: (!quizForm.gradeId) ? '#9ca3af' : 'inherit',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '.75rem',
+                          transition: 'all 0.2s',
+                          boxShadow: isClassesDropdownOpen ? '0 0 0 4px rgba(59, 130, 246, 0.1)' : 'none'
+                        }}
+                      >
+                        <span style={{ flex: 1, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {(() => {
+                            if (!quizForm.gradeId) return 'Select grade first'
+
+                            const currentClassIds = (quizForm.classIds || []).map(Number)
+                            const gradeClasses = (dbClasses || []).filter(c => Number(c.gradeId) === Number(quizForm.gradeId))
+
+                            if (currentClassIds.length === 0) return 'Select classes'
+
+                            // Get names of selected classes
+                            const selectedNames = gradeClasses
+                              .filter(c => currentClassIds.includes(Number(c.id)))
+                              .map(c => c.className)
+
+                            if (selectedNames.length === 0) return 'Select classes' // Fallback
+                            if (selectedNames.length <= 2) return selectedNames.join(', ')
+                            return `${selectedNames.length} classes selected`
+                          })()}
+                        </span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isClassesDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease', opacity: 0.5 }}>
+                          <path d="M6 9l6 6 6-6" />
+                        </svg>
+                      </button>
+
+                      {isClassesDropdownOpen && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 'calc(100% + 8px)',
+                            left: 0,
+                            right: 0,
+                            padding: '.5rem',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '12px',
+                            background: 'white',
+                            boxShadow: '0 10px 40px -10px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05)',
+                            zIndex: 100000,
+                            maxHeight: '300px',
+                            overflowY: 'auto',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '2px'
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {(() => {
+                            const gradeClasses = (dbClasses || []).filter(c => Number(c.gradeId) === Number(quizForm.gradeId))
+
+                            if (gradeClasses.length === 0) {
+                              return (
+                                <div style={{ padding: '2rem 1rem', textAlign: 'center', color: '#6b7280' }}>
+                                  <p style={{ margin: 0, fontSize: '0.875rem' }}>No classes found for this grade</p>
+                                </div>
+                              )
+                            }
+
+                            const currentIds = (quizForm.classIds || []).map(Number)
+                            const gradeClassIds = gradeClasses.map(c => Number(c.id))
+                            const isAllSelected = gradeClassIds.length > 0 && gradeClassIds.every(id => currentIds.includes(id))
+
+                            return (
+                              <>
+                                <label
+                                  className="dropdown-item"
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '.75rem',
+                                    padding: '.75rem',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    userSelect: 'none',
+                                    transition: 'background 0.15s',
+                                    background: isAllSelected ? '#f0f9ff' : 'transparent',
+                                  }}
+                                  onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+                                  onMouseLeave={(e) => e.currentTarget.style.background = isAllSelected ? '#f0f9ff' : 'transparent'}
+                                >
+                                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={isAllSelected}
+                                      onChange={(e) => {
+                                        const newIds = e.target.checked
+                                          ? [...new Set([...currentIds, ...gradeClassIds])]
+                                          : currentIds.filter(id => !gradeClassIds.includes(id))
+
+                                        setQuizForm(prev => ({ ...prev, classIds: newIds }))
+                                      }}
+                                      style={{
+                                        width: '18px',
+                                        height: '18px',
+                                        accentColor: '#3b82f6',
+                                        cursor: 'pointer'
+                                      }}
+                                    />
+                                  </div>
+                                  <span style={{ fontSize: '.9rem', fontWeight: 600, color: '#111827' }}>Select All Classes</span>
+                                </label>
+
+                                <div style={{ height: '1px', background: '#f3f4f6', margin: '.25rem 0' }} />
+
+                                {gradeClasses.map((cls) => {
+                                  const isSelected = currentIds.includes(Number(cls.id))
+                                  return (
+                                    <label
+                                      key={cls.id}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '.75rem',
+                                        padding: '.75rem',
+                                        borderRadius: '8px',
+                                        cursor: 'pointer',
+                                        userSelect: 'none',
+                                        transition: 'background 0.15s',
+                                        background: isSelected ? '#fff7ed' : 'transparent',
+                                      }}
+                                      onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
+                                      onMouseLeave={(e) => e.currentTarget.style.background = isSelected ? '#fff7ed' : 'transparent'}
+                                    >
+                                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                        <input
+                                          type="checkbox"
+                                          checked={isSelected}
+                                          onChange={(e) => {
+                                            const clsId = Number(cls.id)
+                                            let newIds
+                                            if (e.target.checked) {
+                                              newIds = [...currentIds, clsId]
+                                            } else {
+                                              newIds = currentIds.filter(id => id !== clsId)
+                                            }
+                                            setQuizForm(prev => ({ ...prev, classIds: newIds }))
+                                          }}
+                                          style={{
+                                            width: '18px',
+                                            height: '18px',
+                                            accentColor: '#f97316', // Orange accent for individual items to match requested "proper" styling
+                                            cursor: 'pointer'
+                                          }}
+                                        />
+                                      </div>
+                                      <span style={{ fontSize: '.9rem', color: isSelected ? '#9a3412' : '#374151', fontWeight: isSelected ? 500 : 400 }}>{cls.className}</span>
+                                    </label>
+                                  )
+                                })}
+                              </>
+                            )
+                          })()}
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <div><label className="form-label" htmlFor="quiz-start-date" style={{ display: 'block', fontSize: '.875rem', fontWeight: 600, color: '#374151', marginBottom: '.5rem' }}>Start Date & Time <span className="required" style={{ color: '#dc2626' }}>*</span></label><input type="datetime-local" id="quiz-start-date" className="form-input" style={{ width: '100%', padding: '.75rem', border: '2px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', background: 'white', outline: 'none' }} value={quizForm.startDate} onChange={(e) => setQuizForm({ ...quizForm, startDate: e.target.value })} onFocus={(e) => e.target.style.borderColor = '#3b82f6'} onBlur={(e) => e.target.style.borderColor = '#d1d5db'} /></div>
                 </div>
               </div>
               <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
-                  <div><label className="form-label" htmlFor="quiz-datetime" style={{ display: 'block', fontSize: '.875rem', fontWeight: 600, color: '#374151', marginBottom: '.5rem' }}>Exam Date & Time <span className="required" style={{ color: '#dc2626' }}>*</span></label><input type="datetime-local" id="quiz-datetime" className="form-input" style={{ width: '100%', padding: '.75rem', border: '2px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', background: 'white', outline: 'none' }} value={quizForm.datetime} onChange={(e) => setQuizForm({ ...quizForm, datetime: e.target.value })} onFocus={(e) => e.target.style.borderColor = '#3b82f6'} onBlur={(e) => e.target.style.borderColor = '#d1d5db'} /></div>
+                <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div><label className="form-label" htmlFor="quiz-start-date" style={{ display: 'block', fontSize: '.875rem', fontWeight: 600, color: '#374151', marginBottom: '.5rem' }}>Start Date & Time <span className="required" style={{ color: '#dc2626' }}>*</span></label><input type="datetime-local" id="quiz-start-date" className="form-input" style={{ width: '100%', padding: '.75rem', border: '2px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', background: 'white', outline: 'none' }} value={quizForm.startDate} onChange={(e) => setQuizForm({ ...quizForm, startDate: e.target.value })} onFocus={(e) => e.target.style.borderColor = '#3b82f6'} onBlur={(e) => e.target.style.borderColor = '#d1d5db'} /></div>
+                  <div><label className="form-label" htmlFor="quiz-datetime" style={{ display: 'block', fontSize: '.875rem', fontWeight: 600, color: '#374151', marginBottom: '.5rem' }}>End Date & Time <span className="required" style={{ color: '#dc2626' }}>*</span></label><input type="datetime-local" id="quiz-datetime" className="form-input" style={{ width: '100%', padding: '.75rem', border: '2px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', background: 'white', outline: 'none' }} value={quizForm.datetime} onChange={(e) => setQuizForm({ ...quizForm, datetime: e.target.value })} onFocus={(e) => e.target.style.borderColor = '#3b82f6'} onBlur={(e) => e.target.style.borderColor = '#d1d5db'} /></div>
                 </div>
               </div>
               <div className="questions-section" style={{ marginTop: '2rem' }}>
@@ -2219,7 +2381,7 @@ export default function TeacherPage() {
           {currentSection !== 'profile' && (
             <div style={{ padding: '1.5rem 2rem 0' }}>
               <div style={{
-                background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+                background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
                 padding: '1.5rem 2rem',
                 borderRadius: '16px',
                 color: 'white',
@@ -2232,7 +2394,7 @@ export default function TeacherPage() {
                 <div>
                   <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Hello, {teacherName}! 👋</h2>
                   <p style={{ margin: '0.25rem 0 0', opacity: 0.8, fontSize: '0.9rem' }}>
-                    You are logged in as a <span style={{ color: '#60a5fa', fontWeight: 600 }}>{userRole || 'Teacher'}</span>
+                    You are logged in as a <span style={{ color: 'white', fontWeight: 600 }}>{userRole || 'Teacher'}</span>
                   </p>
                 </div>
                 <div style={{
