@@ -9,7 +9,10 @@ import StatsBarChart from './charts/StatsBarChart'
 import DashboardCharts from './DashboardCharts'
 import LoadingSpinner from './LoadingSpinner'
 
-export default function UnifiedDashboard({ userRole, userId, allExams = [], grades = [], classes = [] }) {
+export default function UnifiedDashboard({ userRole, userId, allExams = [], grades = [], classes = [], onSeeAllScores }) {
+    console.log('[UnifiedDashboard] Grades received:', grades)
+    const GRADES_ORDER = ['Junior', 'Wheeler', 'Senior']
+    const [sliderGradeIndex, setSliderGradeIndex] = useState(0) // Default to Junior (index 0)
     const [filters, setFilters] = useState({
         gradeId: null,
         classId: null,
@@ -35,7 +38,7 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
         fetchDashboardData()
     }, [userRole, userId, filters])
 
-    // Fetch leaderboard when filters or exam selection changes
+    // Fetch leaderboard when filters, exam selection, or slider grade changes
     useEffect(() => {
         // If an exam is selected (manually or default), always fetch its specific leaderboard
         if (selectedExamId) {
@@ -46,10 +49,18 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
         if (roleNorm === 'student' && dashboardData?.latestExamLeaderboard) {
             setLeaderboardData(dashboardData.latestExamLeaderboard.topStudents || [])
             setLeaderboardLoading(false)
-        } else if (dashboardData) {
+        } else if (dashboardData || selectedExamId || (!selectedExamId && (roleNorm === 'teacher' || roleNorm === 'admin' || roleNorm === 'superadmin'))) {
             fetchLeaderboard()
         }
-    }, [filters, dashboardData, selectedExamId, roleNorm])
+    }, [filters, dashboardData, selectedExamId, roleNorm, sliderGradeIndex, grades])
+
+    const handleNextGrade = () => {
+        setSliderGradeIndex(prev => (prev + 1) % GRADES_ORDER.length)
+    }
+
+    const handlePrevGrade = () => {
+        setSliderGradeIndex(prev => (prev - 1 + GRADES_ORDER.length) % GRADES_ORDER.length)
+    }
 
     const fetchDashboardData = async () => {
         try {
@@ -131,19 +142,85 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
             // Priority: Fetch specific exam leaderboard if selected
             if (selectedExamId) {
                 console.log(`[UnifiedDashboard] Fetching leaderboard for exam ${selectedExamId}`)
-                const response = await api.get(`/dashboard/leaderboard/${selectedExamId}`)
-                setLeaderboardData(response.data.topStudents || [])
+                const params = new URLSearchParams()
+
+                if (filters.gradeId) params.append('gradeId', filters.gradeId)
+
+                // For specific exam, we usually default to no grade filter unless specified or if Teacher wants to filter
+                // But previously we tried to map Slider Grade. 
+                // However, for Specific Exam, it's safer to show ALL participants unless explicitly filtered.
+                // Or do we still apply Slider Grade?
+                // The prompt for "Aggregated" implies Slider is mainly for that. 
+                // Let's stick to: If filter.gradeId is set, use it. If not, check if we need to apply slider.
+                // Actually, for specific exams, typical behavior is "Show All".
+                // But let's keep the logic consistent: If User is Teacher/Admin, maybe applying slider is good?
+                // Let's rely on filters.gradeId mostly.
+                if ((roleNorm === 'teacher' || roleNorm === 'admin' || roleNorm === 'superadmin') && !filters.gradeId) {
+                    // Optionally apply slider grade here too?
+                    // Let's SKIP slider for specific exam to allow seeing all students.
+                    // Unless user requested "Wire Slider to use Grade Leaderboard endpoint when no exam selected".
+                    // So for specific exam, maybe don't force slider.
+                }
+
+                if (filters.classId) params.append('classId', filters.classId)
+                if (filters.startDate) params.append('startDate', filters.startDate)
+                if (filters.endDate) params.append('endDate', filters.endDate)
+
+                try {
+                    const response = await api.get(`/dashboard/leaderboard/${selectedExamId}?${params.toString()}`)
+                    setLeaderboardData(response.data.topStudents || [])
+                } catch (e) {
+                    console.error("[UnifiedDashboard] Error fetching exam leaderboard:", e)
+                    setLeaderboardData([])
+                }
                 setLeaderboardLoading(false)
                 return
             }
 
-            // Fallback: Admin/Superadmin view global top students if no exam selected
-            if (roleNorm === 'admin' || roleNorm === 'superadmin') {
-                if (dashboardData?.topPerformingStudents) {
-                    setLeaderboardData(dashboardData.topPerformingStudents)
+            // Fallback: Aggregated Leaderboard (Combined)
+            if (!selectedExamId) {
+                if (roleNorm === 'teacher' || roleNorm === 'admin' || roleNorm === 'superadmin') {
+                    // Get current slider grade ID
+                    const sliderGradeName = GRADES_ORDER[sliderGradeIndex]
+                    let gradeId = null
+
+                    if (filters.gradeId) {
+                        gradeId = filters.gradeId
+                    } else if (grades && grades.length > 0) {
+                        const gObj = grades.find(g => g.gradeName === sliderGradeName || (g.gradeName && g.gradeName.includes(sliderGradeName)))
+
+                        if (gObj) {
+                            gradeId = gObj.id
+                        } else {
+                            // Fallback
+                            console.warn(`[UnifiedDashboard] Could not map slider grade '${sliderGradeName}' to DB grade.`)
+                            if (grades[sliderGradeIndex]) gradeId = grades[sliderGradeIndex].id
+                            else gradeId = grades[0].id
+                        }
+                    }
+
+                    if (gradeId) {
+                        console.log(`[UnifiedDashboard] Fetching COMBINED leaderboard for grade ${gradeId} (${sliderGradeName})`)
+                        try {
+                            const response = await api.get(`/dashboard/leaderboard/combined?gradeId=${gradeId}`)
+                            setLeaderboardData(response.data.topStudents || [])
+                        } catch (e) {
+                            console.error("[UnifiedDashboard] Error fetching combined leaderboard:", e)
+                            setLeaderboardData([])
+                        }
+                        setLeaderboardLoading(false)
+                        return
+                    }
                 }
-                setLeaderboardLoading(false)
-                return
+
+                // Superadmin fallback if no grade found / logic above skipped
+                if (roleNorm === 'admin' || roleNorm === 'superadmin') {
+                    if (dashboardData?.topPerformingStudents) {
+                        setLeaderboardData(dashboardData.topPerformingStudents)
+                    }
+                    setLeaderboardLoading(false)
+                    return
+                }
             }
 
             setLeaderboardData([])
@@ -287,7 +364,6 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                     selectedExamId={selectedExamId}
                 />
 
-                {/* Leaderboard */}
                 <DashboardLeaderboard
                     leaderboard={leaderboardData}
                     loading={leaderboardLoading}
@@ -297,12 +373,29 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                     }
                     userRole={userRole}
                     currentUserId={roleNorm === 'student' ? parseInt(userId) : null}
+                    onSeeAll={() => {
+                        console.log('[UnifiedDashboard] See All Clicked. ExamId:', selectedExamId)
+                        if (onSeeAllScores) {
+                            if (selectedExamId) {
+                                onSeeAllScores(selectedExamId, null)
+                            } else {
+                                // Pass the current slider grade name to filter by grade
+                                const sliderGradeName = GRADES_ORDER[sliderGradeIndex]
+                                onSeeAllScores(null, sliderGradeName)
+                            }
+                        }
+                    }}
+                    // Slider Props
+                    sliderGrade={GRADES_ORDER[sliderGradeIndex]}
+                    showSlider={!filters.gradeId && (roleNorm === 'teacher' || roleNorm === 'admin' || roleNorm === 'superadmin')}
+                    onNextGrade={handleNextGrade}
+                    onPrevGrade={handlePrevGrade}
                 />
 
                 {/* Performance Charts */}
-                <DashboardCharts 
-                    dashboardData={dashboardData} 
-                    userRole={userRole} 
+                <DashboardCharts
+                    dashboardData={dashboardData}
+                    userRole={userRole}
                     selectedExamId={selectedExamId}
                     filters={filters}
                 />

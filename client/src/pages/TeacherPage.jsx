@@ -12,6 +12,8 @@ import UnifiedDashboard from '../components/UnifiedDashboard'
 import DashboardFilters from '../components/DashboardFilters'
 import api from '../api/axios.js'
 import { storage } from '../utils/storage'
+import MultiSelectDropdown from '../components/MultiSelectDropdown.jsx'
+import StudentsDataGrid from '../components/Teacher/StudentsDataGrid.jsx'
 
 export default function TeacherPage() {
   const navigate = useNavigate()
@@ -47,14 +49,6 @@ export default function TeacherPage() {
   const [selectedAnswers, setSelectedAnswers] = useState({})
   const [dbGrades, setDbGrades] = useState([])
   const [dbClasses, setDbClasses] = useState([])
-  const [isClassesDropdownOpen, setIsClassesDropdownOpen] = useState(false)
-  const classesDropdownRef = useRef(null)
-  const buttonClickRef = useRef(false)
-
-  // Debug: Track state changes
-  useEffect(() => {
-    console.log('🔄 isClassesDropdownOpen changed to:', isClassesDropdownOpen)
-  }, [isClassesDropdownOpen])
   const [filters, setFilters] = useState({
     gradeId: null,
     classId: null,
@@ -67,6 +61,17 @@ export default function TeacherPage() {
   const [modalTitle, setModalTitle] = useState('')
   const [modalMessage, setModalMessage] = useState('')
   const modalResolveRef = useRef(null)
+
+  const [studentFilterExamId, setStudentFilterExamId] = useState(null)
+  const [studentFilterGrade, setStudentFilterGrade] = useState(null)
+
+  function handleSeeAllScores(examId, gradeName = null) {
+    console.log('👀 handleSeeAllScores triggered. Exam:', examId, 'Grade:', gradeName)
+    setStudentFilterExamId(examId)
+    setStudentFilterGrade(gradeName)
+    console.log('🔄 Setting section to students')
+    setCurrentSection('students')
+  }
 
   useEffect(() => {
     const isSuperAdmin = storage.getItem('isSuperAdminView')
@@ -243,48 +248,7 @@ export default function TeacherPage() {
     }
   }, [navigate])
 
-  // Handle clicks outside the classes dropdown
-  useEffect(() => {
-    if (!isClassesDropdownOpen) {
-      console.log('🚫 Dropdown closed, removing click listener')
-      return
-    }
 
-    console.log('👂 Adding click outside listener')
-    const handleClickOutside = (event) => {
-      // If we just clicked the button, ignore this click
-      if (buttonClickRef.current) {
-        console.log('✅ Ignoring click - button was just clicked')
-        return
-      }
-
-      console.log('🖱️ Click detected outside handler', {
-        target: event.target,
-        isInRef: classesDropdownRef.current?.contains(event.target),
-        isButton: event.target.closest('button[type="button"]')
-      })
-
-      // Check if click is outside the dropdown container
-      if (classesDropdownRef.current && !classesDropdownRef.current.contains(event.target)) {
-        console.log('❌ Closing dropdown - click outside')
-        setIsClassesDropdownOpen(false)
-      } else {
-        console.log('✅ Click inside dropdown - keeping open')
-      }
-    }
-
-    // Add a delay to ensure button click completes first before adding listener
-    const timeoutId = setTimeout(() => {
-      console.log('⏰ Adding click listener after delay')
-      document.addEventListener('click', handleClickOutside, false)
-    }, 200)
-
-    return () => {
-      console.log('🧹 Cleaning up click listener')
-      clearTimeout(timeoutId)
-      document.removeEventListener('click', handleClickOutside, false)
-    }
-  }, [isClassesDropdownOpen])
 
   function showModal(title, message) {
     return new Promise((resolve) => {
@@ -994,7 +958,7 @@ export default function TeacherPage() {
               ...bank,
               title: title,
               description: bankForm.description || '',
-              grade: grade,
+              grade: dbGrades.find(g => g.id == bankForm.gradeId)?.gradeName || bank.grade,
               questions: questionsToSave.map(q => ({
                 id: q.id,
                 type: q.type,
@@ -1182,6 +1146,7 @@ export default function TeacherPage() {
             allExams={quizzes}
             grades={dbGrades}
             classes={dbClasses}
+            onSeeAllScores={handleSeeAllScores}
           />
         )
       case 'my-quizzes':
@@ -1603,194 +1568,17 @@ export default function TeacherPage() {
                       grade: e.target.options[e.target.selectedIndex].text,
                       classIds: [] // Clear classes when grade changes
                     })
-                    setIsClassesDropdownOpen(false) // Close dropdown when grade changes
                   }} onFocus={(e) => e.target.style.borderColor = '#3b82f6'} onBlur={(e) => e.target.style.borderColor = '#d1d5db'}><option value="">Select grade</option>{dbGrades.map(g => (<option key={g.id} value={g.id}>{g.gradeName}</option>))}</select></div>
-                  <div style={{ position: 'relative', zIndex: 1000 }} ref={classesDropdownRef}>
-                    <label className="form-label" htmlFor="quiz-class" style={{ display: 'block', fontSize: '.875rem', fontWeight: 600, color: '#374151', marginBottom: '.5rem' }}>Classes <span className="required" style={{ color: '#dc2626' }}>*</span></label>
-                    <div style={{ position: 'relative' }}>
-                      <button
-                        type="button"
-                        id="quiz-class"
-                        disabled={!quizForm.gradeId}
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          if (quizForm.gradeId) {
-                            setIsClassesDropdownOpen(!isClassesDropdownOpen)
-                          }
-                        }}
-                        style={{
-                          width: '100%',
-                          padding: '.75rem',
-                          border: `2px solid ${isClassesDropdownOpen ? '#3b82f6' : '#d1d5db'}`,
-                          borderRadius: '8px',
-                          fontSize: '1rem',
-                          background: (!quizForm.gradeId) ? '#f3f4f6' : 'white',
-                          outline: 'none',
-                          cursor: (!quizForm.gradeId) ? 'not-allowed' : 'pointer',
-                          opacity: (!quizForm.gradeId) ? 0.6 : 1,
-                          color: (!quizForm.gradeId) ? '#9ca3af' : 'inherit',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: '.75rem',
-                          transition: 'all 0.2s',
-                          boxShadow: isClassesDropdownOpen ? '0 0 0 4px rgba(59, 130, 246, 0.1)' : 'none'
-                        }}
-                      >
-                        <span style={{ flex: 1, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {(() => {
-                            if (!quizForm.gradeId) return 'Select grade first'
-
-                            const currentClassIds = (quizForm.classIds || []).map(Number)
-                            const gradeClasses = (dbClasses || []).filter(c => Number(c.gradeId) === Number(quizForm.gradeId))
-
-                            if (currentClassIds.length === 0) return 'Select classes'
-
-                            // Get names of selected classes
-                            const selectedNames = gradeClasses
-                              .filter(c => currentClassIds.includes(Number(c.id)))
-                              .map(c => c.className)
-
-                            if (selectedNames.length === 0) return 'Select classes' // Fallback
-                            if (selectedNames.length <= 2) return selectedNames.join(', ')
-                            return `${selectedNames.length} classes selected`
-                          })()}
-                        </span>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isClassesDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease', opacity: 0.5 }}>
-                          <path d="M6 9l6 6 6-6" />
-                        </svg>
-                      </button>
-
-                      {isClassesDropdownOpen && (
-                        <div
-                          style={{
-                            position: 'absolute',
-                            top: 'calc(100% + 8px)',
-                            left: 0,
-                            right: 0,
-                            padding: '.5rem',
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '12px',
-                            background: 'white',
-                            boxShadow: '0 10px 40px -10px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05)',
-                            zIndex: 100000,
-                            maxHeight: '300px',
-                            overflowY: 'auto',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '2px'
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {(() => {
-                            const gradeClasses = (dbClasses || []).filter(c => Number(c.gradeId) === Number(quizForm.gradeId))
-
-                            if (gradeClasses.length === 0) {
-                              return (
-                                <div style={{ padding: '2rem 1rem', textAlign: 'center', color: '#6b7280' }}>
-                                  <p style={{ margin: 0, fontSize: '0.875rem' }}>No classes found for this grade</p>
-                                </div>
-                              )
-                            }
-
-                            const currentIds = (quizForm.classIds || []).map(Number)
-                            const gradeClassIds = gradeClasses.map(c => Number(c.id))
-                            const isAllSelected = gradeClassIds.length > 0 && gradeClassIds.every(id => currentIds.includes(id))
-
-                            return (
-                              <>
-                                <label
-                                  className="dropdown-item"
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '.75rem',
-                                    padding: '.75rem',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    userSelect: 'none',
-                                    transition: 'background 0.15s',
-                                    background: isAllSelected ? '#f0f9ff' : 'transparent',
-                                  }}
-                                  onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
-                                  onMouseLeave={(e) => e.currentTarget.style.background = isAllSelected ? '#f0f9ff' : 'transparent'}
-                                >
-                                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                    <input
-                                      type="checkbox"
-                                      checked={isAllSelected}
-                                      onChange={(e) => {
-                                        const newIds = e.target.checked
-                                          ? [...new Set([...currentIds, ...gradeClassIds])]
-                                          : currentIds.filter(id => !gradeClassIds.includes(id))
-
-                                        setQuizForm(prev => ({ ...prev, classIds: newIds }))
-                                      }}
-                                      style={{
-                                        width: '18px',
-                                        height: '18px',
-                                        accentColor: '#3b82f6',
-                                        cursor: 'pointer'
-                                      }}
-                                    />
-                                  </div>
-                                  <span style={{ fontSize: '.9rem', fontWeight: 600, color: '#111827' }}>Select All Classes</span>
-                                </label>
-
-                                <div style={{ height: '1px', background: '#f3f4f6', margin: '.25rem 0' }} />
-
-                                {gradeClasses.map((cls) => {
-                                  const isSelected = currentIds.includes(Number(cls.id))
-                                  return (
-                                    <label
-                                      key={cls.id}
-                                      style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '.75rem',
-                                        padding: '.75rem',
-                                        borderRadius: '8px',
-                                        cursor: 'pointer',
-                                        userSelect: 'none',
-                                        transition: 'background 0.15s',
-                                        background: isSelected ? '#fff7ed' : 'transparent',
-                                      }}
-                                      onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
-                                      onMouseLeave={(e) => e.currentTarget.style.background = isSelected ? '#fff7ed' : 'transparent'}
-                                    >
-                                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                        <input
-                                          type="checkbox"
-                                          checked={isSelected}
-                                          onChange={(e) => {
-                                            const clsId = Number(cls.id)
-                                            let newIds
-                                            if (e.target.checked) {
-                                              newIds = [...currentIds, clsId]
-                                            } else {
-                                              newIds = currentIds.filter(id => id !== clsId)
-                                            }
-                                            setQuizForm(prev => ({ ...prev, classIds: newIds }))
-                                          }}
-                                          style={{
-                                            width: '18px',
-                                            height: '18px',
-                                            accentColor: '#f97316', // Orange accent for individual items to match requested "proper" styling
-                                            cursor: 'pointer'
-                                          }}
-                                        />
-                                      </div>
-                                      <span style={{ fontSize: '.9rem', color: isSelected ? '#9a3412' : '#374151', fontWeight: isSelected ? 500 : 400 }}>{cls.className}</span>
-                                    </label>
-                                  )
-                                })}
-                              </>
-                            )
-                          })()}
-                        </div>
-                      )}
-                    </div>
+                  <div style={{ position: 'relative', zIndex: 1000 }}>
+                    <MultiSelectDropdown
+                      id="quiz-class"
+                      label="Classes"
+                      placeholder={quizForm.gradeId ? "Select classes" : "Select grade first"}
+                      options={(dbClasses || []).filter(c => Number(c.gradeId) === Number(quizForm.gradeId)).map(c => ({ id: Number(c.id), label: c.className, value: Number(c.id) }))}
+                      selectedIds={(quizForm.classIds || []).map(Number)}
+                      onChange={(newIds) => setQuizForm({ ...quizForm, classIds: newIds })}
+                      disabled={!quizForm.gradeId}
+                    />
                   </div>
                 </div>
               </div>
@@ -1905,271 +1693,18 @@ export default function TeacherPage() {
           </div>
         )
       case 'students':
-        return (
-          <div style={{ padding: '2rem', background: '#f9fafb', minHeight: '100vh' }}>
-            <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-              <div style={{ marginBottom: '2rem' }}>
-                <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#1f2937', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <svg style={{ width: '32px', height: '32px', fill: '#dc2626' }} viewBox="0 0 24 24">
-                    <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
-                  </svg>
-                  My Students
-                </h1>
-                <p style={{ fontSize: '1rem', color: '#6b7280', margin: 0 }}>Select a grade to view classes and students</p>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
-                {getGrades().map((grade, index) => {
-                  const gradeStudents = students.filter(s => s.grade === grade)
-                  const avgScore = gradeStudents.length > 0 ? Math.round(
-                    gradeStudents.reduce((total, student) => {
-                      const scores = Object.values(student.quizScores || {})
-                      const studentAvg = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0
-                      return total + studentAvg
-                    }, 0) / gradeStudents.length,
-                  ) : 0
-                  return (
-                    <div
-                      key={grade}
-                      onClick={() => showClassesForGrade(grade)}
-                      className={`animate-card stagger-${(index % 5) + 1}`}
-                      style={{
-                        background: 'white',
-                        borderRadius: '16px',
-                        padding: '1.5rem',
-                        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)',
-                        border: '1px solid #e5e7eb',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        ':hover': { transform: 'translateY(-4px)', boxShadow: '0 8px 16px rgba(0, 0, 0, 0.1)' }
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 8px 16px rgba(0, 0, 0, 0.1)' }}
-                      onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.07)' }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                        <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <svg style={{ width: '24px', height: '24px', fill: 'white' }} viewBox="0 0 24 24">
-                            <path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z" />
-                          </svg>
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#1f2937', margin: 0 }}>{grade}</h3>
-                          <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>Mathematics</p>
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '1rem', borderTop: '1px solid #f3f4f6' }}>
-                        <div>
-                          <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>Students</div>
-                          <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#dc2626' }}>{gradeStudents.length}</div>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>Avg Score</div>
-                          <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#10b981' }}>{avgScore}%</div>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        )
+      case 'students':
       case 'classes':
-        return currentGrade && (
-          <div style={{ padding: '2rem', background: '#f9fafb', minHeight: '100vh' }}>
-            <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-              <div style={{ marginBottom: '2rem' }}>
-                <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#1f2937', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <svg style={{ width: '32px', height: '32px', fill: '#dc2626' }} viewBox="0 0 24 24">
-                    <path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z" />
-                  </svg>
-                  {currentGrade} Classes
-                </h1>
-                <p style={{ fontSize: '1rem', color: '#6b7280', margin: 0 }}>Select a class to view students</p>
-              </div>
-
-              <button
-                onClick={backToGrades}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  background: '#6b7280',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  marginBottom: '1.5rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem'
-                }}
-              >
-                <svg style={{ width: '16px', height: '16px', fill: 'white' }} viewBox="0 0 24 24">
-                  <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
-                </svg>
-                Back to Grades
-              </button>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
-                {getClassesForGrade(currentGrade).map((className) => {
-                  const classStudents = getStudentsForClass(currentGrade, className)
-                  const avgScore = classStudents.length > 0 ? Math.round(
-                    classStudents.reduce((total, student) => {
-                      const scores = Object.values(student.quizScores || {})
-                      const studentAvg = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0
-                      return total + studentAvg
-                    }, 0) / classStudents.length,
-                  ) : 0
-                  return (
-                    <div
-                      key={className}
-                      onClick={() => showStudentsForClass(currentGrade, className)}
-                      style={{
-                        background: 'white',
-                        borderRadius: '16px',
-                        padding: '1.5rem',
-                        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)',
-                        border: '1px solid #e5e7eb',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 8px 16px rgba(0, 0, 0, 0.1)' }}
-                      onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.07)' }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                        <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <svg style={{ width: '24px', height: '24px', fill: 'white' }} viewBox="0 0 24 24">
-                            <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z" />
-                          </svg>
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#1f2937', margin: 0 }}>{className}</h3>
-                          <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>{currentGrade} Mathematics</p>
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '1rem', borderTop: '1px solid #f3f4f6' }}>
-                        <div>
-                          <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>Students</div>
-                          <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#059669' }}>{classStudents.length}</div>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>Avg Score</div>
-                          <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#10b981' }}>{avgScore}%</div>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        )
       case 'class-students':
-        return currentClass && (
-          <div style={{ padding: '2rem', background: '#f9fafb', minHeight: '100vh' }}>
-            <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-              <div style={{ marginBottom: '2rem' }}>
-                <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#1f2937', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <svg style={{ width: '32px', height: '32px', fill: '#dc2626' }} viewBox="0 0 24 24">
-                    <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
-                  </svg>
-                  {currentClass.class} Students
-                </h1>
-                <p style={{ fontSize: '1rem', color: '#6b7280', margin: 0 }}>Students in {currentClass.grade} - {currentClass.class}</p>
-              </div>
-
-              <button
-                onClick={backToClasses}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  background: '#6b7280',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  marginBottom: '1.5rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem'
-                }}
-              >
-                <svg style={{ width: '16px', height: '16px', fill: 'white' }} viewBox="0 0 24 24">
-                  <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
-                </svg>
-                Back to Classes
-              </button>
-
-              {getStudentsForClass(currentClass.grade, currentClass.class).length === 0 ? (
-                <div style={{ background: 'white', borderRadius: '16px', padding: '4rem 2rem', textAlign: 'center', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)' }}>
-                  <svg style={{ width: '64px', height: '64px', fill: '#d1d5db', margin: '0 auto 1rem' }} viewBox="0 0 24 24">
-                    <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
-                  </svg>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#374151', marginBottom: '0.5rem' }}>No students in this class</h3>
-                  <p style={{ fontSize: '1rem', color: '#6b7280', margin: 0 }}>This class doesn't have any students yet</p>
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gap: '1rem' }}>
-                  {getStudentsForClass(currentClass.grade, currentClass.class).map((student) => {
-                    const scores = Object.values(student.quizScores || {})
-                    const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0
-                    const completedQuizzes = scores.length
-                    return (
-                      <div
-                        key={student.id}
-                        onClick={() => showStudentDetail(student.id)}
-                        style={{
-                          background: 'white',
-                          borderRadius: '12px',
-                          padding: '1.5rem',
-                          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
-                          border: '1px solid #e5e7eb',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between'
-                        }}
-                        onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)'; e.currentTarget.style.transform = 'translateX(4px)' }}
-                        onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.05)'; e.currentTarget.style.transform = 'translateX(0)' }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                          <div style={{
-                            width: '56px',
-                            height: '56px',
-                            borderRadius: '50%',
-                            background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '1.25rem',
-                            fontWeight: '700',
-                            color: 'white'
-                          }}>
-                            {student.initials || student.name?.substring(0, 2).toUpperCase()}
-                          </div>
-                          <div>
-                            <h3 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#1f2937', margin: 0 }}>{student.name}</h3>
-                            <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem' }}>{student.grade} - {student.class}</div>
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
-                          <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>Exams</div>
-                            <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#059669' }}>{completedQuizzes}</div>
-                          </div>
-                          <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>Avg Score</div>
-                            <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#10b981' }}>{avgScore}%</div>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
+        console.log('🏗️ RENDERING students grid case')
+        return (
+          <StudentsDataGrid
+            students={students}
+            allExams={quizzes}
+            initialExamId={studentFilterExamId}
+            initialGrade={studentFilterGrade}
+            onStudentClick={showStudentDetail}
+          />
         )
       case 'student-detail':
         return selectedStudentId && (() => {

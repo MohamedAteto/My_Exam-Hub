@@ -499,13 +499,46 @@ public class DashboardRepo : IDashboardRepo
             .ToListAsync();
 
         var studentIds = studentAnswers.Select(sa => sa.AccountId).Distinct().ToList();
-        var students = await _context.Accounts.Where(a => studentIds.Contains(a.Id)).ToDictionaryAsync(a => a.Id);
+        var students = await _context.Accounts
+            .Include(a => a.StudentExtension)
+            .Where(a => studentIds.Contains(a.Id))
+            .ToDictionaryAsync(a => a.Id);
+
+        // Prepare for filtering
+        HashSet<long>? validClassIdsForGrade = null;
+        if (filters?.GradeId.HasValue == true)
+        {
+            validClassIdsForGrade = (await _context.TblClasses
+                .Where(c => c.GradeId == filters.GradeId.Value)
+                .Select(c => c.Id)
+                .ToListAsync())
+                .ToHashSet();
+        }
 
         var leaderboardEntries = new List<LeaderboardEntryDto>();
 
         foreach (var studentId in studentIds)
         {
             if (!students.TryGetValue(studentId, out var student)) continue;
+
+            // Apply Filters
+            if (filters != null)
+            {
+                if (filters.ClassId.HasValue)
+                {
+                    if (student.StudentExtension?.ClassId != filters.ClassId.Value) continue;
+                }
+
+                if (filters.GradeId.HasValue)
+                {
+                    if (student.StudentExtension?.ClassId == null || 
+                        validClassIdsForGrade == null || 
+                        !validClassIdsForGrade.Contains(student.StudentExtension.ClassId.Value))
+                    {
+                        continue;
+                    }
+                }
+            }
 
             var answers = studentAnswers.Where(sa => sa.AccountId == studentId).ToList();
             
@@ -762,7 +795,7 @@ public class DashboardRepo : IDashboardRepo
         // 1. Fetch students
         var students = await _context.Accounts
             .Include(a => a.StudentExtension)
-            .Where(a => a.Role.RoleName == "Student")
+            .Where(a => a.Role.RoleName == "Student" && a.StudentExtension != null && a.StudentExtension.ClassId.HasValue)
             .ToListAsync();
 
         // 2. Fetch all required data in batches to avoid N+1
@@ -849,5 +882,109 @@ public class DashboardRepo : IDashboardRepo
         }
 
         return result;
+    }
+
+    public async Task<LeaderboardDto> GetCombinedLeaderboardAsync(long? gradeId)
+    {
+        // 1. Get Students in the Grade (or all if gradeId is null, though typically we want a grade)
+        var query = _context.Accounts.Include(a => a.StudentExtension).AsQueryable();
+        
+        if (gradeId.HasValue)
+        {
+            // Find classes for this grade to filter students
+            var classIds = await _context.TblClasses
+                .Where(c => c.GradeId == gradeId.Value)
+                .Select(c => c.Id)
+                .ToListAsync();
+                
+            query = query.Where(a => a.StudentExtension != null && a.StudentExtension.ClassId.HasValue && classIds.Contains(a.StudentExtension.ClassId.Value));
+        }
+        else 
+        {
+             // Filter out test accounts (students without a class) - REVERTED TEMPORARILY
+             query = query.Where(a => a.RoleId == 3);
+        }
+
+        var students = await query.ToListAsync();
+        var studentIds = students.Select(s => s.Id).ToHashSet();
+
+        // 2. Get all answers for these students
+        var allAnswers = await _context.StudentExamAnswers
+            .Where(sea => studentIds.Contains(sea.AccountId) && sea.ExamDetailsId != null)
+            .ToListAsync();
+
+        // 3. Get all relevant exams to calculate total marks for each
+        var examIds = allAnswers.Select(a => a.ExamDetailsId!.Value).Distinct().ToList();
+        
+        var exams = await _context.ExamDetails
+            .Include(e => e.ExamQuestionBanks)
+            .ThenInclude(eq => eq.Question)
+            .Where(e => examIds.Contains(e.ExamId))
+            .ToListAsync();
+            
+        var examMap = exams.ToDictionary(e => e.ExamId);
+        var examTotalMarks = new Dictionary<long, double>();
+        
+        foreach(var ex in exams)
+        {
+             examTotalMarks[ex.ExamId] = (double)ex.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0);
+        }
+
+        // 4. Calculate Scores per Student
+        var leaderboardEntries = new List<LeaderboardEntryDto>();
+
+        foreach (var student in students)
+        {
+            var studentAnswers = allAnswers.Where(a => a.AccountId == student.Id).ToList();
+            if (!studentAnswers.Any()) continue;
+
+            double totalPercentage = 0;
+            int examCount = 0;
+            
+            var studentExamGroups = studentAnswers.GroupBy(a => a.ExamDetailsId!.Value);
+            
+            foreach(var group in studentExamGroups)
+            {
+                var eId = group.Key;
+                if (!examMap.TryGetValue(eId, out var exam)) continue;
+                
+                var maxMarks = examTotalMarks.ContainsKey(eId) ? examTotalMarks[eId] : 0;
+                if (maxMarks <= 0) continue;
+                
+                var earned = (double)group.Where(a => a.Score).Sum(a => 
+                     exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId == a.QuestionBankId)?.Question?.Mark ?? 0);
+                     
+                var pct = (earned / maxMarks) * 100.0;
+                totalPercentage += pct;
+                examCount++;
+            }
+
+            if (examCount == 0) continue;
+
+            var avgScore = Math.Round(totalPercentage / examCount, 2);
+
+            leaderboardEntries.Add(new LeaderboardEntryDto
+            {
+                StudentId = student.Id,
+                StudentName = student.FullNameEn,
+                Score = avgScore,
+                TotalMarks = examCount * 100, // Conceptual total
+                EarnedMarks = (int)totalPercentage, // Conceptual earned points
+                Rank = 0
+            });
+        }
+
+        // 5. Rank
+        leaderboardEntries = leaderboardEntries.OrderByDescending(e => e.Score).ToList();
+        for (int i = 0; i < leaderboardEntries.Count; i++) leaderboardEntries[i].Rank = i + 1;
+
+        return new LeaderboardDto
+        {
+            ExamId = 0, 
+            ExamTitle = "Overall Performance",
+            TopStudents = leaderboardEntries.Take(10).ToList(),
+            HighlightedStudents = leaderboardEntries.Take(3).ToList(),
+            TotalParticipants = leaderboardEntries.Count
+        };
     }
 }

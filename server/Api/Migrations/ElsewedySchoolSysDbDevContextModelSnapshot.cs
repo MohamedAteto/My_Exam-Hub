@@ -746,33 +746,6 @@ namespace QuizesApi.Migrations
                     b.ToTable("EmploymentRequests");
                 });
 
-            modelBuilder.Entity("QuizesApi.Models.ExamClass", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<long>("ClassId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("Class_ID");
-
-                    b.Property<long>("ExamId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("Exam_ID");
-
-                    b.HasKey("Id")
-                        .HasName("PK__Exam_Class__ID");
-
-                    b.HasIndex("ClassId");
-
-                    b.HasIndex(new[] { "ExamId", "ClassId" }, "UQ_Exam_Class_ExamId_ClassId")
-                        .IsUnique();
-
-                    b.ToTable("Exam_Class", (string)null);
-                });
-
             modelBuilder.Entity("QuizesApi.Models.ExamDetail", b =>
                 {
                     b.Property<long>("ExamId")
@@ -782,8 +755,8 @@ namespace QuizesApi.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("ExamId"));
 
-                    b.Property<long?>("ClassId")
-                        .HasColumnType("bigint")
+                    b.Property<string>("ClassId")
+                        .HasColumnType("nvarchar(max)")
                         .HasColumnName("Class_ID");
 
                     b.Property<long?>("CreatedBy_AccId")
@@ -1650,12 +1623,13 @@ namespace QuizesApi.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("ExamDetailsID");
 
-                    b.Property<long>("ExamId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long?>("QuestionbankId")
+                    b.Property<long?>("ExamQuestionId")
                         .HasColumnType("bigint")
-                        .HasColumnName("QuestionbankId");
+                        .HasColumnName("ExamQuestionID");
+
+                    b.Property<long?>("QuestionBankId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("QuestionBankID");
 
                     b.Property<bool>("Score")
                         .HasColumnType("bit");
@@ -1664,11 +1638,11 @@ namespace QuizesApi.Migrations
 
                     b.HasIndex("ExamDetailsId");
 
-                    b.HasIndex("QuestionbankId");
+                    b.HasIndex("QuestionBankId");
 
-                    b.HasIndex(new[] { "AccountId", "ExamDetailsId", "QuestionbankId" }, "UQ_StudentExamAnswer_AccountExamQuestion")
+                    b.HasIndex(new[] { "AccountId", "ExamDetailsId", "QuestionBankId" }, "UQ_StudentExamAnswer_AccountExamQuestion")
                         .IsUnique()
-                        .HasFilter("[ExamDetailsID] IS NOT NULL AND [QuestionbankId] IS NOT NULL");
+                        .HasFilter("[ExamDetailsID] IS NOT NULL AND [QuestionBankID] IS NOT NULL");
 
                     b.ToTable("StudentExamAnswer", (string)null);
                 });
@@ -2484,27 +2458,6 @@ namespace QuizesApi.Migrations
                     b.Navigation("Status");
                 });
 
-            modelBuilder.Entity("QuizesApi.Models.ExamClass", b =>
-                {
-                    b.HasOne("QuizesApi.Models.TblClass", "Class")
-                        .WithMany()
-                        .HasForeignKey("ClassId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_ExamClass_TblClass");
-
-                    b.HasOne("QuizesApi.Models.ExamDetail", "Exam")
-                        .WithMany("ExamClasses")
-                        .HasForeignKey("ExamId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_ExamClass_ExamDetail");
-
-                    b.Navigation("Class");
-
-                    b.Navigation("Exam");
-                });
-
             modelBuilder.Entity("QuizesApi.Models.Grade", b =>
                 {
                     b.HasOne("QuizesApi.Models.Account", "AdminAccount")
@@ -2665,16 +2618,16 @@ namespace QuizesApi.Migrations
                         .HasForeignKey("ExamDetailsId")
                         .HasConstraintName("FK_StudentExamAnswer_ExamDetail");
 
-                    b.HasOne("QuizesApi.Models.QuestionBank", "Questionbank")
+                    b.HasOne("QuizesApi.Models.QuestionBank", "QuestionBank")
                         .WithMany()
-                        .HasForeignKey("QuestionbankId")
+                        .HasForeignKey("QuestionBankId")
                         .HasConstraintName("FK_StudentExamAnswer_QuestionBank");
 
                     b.Navigation("Account");
 
                     b.Navigation("ExamDetailNav");
 
-                    b.Navigation("Questionbank");
+                    b.Navigation("QuestionBank");
                 });
 
             modelBuilder.Entity("QuizesApi.Models.StudentExamResult", b =>
@@ -2962,8 +2915,6 @@ namespace QuizesApi.Migrations
 
             modelBuilder.Entity("QuizesApi.Models.ExamDetail", b =>
                 {
-                    b.Navigation("ExamClasses");
-
                     b.Navigation("StudentExamAnswers");
                 });
 

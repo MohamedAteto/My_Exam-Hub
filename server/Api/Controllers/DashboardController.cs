@@ -270,6 +270,26 @@ public class DashboardController : ControllerBase
     }
 
     /// <summary>
+    /// Get combined leaderboard for a specific grade (aggregated scores from all exams)
+    /// </summary>
+    /// <param name="gradeId">Optional: Filter by grade</param>
+    /// <returns>Combined leaderboard</returns>
+    [HttpGet("leaderboard/combined")]
+    [Authorize]
+    public async Task<ActionResult<LeaderboardDto>> GetCombinedLeaderboard([FromQuery] long? gradeId = null)
+    {
+        try
+        {
+            var leaderboard = await _dashboardRepo.GetCombinedLeaderboardAsync(gradeId);
+            return Ok(leaderboard);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Error retrieving combined leaderboard", error = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Get statistics for a specific exam
     /// </summary>
     /// <param name="examId">Exam ID</param>
