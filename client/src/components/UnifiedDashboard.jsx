@@ -117,9 +117,11 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
             setRecentExams(recent)
 
             // If the currently selected exam is not in the new batch, or none selected, pick the first one
+            // We only auto-select if there WAS a selected exam and it's now gone.
+            // If it was null ("All Exams"), we keep it null to allow the slider to show if intended.
             if (recent.length > 0) {
                 const currentStillExists = recent.some(e => String(e.examId) === String(selectedExamId))
-                if (!currentStillExists) {
+                if (selectedExamId && !currentStillExists) {
                     setSelectedExamId(recent[0].examId)
                 }
             } else {
@@ -181,18 +183,22 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
             if (!selectedExamId) {
                 if (roleNorm === 'teacher' || roleNorm === 'admin' || roleNorm === 'superadmin') {
                     // Get current slider grade ID
-                    const sliderGradeName = GRADES_ORDER[sliderGradeIndex]
+                    const sliderGradeName = GRADES_ORDER[sliderGradeIndex].toLowerCase()
                     let gradeId = null
 
                     if (filters.gradeId) {
                         gradeId = filters.gradeId
                     } else if (grades && grades.length > 0) {
-                        const gObj = grades.find(g => g.gradeName === sliderGradeName || (g.gradeName && g.gradeName.includes(sliderGradeName)))
+                        // Case-insensitive search
+                        const gObj = grades.find(g => {
+                            const gn = (g.gradeName || g.name || '').toLowerCase()
+                            return gn === sliderGradeName || gn.includes(sliderGradeName) || sliderGradeName.includes(gn)
+                        })
 
                         if (gObj) {
                             gradeId = gObj.id
                         } else {
-                            // Fallback
+                            // Fallback to index-based mapping if name match fails
                             console.warn(`[UnifiedDashboard] Could not map slider grade '${sliderGradeName}' to DB grade.`)
                             if (grades[sliderGradeIndex]) gradeId = grades[sliderGradeIndex].id
                             else gradeId = grades[0].id
@@ -203,6 +209,7 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                         console.log(`[UnifiedDashboard] Fetching COMBINED leaderboard for grade ${gradeId} (${sliderGradeName})`)
                         try {
                             const response = await api.get(`/dashboard/leaderboard/combined?gradeId=${gradeId}`)
+                            console.log(`[UnifiedDashboard] Combined leaderboard response for grade ${gradeId}:`, response.data)
                             setLeaderboardData(response.data.topStudents || [])
                         } catch (e) {
                             console.error("[UnifiedDashboard] Error fetching combined leaderboard:", e)
@@ -210,6 +217,8 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                         }
                         setLeaderboardLoading(false)
                         return
+                    } else {
+                        console.warn(`[UnifiedDashboard] No gradeId found for slider grade '${sliderGradeName}'. Available grades:`, grades)
                     }
                 }
 
@@ -387,7 +396,7 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                     }}
                     // Slider Props
                     sliderGrade={GRADES_ORDER[sliderGradeIndex]}
-                    showSlider={!filters.gradeId && (roleNorm === 'teacher' || roleNorm === 'admin' || roleNorm === 'superadmin')}
+                    showSlider={!filters.gradeId && !selectedExamId && (roleNorm === 'teacher' || roleNorm === 'admin' || roleNorm === 'superadmin')}
                     onNextGrade={handleNextGrade}
                     onPrevGrade={handlePrevGrade}
                 />
