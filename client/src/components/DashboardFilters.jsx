@@ -1,12 +1,24 @@
 import { useState, useEffect } from 'react'
 import api from '../api/axios'
 
-export default function DashboardFilters({ onFilterChange, userRole, grades = [], classes = [], allExams = [], recentExams = [], selectedExamId = null, onExamChange }) {
-  const [selectedGrade, setSelectedGrade] = useState('')
-  const [selectedClass, setSelectedClass] = useState('')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
+export default function DashboardFilters({ onFilterChange, userRole, grades = [], classes = [], allExams = [], recentExams = [], selectedExamId = null, onExamChange, currentFilters = null }) {
+  const [selectedGrade, setSelectedGrade] = useState(currentFilters?.gradeId || '')
+  const [selectedClass, setSelectedClass] = useState(currentFilters?.classId || '')
+  const [selectedGroupBy, setSelectedGroupBy] = useState(currentFilters?.groupBy || 'Student')
+  const [startDate, setStartDate] = useState(currentFilters?.startDate || '')
+  const [endDate, setEndDate] = useState(currentFilters?.endDate || '')
   const [activeFilters, setActiveFilters] = useState([])
+
+  // Update local state if currentFilters changes (e.g. from parent)
+  useEffect(() => {
+    if (currentFilters) {
+      if (currentFilters.gradeId !== undefined) setSelectedGrade(currentFilters.gradeId || '')
+      if (currentFilters.classId !== undefined) setSelectedClass(currentFilters.classId || '')
+      if (currentFilters.groupBy !== undefined) setSelectedGroupBy(currentFilters.groupBy || 'Student')
+      if (currentFilters.startDate !== undefined) setStartDate(currentFilters.startDate || '')
+      if (currentFilters.endDate !== undefined) setEndDate(currentFilters.endDate || '')
+    }
+  }, [currentFilters])
 
   const hasExamFilter = ((allExams && allExams.length > 0) || recentExams.length > 0)
 
@@ -35,7 +47,8 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
       gradeId: selectedGrade ? parseInt(selectedGrade) : null,
       classId: selectedClass ? parseInt(selectedClass) : null,
       startDate: startDate || null,
-      endDate: endDate || null
+      endDate: endDate || null,
+      groupBy: selectedGroupBy
     }
 
     // Build active filters summary
@@ -43,6 +56,9 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
     if (selectedGrade) {
       const grade = grades.find(g => g.id === parseInt(selectedGrade))
       if (grade) active.push(grade.gradeName || grade.name)
+    }
+    if (selectedGroupBy === 'Class') {
+      active.push('Group by Class')
     }
     if (selectedClass) {
       const classItem = classes.find(c => c.id === parseInt(selectedClass))
@@ -63,6 +79,7 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
   const handleClearFilters = () => {
     setSelectedGrade('')
     setSelectedClass('')
+    setSelectedGroupBy('Student')
     setStartDate('')
     setEndDate('')
     setActiveFilters([])
@@ -70,7 +87,8 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
       gradeId: null,
       classId: null,
       startDate: null,
-      endDate: null
+      endDate: null,
+      groupBy: 'Student'
     })
   }
 
@@ -235,6 +253,37 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
             }}
           />
         </div>
+
+        {/* Group By Filter */}
+        <div>
+          <label style={{
+            display: 'block',
+            fontSize: '0.875rem',
+            fontWeight: '500',
+            color: 'var(--text-secondary)',
+            marginBottom: '0.5rem'
+          }}>
+            Group By
+          </label>
+          <select
+            value={selectedGroupBy}
+            onChange={(e) => setSelectedGroupBy(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '0.625rem',
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+              background: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
+              fontSize: '0.875rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+          >
+            <option value="Student">Students</option>
+            <option value="Class">Class</option>
+          </select>
+        </div>
       </div>
 
       <div style={{
@@ -294,58 +343,58 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
           justifyContent: 'flex-end',
           flex: '1 1 260px'
         }}>
-        <button
-          onClick={handleApplyFilters}
-          style={{
-            padding: '0.625rem 1.5rem',
-            borderRadius: '8px',
-            border: 'none',
-            background: 'var(--primary)',
-            color: 'white',
-            fontSize: '0.875rem',
-            fontWeight: '500',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.background = 'var(--primary-dark)'
-            e.target.style.transform = 'translateY(-1px)'
-            e.target.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)'
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.background = 'var(--primary)'
-            e.target.style.transform = 'translateY(0)'
-            e.target.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.3)'
-          }}
-        >
-          Apply Filters
-        </button>
+          <button
+            onClick={handleApplyFilters}
+            style={{
+              padding: '0.625rem 1.5rem',
+              borderRadius: '8px',
+              border: 'none',
+              background: 'var(--primary)',
+              color: 'white',
+              fontSize: '0.875rem',
+              fontWeight: '500',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.background = 'var(--primary-dark)'
+              e.target.style.transform = 'translateY(-1px)'
+              e.target.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)'
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = 'var(--primary)'
+              e.target.style.transform = 'translateY(0)'
+              e.target.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.3)'
+            }}
+          >
+            Apply Filters
+          </button>
 
-        <button
-          onClick={handleClearFilters}
-          style={{
-            padding: '0.625rem 1.5rem',
-            borderRadius: '8px',
-            border: '1px solid var(--border-color)',
-            background: 'transparent',
-            color: 'var(--text-secondary)',
-            fontSize: '0.875rem',
-            fontWeight: '500',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.background = 'var(--bg-surface-hover)'
-            e.target.style.borderColor = 'var(--text-secondary)'
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.background = 'transparent'
-            e.target.style.borderColor = 'var(--border-color)'
-          }}
-        >
-          Clear Filters
-        </button>
+          <button
+            onClick={handleClearFilters}
+            style={{
+              padding: '0.625rem 1.5rem',
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+              background: 'transparent',
+              color: 'var(--text-secondary)',
+              fontSize: '0.875rem',
+              fontWeight: '500',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.background = 'var(--bg-surface-hover)'
+              e.target.style.borderColor = 'var(--text-secondary)'
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = 'transparent'
+              e.target.style.borderColor = 'var(--border-color)'
+            }}
+          >
+            Clear Filters
+          </button>
         </div>
       </div>
 

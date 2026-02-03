@@ -26,7 +26,7 @@ namespace QuizesApi
             // Database context
             // Database context
             builder.Services.AddDbContext<ElsewedySchoolSysDbDevContext>(options =>
-                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection3")));
+                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
                 
                 Console.WriteLine(
     builder.Configuration.GetConnectionString("DefaultConnection")

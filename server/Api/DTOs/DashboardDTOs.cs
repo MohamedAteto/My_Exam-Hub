@@ -137,4 +137,5 @@ public class LeaderboardFilterDto
     public long? ClassId { get; set; }
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
+    public string GroupBy { get; set; } = "Student"; // "Student" or "Class"
 }

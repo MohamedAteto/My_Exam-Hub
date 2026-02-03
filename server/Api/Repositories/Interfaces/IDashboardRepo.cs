@@ -37,5 +37,5 @@ public interface IDashboardRepo
     /// <summary>
     /// Get combined leaderboard for a specific grade (aggregated scores from all exams)
     /// </summary>
-    Task<LeaderboardDto> GetCombinedLeaderboardAsync(long? gradeId);
+    Task<LeaderboardDto> GetCombinedLeaderboardAsync(LeaderboardFilterDto? filters);
 }

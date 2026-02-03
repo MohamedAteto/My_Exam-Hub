@@ -7,6 +7,7 @@ import QuizModal from '../components/QuizModal'
 import ErrorBoundary from '../components/ErrorBoundary'
 import UnifiedDashboard from '../components/UnifiedDashboard'
 import DashboardFilters from '../components/DashboardFilters'
+import StudentsDataGrid from '../components/Teacher/StudentsDataGrid'
 import api from '../api/axios'
 import { storage } from '../utils/storage'
 
@@ -40,15 +41,31 @@ export default function SuperAdminPage() {
   const [modalMessage, setModalMessage] = useState('')
   const modalResolveRef = useRef(null)
 
+  const [studentFilterExamId, setStudentFilterExamId] = useState(null)
+  const [studentFilterGrade, setStudentFilterGrade] = useState(null)
+
+  function handleSeeAllScores(examId, gradeName = null) {
+    setStudentFilterExamId(examId)
+    setStudentFilterGrade(gradeName)
+    setCurrentSection('students')
+  }
+
+  // Mock student click handler for compatibility
+  const handleStudentClick = (studentId) => {
+    console.log("View student profile:", studentId)
+    // Could implement profile view modal or navigation here
+  }
+
   // Fetch real data from backend
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true)
-        const [examsRes, questionBanksRes, lookupRes] = await Promise.all([
+        const [examsRes, questionBanksRes, lookupRes, studentsRes] = await Promise.all([
           api.get('/examdetail'),
           api.get('/questionbank'),
-          api.get('/dashboard/lookup-data').catch(() => ({ data: { grades: [], classes: [] } }))
+          api.get('/dashboard/lookup-data').catch(() => ({ data: { grades: [], classes: [] } })),
+          api.get('/dashboard/students').catch(() => ({ data: [] }))
         ])
 
         // Robust mapping for exams to handle casing and missing fields
@@ -77,6 +94,10 @@ export default function SuperAdminPage() {
         if (lookupRes.data) {
           setDbGrades(lookupRes.data.grades || [])
           setDbClasses(lookupRes.data.classes || [])
+        }
+
+        if (studentsRes.data) {
+          setStudents(studentsRes.data)
         }
 
         // Extract unique teachers from question banks
@@ -125,7 +146,6 @@ export default function SuperAdminPage() {
         })
 
         setTeachers(Array.from(teacherAccounts.values()))
-        setStudents([])
 
       } catch (err) {
         console.error('Error fetching data:', err)
@@ -246,6 +266,7 @@ export default function SuperAdminPage() {
                   allExams={exams}
                   grades={dbGrades}
                   classes={dbClasses}
+                  onSeeAllScores={handleSeeAllScores}
                 />
               )}
 
@@ -263,6 +284,7 @@ export default function SuperAdminPage() {
                       userRole={actualRole}
                       grades={dbGrades}
                       classes={dbClasses}
+                      currentFilters={filters}
                     />
                   </div>
 
@@ -365,17 +387,13 @@ export default function SuperAdminPage() {
               {/* Students View */}
               {currentSection === 'students' && (
                 <div id="students-view">
-                  <div style={{ marginBottom: '2rem' }}>
-                    <h1 style={{ fontSize: '2rem', fontWeight: 700, color: '#1f2937', margin: '0 0 .5rem 0' }}>Students Overview</h1>
-                    <p style={{ fontSize: '1rem', color: '#6b7280', margin: 0 }}>View all registered students and their grades</p>
-                  </div>
-                  <div style={{ background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4rem', borderRadius: '16px', border: '2px dashed #e5e7eb' }}>
-                    <div className="animate-card" style={{ textAlign: 'center' }}>
-                      <Users size={48} color="#9ca3af" style={{ marginBottom: '1rem' }} />
-                      <h3 style={{ fontSize: '1.25rem', color: '#4b5563', fontWeight: 600 }}>Detailed Student View Under Implementation</h3>
-                      <p style={{ color: '#6b7280' }}>User profiles and grades will appear here shortly.</p>
-                    </div>
-                  </div>
+                  <StudentsDataGrid
+                    students={students}
+                    allExams={exams}
+                    initialExamId={studentFilterExamId}
+                    initialGrade={studentFilterGrade}
+                    onStudentClick={handleStudentClick}
+                  />
                 </div>
               )}
             </>
@@ -391,7 +409,7 @@ export default function SuperAdminPage() {
           isActive={isModalActive}
         />
       </div>
-    </ErrorBoundary>
+    </ErrorBoundary >
   )
 }
 

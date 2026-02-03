@@ -15,6 +15,25 @@ public class DashboardRepo : IDashboardRepo
         _context = context;
     }
 
+    private string FormatClassName(string className)
+    {
+        if (string.IsNullOrEmpty(className)) return className;
+        
+        // Map J1-J4 to Junior 1-4
+        if (className.StartsWith("J", StringComparison.OrdinalIgnoreCase) && className.Length > 1 && char.IsDigit(className[1]))
+            return $"Junior {className.Substring(1)}";
+            
+        // Map S1-S4 to Senior 1-4
+        if (className.StartsWith("S", StringComparison.OrdinalIgnoreCase) && className.Length > 1 && char.IsDigit(className[1]))
+            return $"Senior {className.Substring(1)}";
+            
+        // Map W1-W4 to Wheeler 1-4
+        if (className.StartsWith("W", StringComparison.OrdinalIgnoreCase) && className.Length > 1 && char.IsDigit(className[1]))
+            return $"Wheeler {className.Substring(1)}";
+        
+        return className;
+    }
+
     private async Task PopulateExamQuestions(ExamDetail exam)
     {
         exam.ExamQuestionBanks.Clear();
@@ -239,8 +258,19 @@ public class DashboardRepo : IDashboardRepo
         
         // Fetch all answers for these exams efficiently
         var examIds = exams.Select(e => e.ExamId).ToList();
+        var studentQuery = _context.StudentExtensions.AsQueryable();
+        if (filters?.GradeId.HasValue == true)
+        {
+            var classIds = await _context.TblClasses.Where(c => c.GradeId == filters.GradeId.Value).Select(c => c.Id).ToListAsync();
+            studentQuery = studentQuery.Where(se => se.ClassId.HasValue && classIds.Contains(se.ClassId.Value));
+        }
+        if (filters?.ClassId.HasValue == true)
+            studentQuery = studentQuery.Where(se => se.ClassId == filters.ClassId.Value);
+
+        var validStudentIds = await studentQuery.Select(se => se.AccountId).ToListAsync();
+
         var allAnswers = await _context.StudentExamAnswers
-            .Where(sea => sea.ExamDetailsId.HasValue && examIds.Contains(sea.ExamDetailsId.Value))
+            .Where(sea => sea.ExamDetailsId.HasValue && examIds.Contains(sea.ExamDetailsId.Value) && validStudentIds.Contains(sea.AccountId))
             .ToListAsync();
 
         foreach (var exam in exams)
@@ -369,12 +399,28 @@ public class DashboardRepo : IDashboardRepo
 
         var totalExams = allFilteredExams.Count;
         
-        var totalStudents = await _context.AccountRoles
+        var studentQuery = _context.AccountRoles
             .Join(_context.Roles, ar => ar.RoleId, r => r.Id, (ar, r) => new { ar.AccountId, r.RoleName })
-            .Where(x => x.RoleName == "Student")
-            .Select(x => x.AccountId)
-            .Distinct()
-            .CountAsync();
+            .Where(x => x.RoleName == "Student" && x.AccountId.HasValue)
+            .Select(x => x.AccountId!.Value);
+
+        if (filters?.GradeId.HasValue == true || filters?.ClassId.HasValue == true)
+        {
+            var studentExtQuery = _context.StudentExtensions.AsQueryable();
+            if (filters.GradeId.HasValue)
+            {
+                var classIds = await _context.TblClasses.Where(c => c.GradeId == filters.GradeId.Value).Select(c => c.Id).ToListAsync();
+                studentExtQuery = studentExtQuery.Where(se => se.ClassId.HasValue && classIds.Contains(se.ClassId.Value));
+            }
+            if (filters.ClassId.HasValue)
+                studentExtQuery = studentExtQuery.Where(se => se.ClassId == filters.ClassId.Value);
+
+            var validStudentIds = await studentExtQuery.Select(se => se.AccountId).ToListAsync();
+            studentQuery = studentQuery.Where(id => validStudentIds.Contains(id));
+        }
+
+        var totalStudents = await studentQuery.Distinct().CountAsync();
+        var validStudentIdsList = await studentQuery.Distinct().ToListAsync();
 
         var totalTeachers = await _context.AccountRoles
             .Join(_context.Roles, ar => ar.RoleId, r => r.Id, (ar, r) => new { ar.AccountId, r.RoleName })
@@ -385,7 +431,7 @@ public class DashboardRepo : IDashboardRepo
 
         var filteredExamIds = allFilteredExams.Select(e => e.ExamId).ToList();
         var allStudentAnswers = await _context.StudentExamAnswers
-            .Where(sea => sea.ExamDetailsId.HasValue && filteredExamIds.Contains(sea.ExamDetailsId.Value))
+            .Where(sea => sea.ExamDetailsId.HasValue && filteredExamIds.Contains(sea.ExamDetailsId.Value) && validStudentIdsList.Contains(sea.AccountId))
             .ToListAsync();
 
         int totalPassed = 0;
@@ -551,7 +597,7 @@ public class DashboardRepo : IDashboardRepo
             leaderboardEntries.Add(new LeaderboardEntryDto
             {
                 StudentId = studentId,
-                StudentName = student.FullNameEn,
+                StudentName = student.FullNameEn ?? "Unknown Student",
                 Score = score,
                 TotalMarks = (int)totalMarks,
                 EarnedMarks = (int)earnedMarks,
@@ -561,6 +607,53 @@ public class DashboardRepo : IDashboardRepo
 
         leaderboardEntries = leaderboardEntries.OrderByDescending(e => e.Score).ToList();
         for (int i = 0; i < leaderboardEntries.Count; i++) leaderboardEntries[i].Rank = i + 1;
+
+        Console.WriteLine($"[DEBUG] GetLeaderboardAsync: GroupBy value is '{filters?.GroupBy}'");
+        if (string.Equals(filters?.GroupBy, "Class", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine("[DEBUG] GetLeaderboardAsync: Grouping by Class");
+            
+            // 1. Get all classes for the grade of this exam
+            var examGradeId = exam.GradeId;
+            var classesForGrade = await _context.TblClasses
+                .Where(c => c.GradeId == examGradeId)
+                .ToListAsync();
+            
+            // 2. Map existing leaderboard entries to their classes
+            var studentClassMap = students.Values
+                .Where(s => s.StudentExtension?.ClassId != null)
+                .ToDictionary(s => s.Id, s => s.StudentExtension!.ClassId!.Value);
+
+            var classScores = leaderboardEntries
+                .Where(le => studentClassMap.ContainsKey(le.StudentId))
+                .GroupBy(le => studentClassMap[le.StudentId])
+                .ToDictionary(g => g.Key, g => g.Average(x => x.Score));
+
+            // 3. Build the final list including ALL classes for this grade
+            var classResults = classesForGrade.Select(c => {
+                var avgScore = classScores.ContainsKey(c.Id) ? Math.Round(classScores[c.Id], 2) : 0.0;
+                return new LeaderboardEntryDto
+                {
+                    StudentId = c.Id,
+                    StudentName = FormatClassName(c.ClassName ?? $"Class {c.Id}"),
+                    Score = avgScore,
+                    Rank = 0
+                };
+            })
+            .OrderByDescending(e => e.Score)
+            .ToList();
+
+            for (int i = 0; i < classResults.Count; i++) classResults[i].Rank = i + 1;
+
+            return new LeaderboardDto
+            {
+                ExamId = examId,
+                ExamTitle = exam.Title ?? "Untitled Exam",
+                TopStudents = classResults.Take(10).ToList(),
+                HighlightedStudents = classResults.Take(3).ToList(),
+                TotalParticipants = classResults.Count
+            };
+        }
 
         return new LeaderboardDto
         {
@@ -873,7 +966,7 @@ public class DashboardRepo : IDashboardRepo
             result.Add(new StudentPerformanceDto
             {
                 Id = student.Id,
-                Name = student.FullNameEn,
+                Name = student.FullNameEn ?? string.Empty,
                 Initials = initials,
                 Grade = gradeName,
                 Class = className,
@@ -884,28 +977,26 @@ public class DashboardRepo : IDashboardRepo
         return result;
     }
 
-    public async Task<LeaderboardDto> GetCombinedLeaderboardAsync(long? gradeId)
+    public async Task<LeaderboardDto> GetCombinedLeaderboardAsync(LeaderboardFilterDto? filters)
     {
-        Console.WriteLine($"[DEBUG] GetCombinedLeaderboardAsync called for gradeId: {gradeId}");
+        var gradeId = filters?.GradeId;
+        Console.WriteLine($"[DEBUG] GetCombinedLeaderboardAsync called for gradeId: {gradeId}, GroupBy: {filters?.GroupBy}");
         try
         {
             // 1. Get All Exams for this Grade (or all if gradeId is null)
             var examsQuery = _context.ExamDetails.AsQueryable();
-            if (gradeId.HasValue)
-            {
-                examsQuery = examsQuery.Where(e => e.GradeId == gradeId.Value);
-            }
+            examsQuery = ApplyFilters(examsQuery, filters);
             
             var exams = await examsQuery.ToListAsync();
             
-            Console.WriteLine($"[DEBUG] Found {exams.Count} exams for gradeId {gradeId}");
+            Console.WriteLine($"[DEBUG] Found {exams.Count} exams for filter");
             
             if (!exams.Any())
             {
                 return new LeaderboardDto { ExamTitle = "Overall Performance", TopStudents = new(), HighlightedStudents = new(), TotalParticipants = 0 };
             }
 
-            // Populate questions using the repo's manual method since EF includes might be problematic
+            // Populate questions
             await PopulateExamQuestions(exams);
             
             var examIds = exams.Select(e => e.ExamId).Distinct().ToList();
@@ -915,8 +1006,6 @@ public class DashboardRepo : IDashboardRepo
                 .Where(sea => sea.ExamDetailsId.HasValue && examIds.Contains(sea.ExamDetailsId.Value))
                 .ToListAsync();
 
-            Console.WriteLine($"[DEBUG] Found {allAnswers.Count} total answers for these exams");
-
             if (!allAnswers.Any())
             {
                 return new LeaderboardDto { ExamTitle = "Overall Performance", TopStudents = new(), HighlightedStudents = new(), TotalParticipants = 0 };
@@ -925,10 +1014,9 @@ public class DashboardRepo : IDashboardRepo
             // 3. Get students who took these exams
             var studentIds = allAnswers.Select(a => a.AccountId).Distinct().ToList();
             var students = await _context.Accounts
+                .Include(a => a.StudentExtension)
                 .Where(a => studentIds.Contains(a.Id))
                 .ToDictionaryAsync(a => a.Id);
-
-            Console.WriteLine($"[DEBUG] Found {students.Count} related students");
 
             // 4. Calculate Scores per Student
             var examMap = exams.ToDictionary(e => e.ExamId);
@@ -942,6 +1030,12 @@ public class DashboardRepo : IDashboardRepo
             foreach (var studentId in studentIds)
             {
                 if (!students.TryGetValue(studentId, out var student)) continue;
+
+                // Apply manual student-level filters if any (ClassId specifically for combined view)
+                if (filters?.ClassId.HasValue == true)
+                {
+                    if (student.StudentExtension?.ClassId != filters.ClassId.Value) continue;
+                }
 
                 var studentAnswers = allAnswers.Where(a => a.AccountId == studentId).ToList();
                 var studentExamGroups = studentAnswers.GroupBy(a => a.ExamDetailsId!.Value);
@@ -984,7 +1078,51 @@ public class DashboardRepo : IDashboardRepo
             leaderboardEntries = leaderboardEntries.OrderByDescending(e => e.Score).ToList();
             for (int i = 0; i < leaderboardEntries.Count; i++) leaderboardEntries[i].Rank = i + 1;
 
-            Console.WriteLine($"[DEBUG] Returning {leaderboardEntries.Count} leaderboard entries");
+            Console.WriteLine($"[DEBUG] GetCombinedLeaderboardAsync: GroupBy value is '{filters?.GroupBy}'");
+            if (string.Equals(filters?.GroupBy, "Class", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine("[DEBUG] GetCombinedLeaderboardAsync: Grouping by Class");
+                
+                // 1. Get all classes for the specified grade
+                var classesForGrade = await _context.TblClasses
+                    .Where(c => c.GradeId == (filters.GradeId ?? 0))
+                    .ToListAsync();
+
+                // 2. Map existing leaderboard entries to their classes
+                var studentClassMap = students.Values
+                    .Where(s => s.StudentExtension?.ClassId != null)
+                    .ToDictionary(s => s.Id, s => s.StudentExtension!.ClassId!.Value);
+
+                var classScores = leaderboardEntries
+                    .Where(le => studentClassMap.ContainsKey(le.StudentId))
+                    .GroupBy(le => studentClassMap[le.StudentId])
+                    .ToDictionary(g => g.Key, g => g.Average(x => x.Score));
+
+                // 3. Build the final list including ALL classes for this grade
+                var classResults = classesForGrade.Select(c => {
+                    var avgScore = classScores.ContainsKey(c.Id) ? Math.Round(classScores[c.Id], 2) : 0.0;
+                    return new LeaderboardEntryDto
+                    {
+                        StudentId = c.Id,
+                        StudentName = FormatClassName(c.ClassName ?? $"Class {c.Id}"),
+                        Score = avgScore,
+                        Rank = 0
+                    };
+                })
+                .OrderByDescending(e => e.Score)
+                .ToList();
+
+                for (int i = 0; i < classResults.Count; i++) classResults[i].Rank = i + 1;
+
+                return new LeaderboardDto
+                {
+                    ExamId = 0,
+                    ExamTitle = "Overall Class Performance",
+                    TopStudents = classResults.Take(10).ToList(),
+                    HighlightedStudents = classResults.Take(3).ToList(),
+                    TotalParticipants = classResults.Count
+                };
+            }
 
             return new LeaderboardDto
             {
@@ -998,7 +1136,6 @@ public class DashboardRepo : IDashboardRepo
         catch (Exception ex)
         {
             Console.WriteLine($"[DEBUG] ERROR in GetCombinedLeaderboardAsync: {ex.Message}");
-            Console.WriteLine(ex.StackTrace);
             throw;
         }
     }

@@ -17,7 +17,8 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
         gradeId: null,
         classId: null,
         startDate: null,
-        endDate: null
+        endDate: null,
+        groupBy: 'Student'
     })
 
     const [dashboardData, setDashboardData] = useState(null)
@@ -167,6 +168,7 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                 if (filters.classId) params.append('classId', filters.classId)
                 if (filters.startDate) params.append('startDate', filters.startDate)
                 if (filters.endDate) params.append('endDate', filters.endDate)
+                if (filters.groupBy) params.append('groupBy', filters.groupBy)
 
                 try {
                     const response = await api.get(`/dashboard/leaderboard/${selectedExamId}?${params.toString()}`)
@@ -181,6 +183,7 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
 
             // Fallback: Aggregated Leaderboard (Combined)
             if (!selectedExamId) {
+                // Allow Teachers, Admins, and Superadmins to see the combined leaderboard based on grade
                 if (roleNorm === 'teacher' || roleNorm === 'admin' || roleNorm === 'superadmin') {
                     // Get current slider grade ID
                     const sliderGradeName = GRADES_ORDER[sliderGradeIndex].toLowerCase()
@@ -208,7 +211,14 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                     if (gradeId) {
                         console.log(`[UnifiedDashboard] Fetching COMBINED leaderboard for grade ${gradeId} (${sliderGradeName})`)
                         try {
-                            const response = await api.get(`/dashboard/leaderboard/combined?gradeId=${gradeId}`)
+                            const params = new URLSearchParams()
+                            params.append('gradeId', gradeId)
+                            if (filters.classId) params.append('classId', filters.classId)
+                            if (filters.startDate) params.append('startDate', filters.startDate)
+                            if (filters.endDate) params.append('endDate', filters.endDate)
+                            if (filters.groupBy) params.append('groupBy', filters.groupBy)
+
+                            const response = await api.get(`/dashboard/leaderboard/combined?${params.toString()}`)
                             console.log(`[UnifiedDashboard] Combined leaderboard response for grade ${gradeId}:`, response.data)
                             setLeaderboardData(response.data.topStudents || [])
                         } catch (e) {
@@ -220,15 +230,6 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                     } else {
                         console.warn(`[UnifiedDashboard] No gradeId found for slider grade '${sliderGradeName}'. Available grades:`, grades)
                     }
-                }
-
-                // Superadmin fallback if no grade found / logic above skipped
-                if (roleNorm === 'admin' || roleNorm === 'superadmin') {
-                    if (dashboardData?.topPerformingStudents) {
-                        setLeaderboardData(dashboardData.topPerformingStudents)
-                    }
-                    setLeaderboardLoading(false)
-                    return
                 }
             }
 
@@ -247,21 +248,6 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
 
     const handleExamChange = (e) => {
         setSelectedExamId(e.target.value)
-    }
-
-    if (loading) {
-        return (
-            <div style={{
-                padding: '2rem',
-                background: 'var(--bg-surface)',
-                minHeight: '100vh',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-            }}>
-                <LoadingSpinner message="Fetching your performance data..." />
-            </div>
-        )
     }
 
     if (error) {
@@ -363,6 +349,7 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                     recentExams={recentExams}
                     selectedExamId={selectedExamId}
                     onExamChange={handleExamChange}
+                    currentFilters={filters}
                 />
 
                 {/* Statistics Cards */}
@@ -396,9 +383,10 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                     }}
                     // Slider Props
                     sliderGrade={GRADES_ORDER[sliderGradeIndex]}
-                    showSlider={!filters.gradeId && !selectedExamId && (roleNorm === 'teacher' || roleNorm === 'admin' || roleNorm === 'superadmin')}
+                    showSlider={!selectedExamId && (roleNorm === 'teacher' || roleNorm === 'admin' || roleNorm === 'superadmin') && !filters.gradeId && !filters.classId}
                     onNextGrade={handleNextGrade}
                     onPrevGrade={handlePrevGrade}
+                    groupBy={filters.groupBy}
                 />
 
                 {/* Performance Charts */}

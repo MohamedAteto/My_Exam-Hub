@@ -1,4 +1,4 @@
-export default function DashboardLeaderboard({ leaderboard, loading, examTitle, userRole, currentUserId, onSeeAll, sliderGrade, showSlider, onNextGrade, onPrevGrade }) {
+export default function DashboardLeaderboard({ leaderboard, loading, examTitle, userRole, currentUserId, onSeeAll, sliderGrade, showSlider, onNextGrade, onPrevGrade, groupBy = 'Student' }) {
     if (loading) {
         return (
             <div style={{
@@ -66,7 +66,7 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                         color: 'var(--text-primary)',
                         margin: 0
                     }}>
-                        Leaderboard
+                        {groupBy === 'Class' ? 'Class Leaderboard' : 'Leaderboard'}
                     </h3>
                     {examTitle && (
                         <p style={{
@@ -126,7 +126,7 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                 }}>
                     {leaderboard.map((entry, index) => {
                         const medal = getMedalColor(entry.rank)
-                        const isCurrentUser = currentUserId && entry.studentId === currentUserId
+                        const isCurrentUser = groupBy !== 'Class' && currentUserId && entry.studentId === currentUserId
                         const isTopThree = entry.rank <= 3
 
                         return (
@@ -200,7 +200,7 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                                         fontSize: '0.875rem',
                                         color: isTopThree ? 'rgba(255,255,255,0.9)' : 'var(--text-secondary)'
                                     }}>
-                                        Rank #{entry.rank}
+                                        {groupBy === 'Class' ? 'Avg Score' : `Rank #${entry.rank}`}
                                     </div>
                                 </div>
 
@@ -217,7 +217,7 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                                     }}>
                                         {entry.score.toFixed(1)}%
                                     </div>
-                                    {entry.earnedMarks !== undefined && entry.totalMarks !== undefined && (
+                                    {groupBy !== 'Class' && entry.earnedMarks !== undefined && entry.totalMarks !== undefined && (
                                         <div style={{
                                             fontSize: '0.75rem',
                                             color: isTopThree ? 'rgba(255,255,255,0.8)' : 'var(--text-secondary)',
@@ -244,7 +244,7 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                     fontSize: '0.875rem',
                     color: 'var(--text-secondary)'
                 }}>
-                    Showing top {leaderboard.length} students
+                    Showing top {leaderboard.length} {groupBy === 'Class' ? 'classes' : 'students'}
                 </div>
             )}
 
@@ -271,7 +271,7 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                     onMouseEnter={(e) => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.borderColor = 'var(--primary)'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = '#d1d5db'; }}
                 >
-                    See All Student Scores
+                    {groupBy === 'Class' ? 'See All Class Scores' : 'See All Student Scores'}
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M5 12h14M12 5l7 7-7 7" />
                     </svg>

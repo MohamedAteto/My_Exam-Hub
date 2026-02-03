@@ -238,7 +238,8 @@ public class DashboardController : ControllerBase
         [FromQuery] long? gradeId = null,
         [FromQuery] long? classId = null,
         [FromQuery] DateTime? startDate = null,
-        [FromQuery] DateTime? endDate = null)
+        [FromQuery] DateTime? endDate = null,
+        [FromQuery] string groupBy = "Student")
     {
         try
         {
@@ -253,7 +254,8 @@ public class DashboardController : ControllerBase
                 GradeId = gradeId,
                 ClassId = classId,
                 StartDate = startDate,
-                EndDate = endDate
+                EndDate = endDate,
+                GroupBy = groupBy
             };
 
             var leaderboard = await _dashboardRepo.GetLeaderboardAsync(examId, filters);
@@ -276,11 +278,24 @@ public class DashboardController : ControllerBase
     /// <returns>Combined leaderboard</returns>
     [HttpGet("leaderboard/combined")]
     [Authorize]
-    public async Task<ActionResult<LeaderboardDto>> GetCombinedLeaderboard([FromQuery] long? gradeId = null)
+    public async Task<ActionResult<LeaderboardDto>> GetCombinedLeaderboard(
+        [FromQuery] long? gradeId = null,
+        [FromQuery] long? classId = null,
+        [FromQuery] DateTime? startDate = null,
+        [FromQuery] DateTime? endDate = null,
+        [FromQuery] string groupBy = "Student")
     {
         try
         {
-            var leaderboard = await _dashboardRepo.GetCombinedLeaderboardAsync(gradeId);
+            var filters = new LeaderboardFilterDto
+            {
+                GradeId = gradeId,
+                ClassId = classId,
+                StartDate = startDate,
+                EndDate = endDate,
+                GroupBy = groupBy
+            };
+            var leaderboard = await _dashboardRepo.GetCombinedLeaderboardAsync(filters);
             return Ok(leaderboard);
         }
         catch (Exception ex)

@@ -9,43 +9,111 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
     // Calculate average score based on selected exam or overall
     const calculateAverageScore = () => {
         if (!data) return 0
-        
+
         // If an exam is selected, get its average score
         if (selectedExamId && data.examBreakdown) {
-            const exam = data.examBreakdown.find(e => 
+            const exam = data.examBreakdown.find(e =>
                 String(e.examId) === String(selectedExamId)
             )
             if (exam && exam.averageScore) {
                 return exam.averageScore
             }
         }
-        
+
         // Otherwise calculate overall average
         if (data.examBreakdown && data.examBreakdown.length > 0) {
             const total = data.examBreakdown.reduce((sum, exam) => sum + (exam.averageScore || 0), 0)
             return total / data.examBreakdown.length
         }
-        
+
         // For students, calculate from recent exams
         if (data.recentExams && data.recentExams.length > 0) {
             const total = data.recentExams.reduce((sum, exam) => sum + (exam.averageScore || 0), 0)
             return total / data.recentExams.length
         }
-        
+
         return data.averageScore || 0
     }
 
+    // Calculate pass percentage based on selected exam or overall
+    const calculatePassPercentage = () => {
+        if (!data) return 0
+
+        let val = data.passPercentage || data.averagePassPercentage || 0
+
+        if (selectedExamId && data.examBreakdown) {
+            const exam = data.examBreakdown.find(e =>
+                String(e.examId) === String(selectedExamId)
+            )
+            if (exam) {
+                console.log('[DashboardCards] Selected Exam Stats:', exam)
+                if (exam.passPercentage !== undefined) {
+                    val = exam.passPercentage
+                } else {
+                    const pass = exam.passCount || 0
+                    const fail = exam.failCount || 0
+                    const total = exam.totalStudents || exam.totalAttempts || (pass + fail)
+
+                    if (total > 0) {
+                        val = (pass / total) * 100
+                    }
+                }
+            }
+        }
+        return val
+    }
+
+    // Calculate fail percentage based on selected exam or overall
+    const calculateFailPercentage = () => {
+        if (!data) return 0
+
+        let val = data.failPercentage || data.averageFailPercentage || 0
+
+        if (selectedExamId && data.examBreakdown) {
+            const exam = data.examBreakdown.find(e =>
+                String(e.examId) === String(selectedExamId)
+            )
+            if (exam) {
+                if (exam.failPercentage !== undefined) {
+                    val = exam.failPercentage
+                } else {
+                    const pass = exam.passCount || 0
+                    const fail = exam.failCount || 0
+                    const total = exam.totalStudents || exam.totalAttempts || (pass + fail)
+
+                    if (total > 0) {
+                        val = (fail / total) * 100
+                    }
+                }
+            }
+        }
+        return val
+    }
+
+    // Animate numbers when data changes
     // Animate numbers when data changes
     useEffect(() => {
         if (!loading && data) {
-            animateValue(0, data.totalExams || 0, 1000, setAnimatedTotal)
-            animateValue(0, data.passPercentage || 0, 1000, setAnimatedPass)
-            animateValue(0, data.failPercentage || 0, 1000, setAnimatedFail)
-            animateValue(0, calculateAverageScore(), 1000, setAnimatedAverage)
+            const cleanupTotal = animateValue(0, data.totalExams || 0, 1000, setAnimatedTotal)
+            const cleanupPass = animateValue(0, calculatePassPercentage(), 1000, setAnimatedPass)
+            const cleanupFail = animateValue(0, calculateFailPercentage(), 1000, setAnimatedFail)
+            const cleanupAvg = animateValue(0, calculateAverageScore(), 1000, setAnimatedAverage)
+
+            return () => {
+                cleanupTotal()
+                cleanupPass()
+                cleanupFail()
+                cleanupAvg()
+            }
         }
     }, [data, loading, selectedExamId])
 
     const animateValue = (start, end, duration, setter) => {
+        if (start === end) {
+            setter(end)
+            return () => { }
+        }
+
         const range = end - start
         const increment = range / (duration / 16)
         let current = start
@@ -58,6 +126,8 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
             }
             setter(Math.round(current * 100) / 100)
         }, 16)
+
+        return () => clearInterval(timer)
     }
 
     const getRoleSpecificLabels = () => {
