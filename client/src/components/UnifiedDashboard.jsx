@@ -32,12 +32,10 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
     // Normalize role for comparison
     const roleNorm = String(userRole || '').toLowerCase()
 
-    // Fetch dashboard data based on role and filters
+    // Fetch dashboard data based on role, filters and selected exam
     useEffect(() => {
-        console.log('[UnifiedDashboard] Filters changed:', filters)
-        setSelectedExamId(null) // Reset selection when filters change to avoid showing invalid data
         fetchDashboardData()
-    }, [userRole, userId, filters])
+    }, [userRole, userId, filters, selectedExamId])
 
     // Fetch leaderboard when filters, exam selection, or slider grade changes
     useEffect(() => {
@@ -74,6 +72,7 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
             if (filters.classId) queryParams.append('classId', filters.classId)
             if (filters.startDate) queryParams.append('startDate', filters.startDate)
             if (filters.endDate) queryParams.append('endDate', filters.endDate)
+            if (selectedExamId) queryParams.append('examId', selectedExamId)
 
             let endpoint = ''
             switch (roleNorm) {
@@ -243,6 +242,7 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
     }
 
     const handleFilterChange = (newFilters) => {
+        setSelectedExamId(null) // Explicitly reset exam when global filters change
         setFilters(newFilters)
     }
 

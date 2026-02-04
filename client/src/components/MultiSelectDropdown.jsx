@@ -58,15 +58,15 @@ export default function MultiSelectDropdown({
 
   // Derived state
   const isAllSelected = options.length > 0 && selectedIds.length === options.length
-  
+
   // Format display text
   const getDisplayText = () => {
     if (disabled) return 'Disabled'
     if (selectedIds.length === 0) return placeholder
-    
+
     // Find selected option objects to get their labels
     const selectedOptions = options.filter(opt => selectedIds.includes(opt.value || opt.id))
-    
+
     if (selectedOptions.length === 0) return placeholder
     if (selectedOptions.length <= 2) {
       return selectedOptions.map(o => o.label || o.name).join(', ')
@@ -76,14 +76,14 @@ export default function MultiSelectDropdown({
 
   return (
     <div className="multi-select-dropdown" ref={dropdownRef} style={{ position: 'relative' }}>
-      <label 
-        className="form-label" 
-        htmlFor={id} 
+      <label
+        className="form-label"
+        htmlFor={id}
         style={{ display: 'block', fontSize: '.875rem', fontWeight: 600, color: '#374151', marginBottom: '.5rem' }}
       >
         {label} {disabled ? '' : <span className="required" style={{ color: '#dc2626' }}>*</span>}
       </label>
-      
+
       <button
         type="button"
         id={id}
@@ -112,15 +112,15 @@ export default function MultiSelectDropdown({
         <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {getDisplayText()}
         </span>
-        <svg 
-          width="20" 
-          height="20" 
-          viewBox="0 0 24 24" 
-          fill="none" 
-          stroke="currentColor" 
-          strokeWidth="2" 
-          strokeLinecap="round" 
-          strokeLinejoin="round" 
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
           style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease', opacity: 0.5 }}
         >
           <path d="M6 9l6 6 6-6" />
@@ -139,8 +139,8 @@ export default function MultiSelectDropdown({
             borderRadius: '12px',
             background: 'white',
             boxShadow: '0 10px 40px -10px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05)',
-            zIndex: 100000,
-            maxHeight: '300px',
+            zIndex: 999999, // Absolute top
+            maxHeight: '400px',
             overflowY: 'auto',
             display: 'flex',
             flexDirection: 'column',
@@ -148,9 +148,9 @@ export default function MultiSelectDropdown({
           }}
         >
           {options.length === 0 ? (
-             <div style={{ padding: '2rem 1rem', textAlign: 'center', color: '#6b7280' }}>
-               <p style={{ margin: 0, fontSize: '0.875rem' }}>No options found</p>
-             </div>
+            <div style={{ padding: '2rem 1rem', textAlign: 'center', color: '#6b7280' }}>
+              <p style={{ margin: 0, fontSize: '0.875rem' }}>No options found</p>
+            </div>
           ) : (
             <>
               <label

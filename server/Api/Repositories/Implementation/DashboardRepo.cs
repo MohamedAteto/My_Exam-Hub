@@ -862,6 +862,11 @@ public class DashboardRepo : IDashboardRepo
             query = query.Where(e => e.GradeId == filters.GradeId.Value);
         }
 
+        if (filters.ExamId.HasValue)
+        {
+            query = query.Where(e => e.ExamId == filters.ExamId.Value);
+        }
+
         if (filters.ClassId.HasValue)
         {
             var filterClassId = "," + filters.ClassId.Value + ",";
@@ -991,13 +996,11 @@ public class DashboardRepo : IDashboardRepo
             
             Console.WriteLine($"[DEBUG] Found {exams.Count} exams for filter");
             
-            if (!exams.Any())
+            // Populate questions (only if exams exist)
+            if (exams.Any())
             {
-                return new LeaderboardDto { ExamTitle = "Overall Performance", TopStudents = new(), HighlightedStudents = new(), TotalParticipants = 0 };
+                await PopulateExamQuestions(exams);
             }
-
-            // Populate questions
-            await PopulateExamQuestions(exams);
             
             var examIds = exams.Select(e => e.ExamId).Distinct().ToList();
 
@@ -1006,12 +1009,9 @@ public class DashboardRepo : IDashboardRepo
                 .Where(sea => sea.ExamDetailsId.HasValue && examIds.Contains(sea.ExamDetailsId.Value))
                 .ToListAsync();
 
-            if (!allAnswers.Any())
-            {
-                return new LeaderboardDto { ExamTitle = "Overall Performance", TopStudents = new(), HighlightedStudents = new(), TotalParticipants = 0 };
-            }
+            Console.WriteLine($"[DEBUG] Total answers found: {allAnswers.Count}");
 
-            // 3. Get students who took these exams
+            // 3. Get students who took these exams (or empty if none)
             var studentIds = allAnswers.Select(a => a.AccountId).Distinct().ToList();
             var students = await _context.Accounts
                 .Include(a => a.StudentExtension)
@@ -1083,10 +1083,14 @@ public class DashboardRepo : IDashboardRepo
             {
                 Console.WriteLine("[DEBUG] GetCombinedLeaderboardAsync: Grouping by Class");
                 
-                // 1. Get all classes for the specified grade
-                var classesForGrade = await _context.TblClasses
-                    .Where(c => c.GradeId == (filters.GradeId ?? 0))
-                    .ToListAsync();
+                // 1. Get all classes based on Grade filter
+                var classesQuery = _context.TblClasses.AsQueryable();
+                if (filters?.GradeId.HasValue == true)
+                {
+                    classesQuery = classesQuery.Where(c => c.GradeId == filters.GradeId.Value);
+                }
+                
+                var classesForFilter = await classesQuery.ToListAsync();
 
                 // 2. Map existing leaderboard entries to their classes
                 var studentClassMap = students.Values
@@ -1098,9 +1102,11 @@ public class DashboardRepo : IDashboardRepo
                     .GroupBy(le => studentClassMap[le.StudentId])
                     .ToDictionary(g => g.Key, g => g.Average(x => x.Score));
 
-                // 3. Build the final list including ALL classes for this grade
-                var classResults = classesForGrade.Select(c => {
-                    var avgScore = classScores.ContainsKey(c.Id) ? Math.Round(classScores[c.Id], 2) : 0.0;
+                // 3. Build the final list including ALL relevant classes
+                var classResults = classesForFilter.Select(c => {
+                    var avgScore = (classScores.ContainsKey(c.Id) && !double.IsNaN(classScores[c.Id])) 
+                        ? Math.Round(classScores[c.Id], 2) 
+                        : 0.0;
                     return new LeaderboardEntryDto
                     {
                         StudentId = c.Id,
@@ -1110,6 +1116,7 @@ public class DashboardRepo : IDashboardRepo
                     };
                 })
                 .OrderByDescending(e => e.Score)
+                .ThenBy(e => e.StudentName) // Stable sort for zero scores
                 .ToList();
 
                 for (int i = 0; i < classResults.Count; i++) classResults[i].Rank = i + 1;
@@ -1118,10 +1125,16 @@ public class DashboardRepo : IDashboardRepo
                 {
                     ExamId = 0,
                     ExamTitle = "Overall Class Performance",
-                    TopStudents = classResults.Take(10).ToList(),
+                    TopStudents = classResults.Take(20).ToList(), // Increased to show more classes
                     HighlightedStudents = classResults.Take(3).ToList(),
                     TotalParticipants = classResults.Count
                 };
+            }
+
+            // Fallback for Student grouping
+            if (!leaderboardEntries.Any())
+            {
+                 return new LeaderboardDto { ExamTitle = "Overall Performance", TopStudents = new(), HighlightedStudents = new(), TotalParticipants = 0 };
             }
 
             return new LeaderboardDto

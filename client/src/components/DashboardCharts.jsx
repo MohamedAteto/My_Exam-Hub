@@ -7,56 +7,25 @@ export default function DashboardCharts({ dashboardData, userRole, selectedExamI
 
     if (!dashboardData) return null
 
-    // Filter data based on selected exam
-    let filteredExamBreakdown = dashboardData.examBreakdown || []
-    let filteredRecentExams = dashboardData.recentExams || []
-    
-    if (selectedExamId) {
-        filteredExamBreakdown = filteredExamBreakdown.filter(exam => 
-            String(exam.examId) === String(selectedExamId)
-        )
-        filteredRecentExams = filteredRecentExams.filter(exam => 
-            String(exam.examId) === String(selectedExamId)
-        )
-    }
+    // Use data directly from dashboardData (backend now handles filtering by examId)
+    const passPercentage = dashboardData.passPercentage || 0
+    const failPercentage = dashboardData.failPercentage || 0
 
-    // Prepare Pass vs Fail data - filter by selected exam if applicable
-    let passPercentage = dashboardData.passPercentage || 0
-    let failPercentage = dashboardData.failPercentage || 0
-    
-    if (selectedExamId && filteredExamBreakdown.length > 0) {
-        const selectedExam = filteredExamBreakdown[0]
-        passPercentage = selectedExam.passPercentage || 0
-        failPercentage = selectedExam.failPercentage || 0
-    }
-
-    // Prepare Class Performance chart data (average scores)
-    // When no exam selected: show average scores for all exams
-    // When exam selected: show average score for that specific exam
     let lineChartData = []
     if (roleNorm === 'student') {
-        // For students: show their performance trend
-        lineChartData = filteredRecentExams.map(exam => ({
+        const recent = dashboardData.recentExams || []
+        lineChartData = recent.map(exam => ({
             Title: exam.title,
             StudentScore: exam.studentScore,
             AverageScore: exam.averageScore
         }))
     } else {
-        // For teachers/admins: show class performance (average scores)
-        if (selectedExamId && filteredExamBreakdown.length > 0) {
-            // Show average score for the selected exam
-            const selectedExam = filteredExamBreakdown[0]
-            lineChartData = [{
-                Title: selectedExam.examTitle || selectedExam.title || 'Selected Exam',
-                AverageScore: selectedExam.averageScore || 0
-            }]
-        } else {
-            // Show average scores for all exams (default behavior)
-            lineChartData = (dashboardData.examBreakdown || []).map(exam => ({
-                Title: exam.examTitle || exam.title,
-                AverageScore: exam.averageScore || 0
-            }))
-        }
+        // For teachers/admins: show breakdown of exams (if filtered by one, only one shows)
+        const breakdown = dashboardData.examBreakdown || []
+        lineChartData = breakdown.map(exam => ({
+            Title: exam.examTitle || exam.title,
+            AverageScore: exam.averageScore || 0
+        }))
     }
 
     // Prepare bar chart data (score distribution) - filter by selected exam if applicable

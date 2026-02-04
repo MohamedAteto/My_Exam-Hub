@@ -83,6 +83,7 @@ public class DashboardController : ControllerBase
         long id,
         [FromQuery] long? gradeId = null,
         [FromQuery] long? classId = null,
+        [FromQuery] long? examId = null,
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null)
     {
@@ -98,6 +99,7 @@ public class DashboardController : ControllerBase
             {
                 GradeId = gradeId,
                 ClassId = classId,
+                ExamId = examId,
                 StartDate = startDate,
                 EndDate = endDate
             };
@@ -139,6 +141,7 @@ public class DashboardController : ControllerBase
         long id,
         [FromQuery] long? gradeId = null,
         [FromQuery] long? classId = null,
+        [FromQuery] long? examId = null,
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null)
     {
@@ -154,6 +157,7 @@ public class DashboardController : ControllerBase
             {
                 GradeId = gradeId,
                 ClassId = classId,
+                ExamId = examId,
                 StartDate = startDate,
                 EndDate = endDate
             };
@@ -194,6 +198,7 @@ public class DashboardController : ControllerBase
     public async Task<ActionResult<SuperadminDashboardDto>> GetSuperadminDashboard(
         [FromQuery] long? gradeId = null,
         [FromQuery] long? classId = null,
+        [FromQuery] long? examId = null,
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null)
     {
@@ -237,6 +242,7 @@ public class DashboardController : ControllerBase
         long examId,
         [FromQuery] long? gradeId = null,
         [FromQuery] long? classId = null,
+        [FromQuery] long? examIdParam = null,
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null,
         [FromQuery] string groupBy = "Student")
@@ -253,6 +259,7 @@ public class DashboardController : ControllerBase
             {
                 GradeId = gradeId,
                 ClassId = classId,
+                ExamId = examIdParam ?? examId,
                 StartDate = startDate,
                 EndDate = endDate,
                 GroupBy = groupBy
@@ -281,6 +288,7 @@ public class DashboardController : ControllerBase
     public async Task<ActionResult<LeaderboardDto>> GetCombinedLeaderboard(
         [FromQuery] long? gradeId = null,
         [FromQuery] long? classId = null,
+        [FromQuery] long? examId = null,
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null,
         [FromQuery] string groupBy = "Student")
@@ -291,6 +299,7 @@ public class DashboardController : ControllerBase
             {
                 GradeId = gradeId,
                 ClassId = classId,
+                ExamId = examId,
                 StartDate = startDate,
                 EndDate = endDate,
                 GroupBy = groupBy
