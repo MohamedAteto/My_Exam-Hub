@@ -219,19 +219,9 @@ export default function TeacherPage() {
     setUserRole(storedUserRole)
 
     if (!token) {
-      navigate('/login')
-    } else if (storedUserRole !== 'Teacher') {
-      // If user is logged in but not a teacher, navigate to their respective dashboard
-      if (storedUserRole === 'Student') {
-        navigate('/student')
-      } else if (storedUserRole === 'SuperAdmin') {
-        navigate('/superadmin')
-      } else {
-        // Fallback if role is unrecognized, or to a generic dashboard
-        navigate('/')
-      }
+      navigate('/')
     } else {
-      // Fetch teacher profile if logged in as teacher
+      // Fetch user profile if logged in
       try {
         const payload = JSON.parse(atob(token.split('.')[1]))
         const userId = payload.sub || payload.id
@@ -240,7 +230,7 @@ export default function TeacherPage() {
             if (res.data && (res.data.fullNameEn || res.data.fullNameAr)) {
               setTeacherName(res.data.fullNameEn || res.data.fullNameAr)
             }
-          }).catch(err => console.error("Failed to fetch teacher profile", err))
+          }).catch(err => console.error("Failed to fetch profile", err))
         }
       } catch (e) {
         console.error('Error parsing token:', e)
@@ -1928,8 +1918,8 @@ export default function TeacherPage() {
               }}>
                 <div>
                   <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Hello, {teacherName}! 👋</h2>
-                  <p style={{ margin: '0.25rem 0 0', opacity: 0.8, fontSize: '0.9rem' }}>
-                    You are logged in as a <span style={{ color: 'white', fontWeight: 600 }}>{userRole || 'Teacher'}</span>
+                  <p style={{ margin: '0.25rem 0 0', fontSize: '0.9rem', color: 'rgba(255,255,255,0.9)' }}>
+                    You are logged in as a <span style={{ color: '#ffffff', fontWeight: 700 }}>{userRole || 'Teacher'}</span>
                   </p>
                 </div>
                 <div style={{

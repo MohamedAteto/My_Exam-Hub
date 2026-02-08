@@ -1152,4 +1152,44 @@ public class DashboardRepo : IDashboardRepo
             throw;
         }
     }
+
+    public async Task<List<TeacherAccountDto>> GetTeachersAsync()
+    {
+        // Get all role IDs that are named "Teacher" (case-insensitive)
+        var teacherRoleIds = await _context.Roles
+            .Where(r => r.RoleName.ToLower() == "teacher")
+            .Select(r => r.Id)
+            .ToListAsync();
+
+        if (!teacherRoleIds.Any())
+        {
+            return new List<TeacherAccountDto>();
+        }
+
+        // Find accounts that have this role either directly
+        var accountsWithDirectRole = _context.Accounts
+            .Where(a => teacherRoleIds.Contains(a.RoleId));
+
+        // Find accounts that have this role via the join table
+        var accountsWithJoinRole = _context.AccountRoles
+            .Where(ar => ar.RoleId.HasValue && teacherRoleIds.Contains(ar.RoleId.Value) && ar.AccountId.HasValue)
+            .Join(_context.Accounts, ar => ar.AccountId, a => a.Id, (ar, a) => a);
+
+        // Union both sets to get all teachers
+        var teachers = await accountsWithDirectRole
+            .Union(accountsWithJoinRole)
+            .Select(a => new TeacherAccountDto
+            {
+                Id = a.Id,
+                FullNameEn = a.FullNameEn,
+                FullNameAr = a.FullNameAr,
+                Email = a.Email,
+                IsActive = a.IsActive,
+                TotalExams = _context.ExamDetails.Count(e => e.CreatedBy_AccId == a.Id)
+            })
+            .Distinct()
+            .ToListAsync();
+
+        return teachers;
+    }
 }

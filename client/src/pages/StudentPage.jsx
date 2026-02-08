@@ -268,15 +268,7 @@ export default function StudentPage() {
     setUserRole(storedUserRole)
 
     if (!token) {
-      navigate('/login')
-    } else if (storedUserRole !== 'Student') {
-      if (storedUserRole === 'Teacher') {
-        navigate('/teacher')
-      } else if (storedUserRole === 'SuperAdmin') {
-        navigate('/superadmin')
-      } else {
-        navigate('/')
-      }
+      navigate('/')
     } else {
       try {
         const payload = JSON.parse(atob(token.split('.')[1] || ''))
@@ -286,7 +278,7 @@ export default function StudentPage() {
             if (res.data && (res.data.fullNameEn || res.data.fullNameAr)) {
               setStudentName(res.data.fullNameEn || res.data.fullNameAr)
             }
-          }).catch(err => console.error("Failed to fetch student profile", err))
+          }).catch(err => console.error("Failed to fetch profile", err))
         }
       } catch (e) {
         console.error('Error parsing token:', e)
@@ -703,8 +695,8 @@ export default function StudentPage() {
       }
     })
 
-    const available = processExamList(exams.available)
-    const upcoming = processExamList(exams.upcoming)
+    const available = processExamList(exams.available).sort((a, b) => new Date(b.deadline || b.startDate) - new Date(a.deadline || a.startDate))
+    const upcoming = processExamList(exams.upcoming).sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
 
     const completed = completedExams.map(exam => {
       const questions = (exam.questions || []).map(q => {
@@ -735,13 +727,9 @@ export default function StudentPage() {
       })
 
       return {
+        ...exam,
         id: exam.examId,
-        name: exam.title,
-        subject: exam.examSubject,
         deadline: exam.endDate,
-        score: exam.score || 0,
-        totalMarks: exam.totalMarks || 0,
-        earnedMarks: exam.earnedMarks || 0,
         questions: questions
       }
     })
@@ -749,7 +737,11 @@ export default function StudentPage() {
     return {
       available,
       upcoming,
-      completed: completed.sort((a, b) => new Date(b.deadline) - new Date(a.deadline))
+      completed: completed.sort((a, b) => {
+        const dateA = new Date(a.deadline || 0);
+        const dateB = new Date(b.deadline || 0);
+        return dateB - dateA;
+      })
     }
   }, [exams, completedExams])
 
@@ -886,7 +878,7 @@ export default function StudentPage() {
             {currentSection !== 'profile' && (
               <div style={{ padding: '1.5rem 2rem 0' }}>
                 <div style={{
-                  background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+                  background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
                   padding: '1.5rem 2rem',
                   borderRadius: '16px',
                   color: 'white',
@@ -898,8 +890,8 @@ export default function StudentPage() {
                 }}>
                   <div>
                     <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Hello, {studentName}! 👋</h2>
-                    <p style={{ margin: '0.25rem 0 0', opacity: 0.8, fontSize: '0.9rem' }}>
-                      You are logged in as a <span style={{ color: '#60a5fa', fontWeight: 600 }}>{userRole || 'Student'}</span>
+                    <p style={{ margin: '0.25rem 0 0', fontSize: '0.9rem', color: 'rgba(255,255,255,0.9)' }}>
+                      You are logged in as a <span style={{ color: '#ffffff', fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: '4px', textDecorationColor: 'rgba(255,255,255,0.4)' }}>{userRole || 'Student'}</span>
                     </p>
                   </div>
                   <div style={{
@@ -1152,7 +1144,7 @@ export default function StudentPage() {
                       </p>
                     </div>
 
-                    {completedExams.length === 0 ? (
+                    {examData.completed.length === 0 ? (
                       <div style={{
                         background: 'var(--bg-main)',
                         borderRadius: '16px',
@@ -1174,7 +1166,7 @@ export default function StudentPage() {
                         gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
                         gap: '1.5rem'
                       }}>
-                        {completedExams.map((exam) => (
+                        {examData.completed.map((exam) => (
                           <div
                             key={exam.examId}
                             className="exam-card"

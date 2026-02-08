@@ -140,3 +140,23 @@ public class LeaderboardFilterDto
     public DateTime? EndDate { get; set; }
     public string GroupBy { get; set; } = "Student"; // "Student" or "Class"
 }
+// Teacher Account Information for Superadmin
+public class TeacherAccountDto
+{
+    public long Id { get; set; }
+    public string FullNameEn { get; set; } = string.Empty;
+    public string FullNameAr { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public bool IsActive { get; set; }
+    public int TotalExams { get; set; }
+}
+
+public class TeacherPerformanceDto
+{
+    public long Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Initials { get; set; } = string.Empty;
+    public string Grade { get; set; } = string.Empty;
+    public string Class { get; set; } = string.Empty;
+    public Dictionary<string, double> QuizScores { get; set; } = new();
+}

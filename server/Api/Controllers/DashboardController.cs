@@ -337,6 +337,21 @@ public class DashboardController : ControllerBase
         }
     }
 
+    [HttpGet("teachers")]
+    [Authorize(Roles = "Superadmin,Admin,Board")]
+    public async Task<ActionResult<List<TeacherAccountDto>>> GetTeachers()
+    {
+        try
+        {
+            var teachers = await _dashboardRepo.GetTeachersAsync();
+            return Ok(teachers);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Error retrieving teachers", error = ex.Message });
+        }
+    }
+
     [HttpGet("students")]
     [Authorize]
     public async Task<ActionResult<List<StudentPerformanceDto>>> GetStudents()

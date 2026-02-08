@@ -45,14 +45,23 @@ export default function ProtectedRoute({ children, allowedRoles }) {
         if (!hasAccess) {
             // Redirect to appropriate page based on user's actual role
             if (userRoles.includes('admin') || userRoles.includes('board') || userRoles.includes('superadmin')) {
-                return <Navigate to="/superadmin" replace />
+                if (window.location.pathname !== '/superadmin') {
+                    return <Navigate to="/superadmin" replace />
+                }
             } else if (userRoles.includes('teacher')) {
-                return <Navigate to="/teacher" replace />
+                if (window.location.pathname !== '/teacher') {
+                    return <Navigate to="/teacher" replace />
+                }
             } else if (userRoles.includes('student')) {
-                return <Navigate to="/student" replace />
+                if (window.location.pathname !== '/student') {
+                    return <Navigate to="/student" replace />
+                }
             }
-            // Fallback to login if role is unknown
-            return <Navigate to="/" replace />
+            // Fallback to login if role is unknown or already home but unauthorized
+            if (window.location.pathname !== '/') {
+                return <Navigate to="/" replace />
+            }
+            return null // Just stop rendering the children
         }
 
         // User has access, render the protected component

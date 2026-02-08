@@ -93,3 +93,6 @@ C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\DataCheck\obj\Debug
 C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\DataCheck\obj\Debug\net9.0\DataCheck.pdb
 C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\DataCheck\obj\Debug\net9.0\DataCheck.genruntimeconfig.cache
 C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\DataCheck\obj\Debug\net9.0\ref\DataCheck.dll
+C:\Users\Seif\Desktop\ExamsHub\Quiz-managent\server\DataCheck\obj\Debug\net9.0\DataCheck.dll
+C:\Users\Seif\Desktop\ExamsHub\Quiz-managent\server\DataCheck\obj\Debug\net9.0\refint\DataCheck.dll
+C:\Users\Seif\Desktop\ExamsHub\Quiz-managent\server\DataCheck\obj\Debug\net9.0\DataCheck.pdb

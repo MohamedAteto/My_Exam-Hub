@@ -161,7 +161,7 @@ const Sidebar = ({
                 onClick={() => handleNavClick('my-quizzes')}
               >
                 <ListTodo size={20} />
-                <span>Manage Exams</span>
+                <span>All Exams</span>
               </div>
               <div
                 className={`nav-item ${currentSection === 'teachers' ? 'active' : ''}`}
@@ -169,13 +169,6 @@ const Sidebar = ({
               >
                 <Shield size={20} />
                 <span>Teachers</span>
-              </div>
-              <div
-                className={`nav-item ${currentSection === 'question-banks' ? 'active' : ''}`}
-                onClick={() => handleNavClick('question-banks')}
-              >
-                <Database size={20} />
-                <span>Question Banks</span>
               </div>
               <div
                 className={`nav-item ${currentSection === 'students' ? 'active' : ''}`}
