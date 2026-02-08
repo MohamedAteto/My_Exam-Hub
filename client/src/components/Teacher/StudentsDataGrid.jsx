@@ -145,6 +145,28 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
     const [selectedExamIds, setSelectedExamIds] = useState(initialExamId ? [initialExamId] : [])
     const [minScore, setMinScore] = useState(0)
     const [maxScore, setMaxScore] = useState(100)
+    // Scroll to Top State
+    const [showScrollTop, setShowScrollTop] = useState(false)
+
+    useEffect(() => {
+        const handleScroll = () => {
+            if (window.scrollY > 300) {
+                setShowScrollTop(true)
+            } else {
+                setShowScrollTop(false)
+            }
+        }
+
+        window.addEventListener('scroll', handleScroll)
+        return () => window.removeEventListener('scroll', handleScroll)
+    }, [])
+
+    const scrollToTop = () => {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        })
+    }
 
     // Helper to get score
     const getExamScore = (student, examId) => {
@@ -594,6 +616,36 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
                         Showing {filteredStudents.length} students
                     </div>
                 </div>
+
+                {/* Floating Scroll to Top Request */}
+                {showScrollTop && (
+                    <button
+                        onClick={scrollToTop}
+                        style={{
+                            position: 'fixed',
+                            bottom: '2rem',
+                            right: '2rem',
+                            width: '56px',
+                            height: '56px',
+                            borderRadius: '50%',
+                            background: '#dc2626',
+                            color: 'white',
+                            border: 'none',
+                            boxShadow: '0 8px 24px rgba(220, 38, 38, 0.4)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            zIndex: 9999,
+                            transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+                        }}
+                        title="Scroll to Top"
+                    >
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 19V5M5 12l7-7 7 7" />
+                        </svg>
+                    </button>
+                )}
             </div>
         </div>
     )

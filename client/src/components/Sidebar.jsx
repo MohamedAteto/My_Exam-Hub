@@ -171,6 +171,13 @@ const Sidebar = ({
                 <span>Teachers</span>
               </div>
               <div
+                className={`nav-item ${currentSection === 'question-banks' ? 'active' : ''}`}
+                onClick={() => handleNavClick('question-banks')}
+              >
+                <Database size={20} />
+                <span>Question Banks</span>
+              </div>
+              <div
                 className={`nav-item ${currentSection === 'students' ? 'active' : ''}`}
                 onClick={() => handleNavClick('students')}
               >
