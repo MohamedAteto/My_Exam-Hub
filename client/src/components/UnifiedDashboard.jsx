@@ -63,7 +63,7 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
 
     const fetchDashboardData = async () => {
         try {
-            setLoading(true)
+            setLoading(!dashboardData)
             setError(null)
 
             // Build filter query string
@@ -139,7 +139,7 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
 
     const fetchLeaderboard = async () => {
         try {
-            setLeaderboardLoading(true)
+            setLeaderboardLoading(!leaderboardData)
 
             // Priority: Fetch specific exam leaderboard if selected
             if (selectedExamId) {
@@ -309,93 +309,139 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                         from { opacity: 0; transform: translateY(10px); }
                         to { opacity: 1; transform: translateY(0); }
                     }
+                    @keyframes slideProgress {
+                        0% { transform: translateX(-100%); }
+                        50% { transform: translateX(0); }
+                        100% { transform: translateX(100%); }
+                    }
                 `}
             </style>
-            <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-                {/* Header */}
-                <div style={{ marginBottom: '2rem' }}>
-                    <h1 style={{
-                        fontSize: '2rem',
-                        fontWeight: '700',
-                        color: 'var(--text-primary)',
-                        marginBottom: '0.5rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.75rem'
-                    }}>
-                        <svg style={{ width: '32px', height: '32px', fill: 'var(--primary)' }} viewBox="0 0 24 24">
-                            <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
-                        </svg>
-                        Dashboard
-                    </h1>
-                    <p style={{
-                        fontSize: '1rem',
-                        color: 'var(--text-secondary)',
-                        margin: 0
-                    }}>
-                        {roleNorm === 'student' && 'Track your exam performance and progress'}
-                        {roleNorm === 'teacher' && 'Monitor your exams and student performance'}
-                        {(roleNorm === 'superadmin' || roleNorm === 'admin') && 'System-wide statistics and insights'}
-                    </p>
+
+            {/* Top Loading Progress Bar (for background refreshes) */}
+            {loading && dashboardData && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '3px',
+                    zIndex: 9999,
+                    overflow: 'hidden',
+                    background: 'rgba(239, 68, 68, 0.1)'
+                }}>
+                    <div style={{
+                        width: '40%',
+                        height: '100%',
+                        background: 'var(--primary)',
+                        animation: 'slideProgress 1.5s infinite ease-in-out'
+                    }}></div>
                 </div>
+            )}
 
-                {/* Filters */}
-                <DashboardFilters
-                    onFilterChange={handleFilterChange}
-                    userRole={userRole}
-                    grades={grades}
-                    classes={classes}
-                    allExams={allExams}
-                    recentExams={recentExams}
-                    selectedExamId={selectedExamId}
-                    onExamChange={handleExamChange}
-                    currentFilters={filters}
-                />
+            <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+                {/* Initial Loading State */}
+                {loading && !dashboardData && (
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        minHeight: '70vh'
+                    }}>
+                        <LoadingSpinner message="Optimizing your data..." />
+                    </div>
+                )}
 
-                {/* Statistics Cards */}
-                <DashboardCards
-                    data={dashboardData}
-                    loading={loading}
-                    userRole={userRole}
-                    selectedExamId={selectedExamId}
-                />
+                {/* Main Content (Optimistic) */}
+                <div style={{
+                    opacity: (!dashboardData && loading) ? 0 : 1,
+                    transition: 'opacity 0.4s ease-in-out',
+                    visibility: (!dashboardData && loading) ? 'hidden' : 'visible'
+                }}>
+                    {/* Header */}
+                    <div style={{ marginBottom: '2rem' }}>
+                        <h1 style={{
+                            fontSize: '2rem',
+                            fontWeight: '700',
+                            color: 'var(--text-primary)',
+                            marginBottom: '0.5rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.75rem'
+                        }}>
+                            <svg style={{ width: '32px', height: '32px', fill: 'var(--primary)' }} viewBox="0 0 24 24">
+                                <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+                            </svg>
+                            Dashboard
+                        </h1>
+                        <p style={{
+                            fontSize: '1rem',
+                            color: 'var(--text-secondary)',
+                            margin: 0
+                        }}>
+                            {roleNorm === 'student' && 'Track your exam performance and progress'}
+                            {roleNorm === 'teacher' && 'Monitor your exams and student performance'}
+                            {(roleNorm === 'superadmin' || roleNorm === 'admin') && 'System-wide statistics and insights'}
+                        </p>
+                    </div>
 
-                <DashboardLeaderboard
-                    leaderboard={leaderboardData}
-                    loading={leaderboardLoading}
-                    examTitle={
-                        (allExams.find(e => String(e.examId || e.id) === String(selectedExamId)) ||
-                            recentExams.find(e => String(e.examId) === String(selectedExamId)))?.title || 'Exam Leaderboard'
-                    }
-                    userRole={userRole}
-                    currentUserId={roleNorm === 'student' ? parseInt(userId) : null}
-                    onSeeAll={() => {
-                        console.log('[UnifiedDashboard] See All Clicked. ExamId:', selectedExamId)
-                        if (onSeeAllScores) {
-                            if (selectedExamId) {
-                                onSeeAllScores(selectedExamId, null)
-                            } else {
-                                // Pass the current slider grade name to filter by grade
-                                const sliderGradeName = GRADES_ORDER[sliderGradeIndex]
-                                onSeeAllScores(null, sliderGradeName)
-                            }
+                    {/* Filters */}
+                    <DashboardFilters
+                        onFilterChange={handleFilterChange}
+                        userRole={userRole}
+                        grades={grades}
+                        classes={classes}
+                        allExams={allExams}
+                        recentExams={recentExams}
+                        selectedExamId={selectedExamId}
+                        onExamChange={handleExamChange}
+                        currentFilters={filters}
+                    />
+
+                    {/* Statistics Cards */}
+                    <DashboardCards
+                        data={dashboardData}
+                        loading={loading}
+                        userRole={userRole}
+                        selectedExamId={selectedExamId}
+                    />
+
+                    <DashboardLeaderboard
+                        leaderboard={leaderboardData}
+                        loading={leaderboardLoading}
+                        examTitle={
+                            (allExams.find(e => String(e.examId || e.id) === String(selectedExamId)) ||
+                                recentExams.find(e => String(e.examId) === String(selectedExamId)))?.title || 'Exam Leaderboard'
                         }
-                    }}
-                    // Slider Props
-                    sliderGrade={GRADES_ORDER[sliderGradeIndex]}
-                    showSlider={!selectedExamId && (roleNorm === 'teacher' || roleNorm === 'admin' || roleNorm === 'superadmin') && !filters.gradeId && !filters.classId}
-                    onNextGrade={handleNextGrade}
-                    onPrevGrade={handlePrevGrade}
-                    groupBy={filters.groupBy}
-                />
+                        userRole={userRole}
+                        currentUserId={roleNorm === 'student' ? parseInt(userId) : null}
+                        onSeeAll={() => {
+                            console.log('[UnifiedDashboard] See All Clicked. ExamId:', selectedExamId)
+                            if (onSeeAllScores) {
+                                if (selectedExamId) {
+                                    onSeeAllScores(selectedExamId, null)
+                                } else {
+                                    // Pass the current slider grade name to filter by grade
+                                    const sliderGradeName = GRADES_ORDER[sliderGradeIndex]
+                                    onSeeAllScores(null, sliderGradeName)
+                                }
+                            }
+                        }}
+                        // Slider Props
+                        sliderGrade={GRADES_ORDER[sliderGradeIndex]}
+                        showSlider={!selectedExamId && (roleNorm === 'teacher' || roleNorm === 'admin' || roleNorm === 'superadmin') && !filters.gradeId && !filters.classId}
+                        onNextGrade={handleNextGrade}
+                        onPrevGrade={handlePrevGrade}
+                        groupBy={filters.groupBy}
+                    />
 
-                {/* Performance Charts */}
-                <DashboardCharts
-                    dashboardData={dashboardData}
-                    userRole={userRole}
-                    selectedExamId={selectedExamId}
-                    filters={filters}
-                />
+                    {/* Performance Charts */}
+                    <DashboardCharts
+                        dashboardData={dashboardData}
+                        userRole={userRole}
+                        selectedExamId={selectedExamId}
+                        filters={filters}
+                    />
+                </div>
             </div>
         </div>
     )

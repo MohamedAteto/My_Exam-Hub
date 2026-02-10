@@ -39,7 +39,7 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                     width: '200px',
                     background: 'linear-gradient(90deg, var(--bg-surface-hover) 25%, var(--bg-surface) 50%, var(--bg-surface-hover) 75%)',
                     backgroundSize: '200% 100%',
-                    animation: 'shimmer 1.5s infinite',
+                    animation: 'shimmer 2.5s infinite linear',
                     borderRadius: '4px',
                     marginBottom: '1.5rem'
                 }}></div>
@@ -48,7 +48,7 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                         height: '60px',
                         background: 'linear-gradient(90deg, var(--bg-surface-hover) 25%, var(--bg-surface) 50%, var(--bg-surface-hover) 75%)',
                         backgroundSize: '200% 100%',
-                        animation: 'shimmer 1.5s infinite',
+                        animation: 'shimmer 2.5s infinite linear',
                         borderRadius: '8px',
                         marginBottom: '0.75rem'
                     }}></div>
@@ -246,8 +246,9 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                 overflow: 'hidden',
                 position: 'relative',
                 minHeight: '200px',
-                opacity: loading && displayLeaderboard?.length > 0 ? 0.7 : 1,
-                transition: 'opacity 0.3s ease'
+                opacity: loading && displayLeaderboard?.length > 0 ? 0.75 : 1,
+                filter: loading && displayLeaderboard?.length > 0 ? 'blur(1px)' : 'none',
+                transition: 'opacity 0.4s ease, filter 0.4s ease'
             }}>
                 {(!displayLeaderboard || displayLeaderboard.length === 0) ? (
                     <div style={{

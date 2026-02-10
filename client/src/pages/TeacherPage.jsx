@@ -1917,7 +1917,7 @@ export default function TeacherPage() {
                 marginBottom: '1rem'
               }}>
                 <div>
-                  <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Hello, {teacherName}! 👋</h2>
+                  <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Hello, {teacherName}!</h2>
                   <p style={{ margin: '0.25rem 0 0', fontSize: '0.9rem', color: 'rgba(255,255,255,0.9)' }}>
                     You are logged in as a <span style={{ color: '#ffffff', fontWeight: 700 }}>{userRole || 'Teacher'}</span>
                   </p>

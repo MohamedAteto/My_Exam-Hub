@@ -547,7 +547,7 @@ export default function SuperAdminPage() {
             <div style={{ padding: '1.5rem 2rem 0' }}>
               <div style={{ background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)', padding: '1.5rem 2rem', borderRadius: '16px', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <h2 style={{ margin: 0 }}>Hello, {teacherName}! 👋</h2>
+                  <h2 style={{ margin: 0 }}>Hello, {teacherName}!</h2>
                   <p style={{ margin: '0.25rem 0 0', color: 'rgba(255,255,255,0.9)' }}>Logged in as <span style={{ color: '#ffffff', fontWeight: 700 }}>{userRole || 'SuperAdmin'}</span></p>
                 </div>
                 <div style={{ textAlign: 'right', opacity: 0.8 }}>

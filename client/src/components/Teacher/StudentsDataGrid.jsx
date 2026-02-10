@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, memo, useRef, useCallback } from 'react'
 import MultiSelectDropdown from '../MultiSelectDropdown'
+import * as XLSX from 'xlsx'
 
 const StudentRow = memo(({ student, selectedExamIds, allExams, onStudentClick }) => {
     const getExamScore = (s, eId) => {
@@ -183,7 +184,7 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
         return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
     }
 
-    const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' })
+    const [sortConfig, setSortConfig] = useState({ key: 'performance', direction: 'desc' })
 
     // Draggable Scroll State
     const scrollContainerRef = useRef(null)
@@ -313,6 +314,53 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
         }))
     }, [allExams])
 
+    const handleExport = () => {
+        if (!filteredStudents || filteredStudents.length === 0) {
+            alert("No students to export based on current filters.");
+            return;
+        }
+
+        const exportData = filteredStudents.map(student => {
+            const row = {
+                "Student Name": student.name,
+                "ID": student.id,
+                "Grade": student.grade,
+                "Class": student.class,
+                "Average Score": getAverageScore(student) + '%',
+                "Exams Taken": Object.keys(student.quizScores || {}).length
+            };
+
+            // Add columns for selected exams if any, otherwise all exams or just basics?
+            // Requirement: "Column order and names must match the DataGrid columns."
+            // The DataGrid shows selected exams.
+
+            selectedExams.forEach(exam => {
+                const score = getExamScore(student, exam.id || exam.examId);
+                row[exam.title] = score !== null ? score + '%' : 'N/A';
+            });
+
+            return row;
+        });
+
+        const worksheet = XLSX.utils.json_to_sheet(exportData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Students");
+
+        // Generate filename
+        let filename = "students_export";
+        if (selectedClass) {
+            filename += `_class-${selectedClass}`;
+        }
+        if (selectedExams.length === 1) {
+            filename += `_exam-${selectedExams[0].title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}`;
+        }
+
+        const date = new Date().toISOString().split('T')[0];
+        filename += `_${date}.xlsx`;
+
+        XLSX.writeFile(workbook, filename);
+    };
+
     return (
         <div style={{ padding: '2rem', background: '#f9fafb', minHeight: '100vh' }}>
             <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
@@ -326,6 +374,33 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
                         </h1>
                         <p style={{ fontSize: '1rem', color: '#6b7280', margin: 0 }}>Manage and view student performance across all exams</p>
                     </div>
+
+                    <button
+                        onClick={handleExport}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.75rem 1.25rem',
+                            background: '#10b981', // Emerald 500
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '12px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)',
+                            transition: 'all 0.2s'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
+                        onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                    >
+                        <svg style={{ width: '20px', height: '20px', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }} viewBox="0 0 24 24">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                        Export to Excel
+                    </button>
                 </div>
 
                 {/* Filters Bar */}

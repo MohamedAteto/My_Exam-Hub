@@ -49,23 +49,29 @@ export default function DashboardCharts({ dashboardData, userRole, selectedExamI
             gap: '1.5rem',
             marginTop: '2rem'
         }}>
-            <StatsPieChart
-                passPercentage={passPercentage}
-                failPercentage={failPercentage}
-                title="Pass vs Fail Overview"
-            />
+            <div className="animate-card stagger-1">
+                <StatsPieChart
+                    passPercentage={passPercentage}
+                    failPercentage={failPercentage}
+                    title="Pass vs Fail Overview"
+                />
+            </div>
 
-            <StatsLineChart
-                data={lineChartData}
-                title={roleNorm === 'student' ? "My Performance Trend" : "Class Performance (Average Score)"}
-                userRole={roleNorm}
-                selectedExamId={selectedExamId}
-            />
+            <div className="animate-card stagger-2">
+                <StatsLineChart
+                    data={lineChartData}
+                    title={roleNorm === 'student' ? "My Performance Trend" : "Class Performance (Average Score)"}
+                    userRole={roleNorm}
+                    selectedExamId={selectedExamId}
+                />
+            </div>
 
-            <StatsBarChart
-                data={barChartData}
-                title="Score Distribution"
-            />
+            <div className="animate-card stagger-3">
+                <StatsBarChart
+                    data={barChartData}
+                    title="Score Distribution"
+                />
+            </div>
         </div>
     )
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 
 export default function DashboardCards({ data, loading, userRole, selectedExamId = null }) {
     const [animatedTotal, setAnimatedTotal] = useState(0)
@@ -90,14 +90,50 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
         return val
     }
 
-    // Animate numbers when data changes
+    // Refs to track current animated values for smooth transitions
+    const currentValues = useRef({
+        total: 0,
+        pass: 0,
+        fail: 0,
+        average: 0
+    })
+
     // Animate numbers when data changes
     useEffect(() => {
         if (!loading && data) {
-            const cleanupTotal = animateValue(0, data.totalExams || 0, 1000, setAnimatedTotal)
-            const cleanupPass = animateValue(0, calculatePassPercentage(), 1000, setAnimatedPass)
-            const cleanupFail = animateValue(0, calculateFailPercentage(), 1000, setAnimatedFail)
-            const cleanupAvg = animateValue(0, calculateAverageScore(), 1000, setAnimatedAverage)
+            // Helper to wrap setter and update ref
+            const createSetter = (key, stateSetter) => (val) => {
+                currentValues.current[key] = val
+                stateSetter(val)
+            }
+
+            const cleanupTotal = animateValue(
+                currentValues.current.total,
+                data.totalExams || 0,
+                600,
+                createSetter('total', setAnimatedTotal)
+            )
+
+            const cleanupPass = animateValue(
+                currentValues.current.pass,
+                calculatePassPercentage(),
+                600,
+                createSetter('pass', setAnimatedPass)
+            )
+
+            const cleanupFail = animateValue(
+                currentValues.current.fail,
+                calculateFailPercentage(),
+                600,
+                createSetter('fail', setAnimatedFail)
+            )
+
+            const cleanupAvg = animateValue(
+                currentValues.current.average,
+                calculateAverageScore(),
+                600,
+                createSetter('average', setAnimatedAverage)
+            )
 
             return () => {
                 cleanupTotal()
@@ -114,20 +150,28 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
             return () => { }
         }
 
-        const range = end - start
-        const increment = range / (duration / 16)
-        let current = start
+        let startTime = null
+        let animationFrameId = null
 
-        const timer = setInterval(() => {
-            current += increment
-            if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
-                current = end
-                clearInterval(timer)
-            }
+        const step = (timestamp) => {
+            if (!startTime) startTime = timestamp
+            const progress = Math.min((timestamp - startTime) / duration, 1)
+
+            // Ease Out Quad interpolation: f(t) = t * (2 - t)
+            const easeOut = progress * (2 - progress)
+            const current = start + (end - start) * easeOut
+
             setter(Math.round(current * 100) / 100)
-        }, 16)
 
-        return () => clearInterval(timer)
+            if (progress < 1) {
+                animationFrameId = requestAnimationFrame(step)
+            } else {
+                setter(end)
+            }
+        }
+
+        animationFrameId = requestAnimationFrame(step)
+        return () => cancelAnimationFrame(animationFrameId)
     }
 
     const getRoleSpecificLabels = () => {
@@ -179,7 +223,7 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
                             width: '60%',
                             background: 'linear-gradient(90deg, var(--bg-surface-hover) 25%, var(--bg-surface) 50%, var(--bg-surface-hover) 75%)',
                             backgroundSize: '200% 100%',
-                            animation: 'shimmer 1.5s infinite',
+                            animation: 'shimmer 2.5s infinite linear',
                             borderRadius: '4px',
                             marginBottom: '1rem'
                         }}></div>
@@ -188,7 +232,7 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
                             width: '40%',
                             background: 'linear-gradient(90deg, var(--bg-surface-hover) 25%, var(--bg-surface) 50%, var(--bg-surface-hover) 75%)',
                             backgroundSize: '200% 100%',
-                            animation: 'shimmer 1.5s infinite',
+                            animation: 'shimmer 2.5s infinite linear',
                             borderRadius: '4px'
                         }}></div>
                     </div>

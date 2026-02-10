@@ -20,29 +20,8 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
     }
   }, [currentFilters])
 
-  const hasExamFilter = ((allExams && allExams.length > 0) || recentExams.length > 0)
-
-  // Classes are filtered based on selected grade
-  const filteredClasses = selectedGrade
-    ? classes.filter(c => !c.gradeId || String(c.gradeId) === String(selectedGrade))
-    : classes
-
-
-
-  // Filter exams based on grade and class
-  const filteredExams = (allExams && allExams.length > 0 ? allExams : recentExams)
-    .filter(exam => {
-      if (selectedGrade && String(exam.gradeId) !== String(selectedGrade)) return false
-      if (selectedClass) {
-        const matchLegacy = String(exam.classId) === String(selectedClass)
-        const classIds = exam.classIds || exam.ClassIds || []
-        const matchArray = classIds.some(id => String(id) === String(selectedClass))
-        if (!matchLegacy && !matchArray) return false
-      }
-      return true
-    })
-
-  const handleApplyFilters = () => {
+  // Automatic Filter Application
+  useEffect(() => {
     const filters = {
       gradeId: selectedGrade ? parseInt(selectedGrade) : null,
       classId: selectedClass ? parseInt(selectedClass) : null,
@@ -74,7 +53,29 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
 
     setActiveFilters(active)
     onFilterChange(filters)
-  }
+  }, [selectedGrade, selectedClass, startDate, endDate, selectedGroupBy, grades, classes])
+
+  const hasExamFilter = ((allExams && allExams.length > 0) || recentExams.length > 0)
+
+  // Classes are filtered based on selected grade
+  const filteredClasses = selectedGrade
+    ? classes.filter(c => !c.gradeId || String(c.gradeId) === String(selectedGrade))
+    : classes
+
+
+
+  // Filter exams based on grade and class
+  const filteredExams = (allExams && allExams.length > 0 ? allExams : recentExams)
+    .filter(exam => {
+      if (selectedGrade && String(exam.gradeId) !== String(selectedGrade)) return false
+      if (selectedClass) {
+        const matchLegacy = String(exam.classId) === String(selectedClass)
+        const classIds = exam.classIds || exam.ClassIds || []
+        const matchArray = classIds.some(id => String(id) === String(selectedClass))
+        if (!matchLegacy && !matchArray) return false
+      }
+      return true
+    })
 
   const handleClearFilters = () => {
     setSelectedGrade('')
@@ -82,14 +83,7 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
     setSelectedGroupBy('Student')
     setStartDate('')
     setEndDate('')
-    setActiveFilters([])
-    onFilterChange({
-      gradeId: null,
-      classId: null,
-      startDate: null,
-      endDate: null,
-      groupBy: 'Student'
-    })
+    // useEffect will handle the rest
   }
 
   return (
@@ -343,33 +337,7 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
           justifyContent: 'flex-end',
           flex: '1 1 260px'
         }}>
-          <button
-            onClick={handleApplyFilters}
-            style={{
-              padding: '0.625rem 1.5rem',
-              borderRadius: '8px',
-              border: 'none',
-              background: 'var(--primary)',
-              color: 'white',
-              fontSize: '0.875rem',
-              fontWeight: '500',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background = 'var(--primary-dark)'
-              e.target.style.transform = 'translateY(-1px)'
-              e.target.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)'
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = 'var(--primary)'
-              e.target.style.transform = 'translateY(0)'
-              e.target.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.3)'
-            }}
-          >
-            Apply Filters
-          </button>
+
 
           <button
             onClick={handleClearFilters}
