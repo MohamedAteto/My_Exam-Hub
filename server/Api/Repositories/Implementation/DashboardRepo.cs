@@ -1138,7 +1138,8 @@ public class DashboardRepo : IDashboardRepo
     public async Task<LeaderboardDto> GetCombinedLeaderboardAsync(LeaderboardFilterDto? filters)
     {
         var gradeId = filters?.GradeId;
-        Console.WriteLine($"[DEBUG] GetCombinedLeaderboardAsync called for gradeId: {gradeId}, GroupBy: {filters?.GroupBy}");
+        bool isAggregated = (filters?.ExamId == null);
+        Console.WriteLine($"[DEBUG] GetCombinedLeaderboardAsync called for gradeId: {gradeId}, GroupBy: {filters?.GroupBy}, IsAggregated: {isAggregated}");
         try
         {
             // 1. Get All Exams for this Grade (or all if gradeId is null)
@@ -1148,7 +1149,9 @@ public class DashboardRepo : IDashboardRepo
             var exams = await examsQuery.ToListAsync();
             Console.WriteLine($"[DEBUG] Found {exams.Count} exams for filter");
             
-            if (!exams.Any())
+            bool isGroupByClass = string.Equals(filters?.GroupBy, "Class", StringComparison.OrdinalIgnoreCase);
+
+            if (!exams.Any() && !isGroupByClass)
             {
                 return new LeaderboardDto { ExamTitle = "Overall Performance", TopStudents = new(), HighlightedStudents = new(), TotalParticipants = 0 };
             }
@@ -1250,7 +1253,7 @@ public class DashboardRepo : IDashboardRepo
             leaderboardEntries = leaderboardEntries.OrderByDescending(e => e.Score).ToList();
             for (int i = 0; i < leaderboardEntries.Count; i++) leaderboardEntries[i].Rank = i + 1;
 
-            if (string.Equals(filters?.GroupBy, "Class", StringComparison.OrdinalIgnoreCase))
+            if (isGroupByClass)
             {
                 var classesQuery = _context.TblClasses.AsNoTracking();
                 if (gradeId.HasValue) classesQuery = classesQuery.Where(c => c.GradeId == gradeId.Value);
@@ -1286,7 +1289,7 @@ public class DashboardRepo : IDashboardRepo
                 return new LeaderboardDto
                 {
                     ExamId = 0,
-                    ExamTitle = "Overall Class Performance",
+                    ExamTitle = isAggregated ? "Overall Class Performance" : $"Class Breakdown - {exams.FirstOrDefault()?.Title}",
                     TopStudents = classResults.Take(20).ToList(),
                     HighlightedStudents = classResults.Take(3).ToList(),
                     TotalParticipants = classResults.Count
