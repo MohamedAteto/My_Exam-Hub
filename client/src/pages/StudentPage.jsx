@@ -26,6 +26,7 @@ export default function StudentPage() {
   const [error, setError] = useState(null)
   const [studentName, setStudentName] = useState('Student')
   const [userRole, setUserRole] = useState(null)
+  const [completedSearchTerm, setCompletedSearchTerm] = useState('')
   const quizTimerRef = useRef(null)
 
   // Real data from backend
@@ -734,16 +735,21 @@ export default function StudentPage() {
       }
     })
 
+    const filteredCompleted = completed.filter(exam =>
+      exam.title.toLowerCase().includes(completedSearchTerm.toLowerCase()) ||
+      (exam.examSubject || '').toLowerCase().includes(completedSearchTerm.toLowerCase())
+    )
+
     return {
       available,
       upcoming,
-      completed: completed.sort((a, b) => {
+      completed: filteredCompleted.sort((a, b) => {
         const dateA = new Date(a.deadline || 0);
         const dateB = new Date(b.deadline || 0);
         return dateB - dateA;
       })
     }
-  }, [exams, completedExams])
+  }, [exams, completedExams, completedSearchTerm])
 
   return (
     <div className="dashboard-container" style={{ display: 'flex', minHeight: '100vh' }}>
@@ -1035,7 +1041,6 @@ export default function StudentPage() {
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', marginTop: '1.5rem' }}>
                                       <div>
                                         <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-primary)', margin: '0 0 0.5rem 0' }}>{exam.title} <span style={{ fontSize: '0.8rem', opacity: 0.5 }}>(#{exam.examId})</span></h3>
-                                        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>{exam.examSubject || 'General'}</p>
                                       </div>
                                       <div style={{ background: 'var(--primary-light)', color: 'var(--primary)', padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: '700' }}>
                                         {exam.questions ? exam.questions.length : 0} Qs
@@ -1100,7 +1105,6 @@ export default function StudentPage() {
                                 >
                                   <div>
                                     <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-primary)', margin: '0 0 0.5rem 0' }}>{exam.title}</h3>
-                                    <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>{exam.examSubject || 'General'}</p>
                                   </div>
                                   <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: '1rem 0' }}>
                                     {exam.examDescription}
@@ -1142,6 +1146,75 @@ export default function StudentPage() {
                       <p style={{ fontSize: '1rem', color: 'var(--text-secondary)', margin: 0 }}>
                         Review your past performance and scores.
                       </p>
+                    </div>
+
+                    {/* Search Bar */}
+                    <div style={{ marginBottom: '2rem', position: 'relative' }}>
+                      <input
+                        type="text"
+                        placeholder="Search completed exams by title or subject..."
+                        value={completedSearchTerm}
+                        onChange={(e) => setCompletedSearchTerm(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '1rem 1rem 1rem 3.5rem',
+                          borderRadius: '12px',
+                          border: '2px solid var(--border-color)',
+                          background: 'var(--bg-main)',
+                          color: 'var(--text-primary)',
+                          fontSize: '1rem',
+                          outline: 'none',
+                          transition: 'all 0.2s ease',
+                          boxShadow: 'var(--shadow-sm)'
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = 'var(--primary)'
+                          e.target.style.boxShadow = 'var(--shadow-md)'
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = 'var(--border-color)'
+                          e.target.style.boxShadow = 'var(--shadow-sm)'
+                        }}
+                      />
+                      <svg
+                        style={{
+                          position: 'absolute',
+                          left: '1.25rem',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          width: '24px',
+                          height: '24px',
+                          fill: 'var(--text-secondary)',
+                          pointerEvents: 'none'
+                        }}
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+                      </svg>
+                      {completedSearchTerm && (
+                        <button
+                          onClick={() => setCompletedSearchTerm('')}
+                          style={{
+                            position: 'absolute',
+                            right: '1.25rem',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'var(--text-secondary)',
+                            hover: { color: 'var(--text-primary)' }
+                          }}
+                        >
+                          <svg style={{ width: '20px', height: '20px', fill: 'currentColor' }} viewBox="0 0 24 24">
+                            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                          </svg>
+                        </button>
+                      )}
                     </div>
 
                     {examData.completed.length === 0 ? (
@@ -1192,7 +1265,6 @@ export default function StudentPage() {
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                               <div>
                                 <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-primary)', margin: '0 0 0.5rem 0' }}>{exam.title} <span style={{ fontSize: '0.8rem', opacity: 0.5 }}>(#{exam.examId})</span></h3>
-                                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>{exam.examSubject || 'General'}</p>
                               </div>
                               <div style={{ background: 'var(--success-bg)', color: 'var(--success)', padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: '700' }}>
                                 {Math.round((exam.score || 0) * 100) / 100}%
