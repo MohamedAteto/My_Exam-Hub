@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\Seif\\Desktop\\ExamsHub\\Quiz-managent\\server\\api\\QuizesApi.csproj": {}
+    "C:\\Users\\saif.hussien\\Desktop\\Exams_Hub\\Quiz-managent\\server\\Api\\QuizesApi.csproj": {}
   },
   "projects": {
-    "C:\\Users\\Seif\\Desktop\\ExamsHub\\Quiz-managent\\server\\api\\QuizesApi.csproj": {
+    "C:\\Users\\saif.hussien\\Desktop\\Exams_Hub\\Quiz-managent\\server\\Api\\QuizesApi.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\Seif\\Desktop\\ExamsHub\\Quiz-managent\\server\\api\\QuizesApi.csproj",
+        "projectUniqueName": "C:\\Users\\saif.hussien\\Desktop\\Exams_Hub\\Quiz-managent\\server\\Api\\QuizesApi.csproj",
         "projectName": "QuizesApi",
-        "projectPath": "C:\\Users\\Seif\\Desktop\\ExamsHub\\Quiz-managent\\server\\api\\QuizesApi.csproj",
-        "packagesPath": "C:\\Users\\Seif\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\Seif\\Desktop\\ExamsHub\\Quiz-managent\\server\\api\\obj\\",
+        "projectPath": "C:\\Users\\saif.hussien\\Desktop\\Exams_Hub\\Quiz-managent\\server\\Api\\QuizesApi.csproj",
+        "packagesPath": "C:\\Users\\saif.hussien\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\saif.hussien\\Desktop\\Exams_Hub\\Quiz-managent\\server\\Api\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
-          "D:\\Sdk\\NuGetPackages"
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\Seif\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\saif.hussien\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -44,7 +44,7 @@
           "auditLevel": "low",
           "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "9.0.300"
+        "SdkAnalysisLevel": "10.0.100"
       },
       "frameworks": {
         "net9.0": {
@@ -112,7 +112,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.303/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.103/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

@@ -25,5 +25,6 @@ public partial class ExamDetail
 
     public long? SubjectId { get; set; }
 
+    public virtual Status? Subject { get; set; }
     public virtual ICollection<StudentExamAnswer> StudentExamAnswers { get; set; } = new List<StudentExamAnswer>();
 }

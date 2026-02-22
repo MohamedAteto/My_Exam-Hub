@@ -141,6 +141,7 @@ public partial class ElsewedySchoolSysDbDevContext : DbContext
     {
         modelBuilder.UseCollation("Arabic_100_CI_AI");
 
+
         modelBuilder.Entity<AbsenceRecord>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__AbsenceR__3214EC0794E16F35");
@@ -384,6 +385,9 @@ public partial class ElsewedySchoolSysDbDevContext : DbContext
             entity.Property(e => e.ClassId).HasColumnName("Class_ID");
             entity.Property(e => e.CreatedBy_AccId).HasColumnName("CreatedBy_AccID");
             entity.Property(e => e.SubjectId).HasColumnName("Subject_ID");
+
+            entity.HasOne(d => d.Subject).WithMany(p => p.ExamDetails)
+                .HasForeignKey(d => d.SubjectId);
         });
 
 

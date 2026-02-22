@@ -94,7 +94,8 @@ export default function SuperAdminPage() {
         }
 
         if (quizRes?.data) {
-          const mappedQuizzes = quizRes.data.map(quiz => {
+          const quizData = quizRes.data.value || quizRes.data || [];
+          const mappedQuizzes = quizData.map(quiz => {
             const rawQuestions = quiz.questions || quiz.Questions || [];
             const marks = quiz.totalMarks || quiz.TotalMarks || quiz.marks || quiz.Marks ||
               rawQuestions.reduce((sum, q) => sum + (q.mark || q.Mark || 0), 0);
@@ -542,7 +543,19 @@ export default function SuperAdminPage() {
           handleLogout={handleLogout}
           userRole={userRole || 'SuperAdmin'}
         />
-        <div className="main-content" style={{ flex: 1, overflowY: 'auto' }}>
+        <div className="main-content" style={{
+          flex: 1,
+          overflowY: 'auto',
+          animation: 'fadeIn 0.6s ease-out'
+        }}>
+          <style>
+            {`
+              @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+              }
+            `}
+          </style>
           {currentSection !== 'profile' && (
             <div style={{ padding: '1.5rem 2rem 0' }}>
               <div style={{ background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)', padding: '1.5rem 2rem', borderRadius: '16px', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

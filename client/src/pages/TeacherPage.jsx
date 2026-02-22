@@ -49,8 +49,10 @@ export default function TeacherPage() {
   const [selectedAnswers, setSelectedAnswers] = useState({})
   const [dbGrades, setDbGrades] = useState([])
   const [dbClasses, setDbClasses] = useState([])
+  const [dbSubjects, setDbSubjects] = useState([]) // New state for subjects
   const [filters, setFilters] = useState({
     gradeId: null,
+    subjectId: '', // New field
     classId: null,
     startDate: null,
     endDate: null
@@ -95,18 +97,20 @@ export default function TeacherPage() {
           api.get("/examdetail"),    // quizzes [0]
           api.get("/questionbank"),  // question banks [1]
           api.get("/dashboard/lookup-data"), // lookup data (grades/classes) [2]
-          api.get("/dashboard/students") // students [3]
+          api.get("/dashboard/students"), // students [3]
+          api.get("/examdetail/subjects") // subjects [4]
         ])
 
         const quizRes = results[0].status === 'fulfilled' ? results[0].value : { data: [] };
         const questionRes = results[1].status === 'fulfilled' ? results[1].value : { data: [] };
         const lookupRes = results[2].status === 'fulfilled' ? results[2].value : { data: null };
         const studentRes = results[3].status === 'fulfilled' ? results[3].value : { data: [] };
+        const subjectsRes = results[4].status === 'fulfilled' ? results[4].value : { data: [] };
 
         // Log errors
         results.forEach((result, index) => {
           if (result.status === 'rejected') {
-            const endpoints = ['/examdetail', '/questionbank', '/dashboard/lookup-data', '/dashboard/students'];
+            const endpoints = ['/examdetail', '/questionbank', '/dashboard/lookup-data', '/dashboard/students', '/examdetail/subjects'];
             console.error(`❌ API Error for ${endpoints[index]}:`, result.reason);
           }
         });
@@ -123,7 +127,12 @@ export default function TeacherPage() {
           setStudents(studentRes.data);
         }
 
-        const mappedQuizzes = (quizRes.data || []).map(quiz => {
+        if (subjectsRes.data) {
+          setDbSubjects(subjectsRes.data);
+        }
+
+        const quizData = quizRes.data?.value || quizRes.data || [];
+        const mappedQuizzes = quizData.map(quiz => {
           const questions = (quiz.questions || []).map(q => ({
             id: q.questionId || q.QuestionId,
             type: q.optionC ? (q.optionD ? 'mcq' : (q.optionA && q.optionB ? 'true_false' : 'fill_blank')) : 'fill_blank',
@@ -315,11 +324,11 @@ export default function TeacherPage() {
   function createNewQuiz() {
     setCurrentQuizId(null)
     setCurrentQuizQuestions([])
-    setQuizForm({ title: '', description: '', grade: '', gradeId: '', className: '', classIds: [], datetime: '', startDate: '' })
+    setQuizForm({ title: '', description: '', grade: '', gradeId: '', subjectId: '', subject: '', className: '', classIds: [], datetime: '', startDate: '' })
     setCurrentSection('quiz-editor')
   }
 
-  const [quizForm, setQuizForm] = useState({ title: '', description: '', grade: '', gradeId: '', className: '', classIds: [], datetime: '', startDate: '' })
+  const [quizForm, setQuizForm] = useState({ title: '', description: '', grade: '', gradeId: '', subjectId: '', subject: '', className: '', classIds: [], datetime: '', startDate: '' })
 
   function editQuiz(quizId) {
     const quiz = quizzes.find((q) => q.examId === quizId)
@@ -329,6 +338,8 @@ export default function TeacherPage() {
       title: quiz.title,
       gradeId: quiz.gradeId || '',
       grade: quiz.grade,
+      subjectId: quiz.subjectId || '',
+      subject: quiz.subject,
       className: quiz.class,
       classIds: (quiz.classIds && quiz.classIds.length > 0) ? quiz.classIds : (quiz.classId ? [quiz.classId] : []),
       datetime: quiz.endDate || '',
@@ -540,9 +551,10 @@ export default function TeacherPage() {
   }
 
   async function saveQuiz() {
-    const { title, description, gradeId, className, classIds, datetime, startDate } = quizForm
+    const { title, description, gradeId, subjectId, className, classIds, datetime, startDate } = quizForm
     if (!title.trim()) return window.alert('Please enter a quiz title')
     if (!gradeId) return window.alert('Please select a grade')
+    if (!subjectId) return window.alert('Please select a subject')
     if ((!className && (!classIds || classIds.length === 0))) return window.alert('Please select at least one class')
     if (!datetime) return window.alert('Please select date and time for the quiz')
     if (!startDate) return window.alert('Please select a start date for the quiz')
@@ -551,7 +563,8 @@ export default function TeacherPage() {
 
     const quizData = {
       title,
-      examSubject: 'Mathematics',
+      examSubject: dbSubjects.find(s => String(s.id) === String(subjectId))?.subjectName || '',
+      subjectId: subjectId ? Number(subjectId) : null,
       examDescription: description || "",
       gradeId: gradeId ? Number(gradeId) : null,
       classId: classIds[0] ? Number(classIds[0]) : null, // Handle single classId if needed
@@ -1548,6 +1561,32 @@ export default function TeacherPage() {
                 </div>
               </div>
               <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+                  <div>
+                    <label className="form-label" htmlFor="quiz-subject" style={{ display: 'block', fontSize: '.875rem', fontWeight: 600, color: '#374151', marginBottom: '.5rem' }}>Subject <span className="required" style={{ color: '#dc2626' }}>*</span></label>
+                    <select
+                      id="quiz-subject"
+                      className="form-select"
+                      style={{ width: '100%', padding: '.75rem', border: '2px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', background: 'white', outline: 'none' }}
+                      value={quizForm.subjectId || ''}
+                      onChange={(e) => {
+                        const newSubjectId = e.target.value
+                        setQuizForm({
+                          ...quizForm,
+                          subjectId: newSubjectId,
+                          subject: e.target.options[e.target.selectedIndex].text
+                        })
+                      }}
+                      onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+                      onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
+                    >
+                      <option value="">Select subject</option>
+                      {dbSubjects.map(s => (<option key={s.id} value={s.id}>{s.subjectName}</option>))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
                 <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div><label className="form-label" htmlFor="quiz-grade" style={{ display: 'block', fontSize: '.875rem', fontWeight: 600, color: '#374151', marginBottom: '.5rem' }}>Grade <span className="required" style={{ color: '#dc2626' }}>*</span></label><select id="quiz-grade" className="form-select" style={{ width: '100%', padding: '.75rem', border: '2px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', background: 'white', outline: 'none' }} value={quizForm.gradeId || ''} onChange={(e) => {
                     const newGradeId = e.target.value
@@ -1901,7 +1940,19 @@ export default function TeacherPage() {
           handleLogout={handleLogout}
           userRole={userRole || 'Teacher'}
         />
-        <div className="main-content section-transition" style={{ flex: 1, overflowY: 'auto' }}>
+        <div className="main-content section-transition" style={{
+          flex: 1,
+          overflowY: 'auto',
+          animation: 'fadeIn 0.6s ease-out'
+        }}>
+          <style>
+            {`
+              @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+              }
+            `}
+          </style>
           {/* Welcome Card */}
           {currentSection !== 'profile' && (
             <div style={{ padding: '1.5rem 2rem 0' }}>

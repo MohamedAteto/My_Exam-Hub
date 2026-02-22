@@ -192,7 +192,7 @@ export default function StudentPage() {
         const expiredCompleted = expiredExams.map(exam => ({
           examId: exam.examId,
           title: exam.title,
-          examSubject: exam.examSubject || '',
+          examSubject: exam.subjectName || exam.examSubject || '',
           examDescription: exam.examDescription,
           startDate: exam.startDate,
           endDate: exam.endDate,
@@ -688,7 +688,7 @@ export default function StudentPage() {
       return {
         id: exam.examId,
         name: exam.title,
-        subject: exam.examSubject || 'General',
+        subject: exam.subjectName || exam.examSubject || 'General',
         deadline: exam.endDate,
         startDate: exam.startDate,
         duration: 60, // Default duration, could be added to backend
@@ -730,6 +730,7 @@ export default function StudentPage() {
       return {
         ...exam,
         id: exam.examId,
+        subject: exam.subjectName || exam.examSubject || exam.subject || 'General',
         deadline: exam.endDate,
         questions: questions
       }
@@ -759,6 +760,7 @@ export default function StudentPage() {
         showSection={showSection}
         handleLogout={handleLogout}
         userRole="Student"
+        availableExamsCount={examData.available.length}
       />
 
       <div className="main-content section-transition" style={{

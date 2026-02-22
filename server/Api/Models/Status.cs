@@ -50,4 +50,6 @@ public partial class Status
     public virtual ICollection<Team> Teams { get; set; } = new List<Team>();
 
     public virtual ICollection<TicketType> TicketTypes { get; set; } = new List<TicketType>();
+
+    public virtual ICollection<ExamDetail> ExamDetails { get; set; } = new List<ExamDetail>();
 }

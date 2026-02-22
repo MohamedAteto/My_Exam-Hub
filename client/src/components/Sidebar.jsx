@@ -29,7 +29,8 @@ const Sidebar = ({
   showSection,
   handleLogout,
   userRole,
-  isExamActive // Changed from isQuizActive to isExamActive
+  isExamActive,
+  availableExamsCount
 }) => {
   const [isOpen, setIsOpen] = useState(window.innerWidth > 768);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
@@ -102,8 +103,10 @@ const Sidebar = ({
             className={`nav-item ${(currentSection === 'main' || currentSection === 'dashboard') ? 'active' : ''}`}
             onClick={() => handleNavClick(isStudent ? 'dashboard' : 'main')}
           >
-            <BarChart3 size={20} />
-            <span>Dashboard</span>
+            <div className="nav-item-content">
+              <BarChart3 size={20} />
+              <span>Dashboard</span>
+            </div>
           </div>
 
           {/* Student Specific */}
@@ -113,15 +116,22 @@ const Sidebar = ({
                 className={`nav-item ${currentSection === 'available' ? 'active' : ''}`}
                 onClick={() => handleNavClick('available')}
               >
-                <ScrollText size={20} />
-                <span>Available Exams</span>
+                <div className="nav-item-content">
+                  <ScrollText size={20} />
+                  <span>Available Exams</span>
+                </div>
+                {availableExamsCount > 0 && (
+                  <span className="count-badge">{availableExamsCount}</span>
+                )}
               </div>
               <div
                 className={`nav-item ${currentSection === 'completed' ? 'active' : ''}`}
                 onClick={() => handleNavClick('completed')}
               >
-                <CalendarCheck size={20} />
-                <span>Completed Exams</span>
+                <div className="nav-item-content">
+                  <CalendarCheck size={20} />
+                  <span>Completed Exams</span>
+                </div>
               </div>
             </>
           )}
@@ -133,22 +143,28 @@ const Sidebar = ({
                 className={`nav-item ${currentSection === 'my-quizzes' ? 'active' : ''}`}
                 onClick={() => handleNavClick('my-quizzes')}
               >
-                <ListTodo size={20} />
-                <span>Manage Exams</span>
+                <div className="nav-item-content">
+                  <ListTodo size={20} />
+                  <span>Manage Exams</span>
+                </div>
               </div>
               <div
                 className={`nav-item ${currentSection === 'question-banks' ? 'active' : ''}`}
                 onClick={() => handleNavClick('question-banks')}
               >
-                <Database size={20} />
-                <span>Question Banks</span>
+                <div className="nav-item-content">
+                  <Database size={20} />
+                  <span>Question Banks</span>
+                </div>
               </div>
               <div
                 className={`nav-item ${currentSection === 'students' ? 'active' : ''}`}
                 onClick={() => handleNavClick('students')}
               >
-                <Users size={20} />
-                <span>Students</span>
+                <div className="nav-item-content">
+                  <Users size={20} />
+                  <span>Students</span>
+                </div>
               </div>
             </>
           )}
@@ -160,22 +176,28 @@ const Sidebar = ({
                 className={`nav-item ${currentSection === 'my-quizzes' ? 'active' : ''}`}
                 onClick={() => handleNavClick('my-quizzes')}
               >
-                <ListTodo size={20} />
-                <span>All Exams</span>
+                <div className="nav-item-content">
+                  <ListTodo size={20} />
+                  <span>All Exams</span>
+                </div>
               </div>
               <div
                 className={`nav-item ${currentSection === 'teachers' ? 'active' : ''}`}
                 onClick={() => handleNavClick('teachers')}
               >
-                <Shield size={20} />
-                <span>Teachers</span>
+                <div className="nav-item-content">
+                  <Shield size={20} />
+                  <span>Teachers</span>
+                </div>
               </div>
               <div
                 className={`nav-item ${currentSection === 'students' ? 'active' : ''}`}
                 onClick={() => handleNavClick('students')}
               >
-                <Users size={20} />
-                <span>Students</span>
+                <div className="nav-item-content">
+                  <Users size={20} />
+                  <span>Students</span>
+                </div>
               </div>
             </>
           )}
@@ -186,8 +208,10 @@ const Sidebar = ({
             onClick={() => handleNavClick('profile')}
             style={{ marginTop: 'auto' }}
           >
-            <User size={20} />
-            <span>My Profile</span>
+            <div className="nav-item-content">
+              <User size={20} />
+              <span>My Profile</span>
+            </div>
           </div>
         </nav>
 

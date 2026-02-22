@@ -253,10 +253,12 @@ namespace QuizesApi.Controllers
                 ExamId = e.ExamId,
                 Title = e.Title,
                 ExamSubject = e.ExamSubject ?? string.Empty,
+                SubjectName = e.Subject?.StatusName,
                 ExamDescription = e.ExamDescription,
                 Grade = e.GradeId?.ToString() ?? string.Empty,
                 Class = string.Join(", ", classIds),
                 GradeId = e.GradeId,
+                SubjectId = e.SubjectId,
                 ClassId = classIds.FirstOrDefault(),
                 ClassIds = classIds,
                 ClassNames = new List<string>(),
@@ -283,6 +285,16 @@ namespace QuizesApi.Controllers
                     }).ToList(),
                 TotalMarks = e.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0)
             };
+        }
+
+        [HttpGet("subjects")]
+        public async Task<ActionResult<IEnumerable<object>>> GetSubjects()
+        {
+            var subjects = await _context.Statuses
+                .Where(s => s.BusinessEntity == "Exams")
+                .Select(s => new { Id = s.Id, SubjectName = s.StatusName })
+                .ToListAsync();
+            return Ok(subjects);
         }
     }
 }

@@ -15,6 +15,7 @@ public class ExamRepo : IExamRepo
     public async Task<IEnumerable<ExamDetail>> GetAllAsync()
     {
         var exams = await _context.ExamDetails
+            .Include(e => e.Subject)
             .ToListAsync();
         
         // Manual population of ExamQuestionBanks
@@ -40,6 +41,7 @@ public class ExamRepo : IExamRepo
     public async Task<ExamDetail?> GetByIdAsync(long id)
     {
         var exam = await _context.ExamDetails
+            .Include(e => e.Subject)
             .FirstOrDefaultAsync(e => e.ExamId == id);
         if (exam == null) return null;
 

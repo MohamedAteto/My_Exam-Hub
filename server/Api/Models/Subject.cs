@@ -1,22 +1,2 @@
-using System;
-using System.Collections.Generic;
-
-namespace QuizesApi.Models;
-
-public partial class Subject
-{
-    public long Id { get; set; }
-
-    public string SubjectName { get; set; } = null!;
-
-    public string? Description { get; set; }
-
-    public long StatusId { get; set; }
-
-    public virtual Status Status { get; set; } = null!;
-
-    public virtual ICollection<ExamDetail> ExamDetails { get; set; } = new List<ExamDetail>();
-}
-
-
-
+// This file is no longer used and remains for historical purposes.
+// The Subject entity has been consolidated into the Course entity.

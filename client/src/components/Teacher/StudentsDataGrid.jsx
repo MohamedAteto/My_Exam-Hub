@@ -362,7 +362,20 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
     };
 
     return (
-        <div style={{ padding: '2rem', background: '#f9fafb', minHeight: '100vh' }}>
+        <div style={{
+            padding: '2rem',
+            background: '#f9fafb',
+            minHeight: '100vh',
+            animation: 'fadeIn 0.6s ease-out'
+        }}>
+            <style>
+                {`
+                    @keyframes fadeIn {
+                        from { opacity: 0; transform: translateY(10px); }
+                        to { opacity: 1; transform: translateY(0); }
+                    }
+                `}
+            </style>
             <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
                 <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                     <div>
@@ -693,34 +706,36 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
                 </div>
 
                 {/* Floating Scroll to Top Request */}
-                {showScrollTop && (
-                    <button
-                        onClick={scrollToTop}
-                        style={{
-                            position: 'fixed',
-                            bottom: '2rem',
-                            right: '2rem',
-                            width: '56px',
-                            height: '56px',
-                            borderRadius: '50%',
-                            background: '#dc2626',
-                            color: 'white',
-                            border: 'none',
-                            boxShadow: '0 8px 24px rgba(220, 38, 38, 0.4)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                            zIndex: 9999,
-                            transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
-                        }}
-                        title="Scroll to Top"
-                    >
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M12 19V5M5 12l7-7 7 7" />
-                        </svg>
-                    </button>
-                )}
+                <button
+                    onClick={scrollToTop}
+                    style={{
+                        position: 'fixed',
+                        bottom: '2rem',
+                        right: '2rem',
+                        width: '56px',
+                        height: '56px',
+                        borderRadius: '50%',
+                        background: '#dc2626',
+                        color: 'white',
+                        border: 'none',
+                        boxShadow: '0 8px 24px rgba(220, 38, 38, 0.4)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        zIndex: 9999,
+                        opacity: showScrollTop ? 1 : 0,
+                        visibility: showScrollTop ? 'visible' : 'hidden',
+                        transform: showScrollTop ? 'translateY(0) scale(1)' : 'translateY(20px) scale(0.8)',
+                        transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                        pointerEvents: showScrollTop ? 'auto' : 'none'
+                    }}
+                    title="Scroll to Top"
+                >
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 19V5M5 12l7-7 7 7" />
+                    </svg>
+                </button>
             </div>
         </div>
     )
