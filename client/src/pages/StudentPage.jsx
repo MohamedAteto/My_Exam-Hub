@@ -1044,8 +1044,13 @@ export default function StudentPage() {
                                       <div>
                                         <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-primary)', margin: '0 0 0.5rem 0' }}>{exam.title} <span style={{ fontSize: '0.8rem', opacity: 0.5 }}>(#{exam.examId})</span></h3>
                                       </div>
-                                      <div style={{ background: 'var(--primary-light)', color: 'var(--primary)', padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: '700' }}>
-                                        {exam.questions ? exam.questions.length : 0} Qs
+                                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                        <div style={{ background: 'var(--primary-light)', color: 'var(--primary)', padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: '700' }}>
+                                          {exam.questions ? exam.questions.length : 0} Qs
+                                        </div>
+                                        <div style={{ background: '#fef3c7', color: '#92400e', padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: '700' }}>
+                                          {exam.subject}
+                                        </div>
                                       </div>
                                     </div>
 
@@ -1107,6 +1112,9 @@ export default function StudentPage() {
                                 >
                                   <div>
                                     <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-primary)', margin: '0 0 0.5rem 0' }}>{exam.title}</h3>
+                                    <div style={{ display: 'inline-block', background: '#fef3c7', color: '#92400e', padding: '0.2rem 0.6rem', borderRadius: '999px', fontSize: '0.7rem', fontWeight: '700', marginBottom: '0.5rem' }}>
+                                      {exam.subject}
+                                    </div>
                                   </div>
                                   <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: '1rem 0' }}>
                                     {exam.examDescription}
@@ -1267,6 +1275,9 @@ export default function StudentPage() {
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                               <div>
                                 <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-primary)', margin: '0 0 0.5rem 0' }}>{exam.title} <span style={{ fontSize: '0.8rem', opacity: 0.5 }}>(#{exam.examId})</span></h3>
+                                <div style={{ display: 'inline-block', background: '#fef3c7', color: '#92400e', padding: '0.2rem 0.6rem', borderRadius: '999px', fontSize: '0.7rem', fontWeight: '700', marginBottom: '0.5rem' }}>
+                                  {exam.subject}
+                                </div>
                               </div>
                               <div style={{ background: 'var(--success-bg)', color: 'var(--success)', padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: '700' }}>
                                 {Math.round((exam.score || 0) * 100) / 100}%

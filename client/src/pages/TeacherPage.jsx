@@ -14,6 +14,7 @@ import api from '../api/axios.js'
 import { storage } from '../utils/storage'
 import MultiSelectDropdown from '../components/MultiSelectDropdown.jsx'
 import StudentsDataGrid from '../components/Teacher/StudentsDataGrid.jsx'
+import ModernDateRangePicker from '../components/ModernDateRangePicker.jsx'
 
 export default function TeacherPage() {
   const navigate = useNavigate()
@@ -1612,10 +1613,11 @@ export default function TeacherPage() {
                 </div>
               </div>
               <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <div><label className="form-label" htmlFor="quiz-start-date" style={{ display: 'block', fontSize: '.875rem', fontWeight: 600, color: '#374151', marginBottom: '.5rem' }}>Start Date & Time <span className="required" style={{ color: '#dc2626' }}>*</span></label><input type="datetime-local" id="quiz-start-date" className="form-input" style={{ width: '100%', padding: '.75rem', border: '2px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', background: 'white', outline: 'none' }} value={quizForm.startDate} onChange={(e) => setQuizForm({ ...quizForm, startDate: e.target.value })} onFocus={(e) => e.target.style.borderColor = '#3b82f6'} onBlur={(e) => e.target.style.borderColor = '#d1d5db'} /></div>
-                  <div><label className="form-label" htmlFor="quiz-datetime" style={{ display: 'block', fontSize: '.875rem', fontWeight: 600, color: '#374151', marginBottom: '.5rem' }}>End Date & Time <span className="required" style={{ color: '#dc2626' }}>*</span></label><input type="datetime-local" id="quiz-datetime" className="form-input" style={{ width: '100%', padding: '.75rem', border: '2px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', background: 'white', outline: 'none' }} value={quizForm.datetime} onChange={(e) => setQuizForm({ ...quizForm, datetime: e.target.value })} onFocus={(e) => e.target.style.borderColor = '#3b82f6'} onBlur={(e) => e.target.style.borderColor = '#d1d5db'} /></div>
-                </div>
+                <ModernDateRangePicker
+                  startDate={quizForm.startDate}
+                  endDate={quizForm.datetime}
+                  onChange={(start, end) => setQuizForm({ ...quizForm, startDate: start, datetime: end })}
+                />
               </div>
               <div className="questions-section" style={{ marginTop: '2rem' }}>
                 <div className="questions-header" style={{ marginBottom: '1.5rem' }}><h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#1f2937', margin: 0 }}>Questions (<span id="quiz-question-count">{currentQuizQuestions.length}</span>)</h3></div>
