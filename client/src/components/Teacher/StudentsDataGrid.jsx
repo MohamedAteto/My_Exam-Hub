@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, memo, useRef, useCallback } from 'react'
 import MultiSelectDropdown from '../MultiSelectDropdown'
+import ModernSelect from '../ModernSelect'
 import * as XLSX from 'xlsx'
 
 const StudentRow = memo(({ student, selectedExamIds, allExams, onStudentClick }) => {
@@ -457,47 +458,26 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
                     </div>
 
                     {/* Grade Filter */}
-                    <div style={{ width: '160px' }}>
-                        <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#4b5563', marginBottom: '0.5rem' }}>Grade</label>
-                        <select
+                    <div style={{ width: '200px' }}>
+                        <ModernSelect
+                            label="Grade"
                             value={selectedGrade}
+                            placeholder="All Grades"
+                            options={grades.map(g => ({ value: g, label: g }))}
                             onChange={(e) => { setSelectedGrade(e.target.value); setSelectedClass(''); }}
-                            style={{
-                                width: '100%',
-                                padding: '0.75rem',
-                                border: '1px solid #e5e7eb',
-                                borderRadius: '12px',
-                                background: 'white',
-                                fontSize: '0.95rem',
-                                outline: 'none'
-                            }}
-                        >
-                            <option value="">All Grades</option>
-                            {grades.map(g => <option key={g} value={g}>{g}</option>)}
-                        </select>
+                        />
                     </div>
 
                     {/* Class Filter */}
-                    <div style={{ width: '160px' }}>
-                        <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#4b5563', marginBottom: '0.5rem' }}>Class</label>
-                        <select
+                    <div style={{ width: '200px' }}>
+                        <ModernSelect
+                            label="Class"
                             value={selectedClass}
-                            onChange={(e) => setSelectedClass(e.target.value)}
+                            placeholder="All Classes"
                             disabled={!selectedGrade && classes.length === 0}
-                            style={{
-                                width: '100%',
-                                padding: '0.75rem',
-                                border: '1px solid #e5e7eb',
-                                borderRadius: '12px',
-                                background: 'white',
-                                fontSize: '0.95rem',
-                                outline: 'none',
-                                opacity: (!selectedGrade && classes.length === 0) ? 0.6 : 1
-                            }}
-                        >
-                            <option value="">All Classes</option>
-                            {classes.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
+                            options={classes.map(c => ({ value: c, label: c }))}
+                            onChange={(e) => setSelectedClass(e.target.value)}
+                        />
                     </div>
 
                     {/* Multi Exam Filter */}

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import api from '../api/axios'
+import ModernSelect from './ModernSelect'
 
 export default function DashboardFilters({ onFilterChange, userRole, grades = [], classes = [], allExams = [], recentExams = [], selectedExamId = null, onExamChange, currentFilters = null }) {
   const [selectedGrade, setSelectedGrade] = useState(currentFilters?.gradeId || '')
@@ -122,73 +123,28 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
       }}>
         {/* Grade Filter */}
         <div>
-          <label style={{
-            display: 'block',
-            fontSize: '0.875rem',
-            fontWeight: '500',
-            color: 'var(--text-secondary)',
-            marginBottom: '0.5rem'
-          }}>
-            Grade
-          </label>
-          <select
+          <ModernSelect
+            label="Grade"
             value={selectedGrade}
+            placeholder="All Grades"
+            options={grades.map(grade => ({ value: grade.id, label: grade.gradeName || grade.name }))}
             onChange={(e) => {
               setSelectedGrade(e.target.value)
               setSelectedClass('') // Reset class when grade changes
             }}
-            style={{
-              width: '100%',
-              padding: '0.625rem',
-              borderRadius: '8px',
-              border: '1px solid var(--border-color)',
-              background: 'var(--bg-surface)',
-              color: 'var(--text-primary)',
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-          >
-            <option value="">All Grades</option>
-            {grades.map(grade => (
-              <option key={grade.id} value={grade.id}>{grade.gradeName || grade.name}</option>
-            ))}
-          </select>
+          />
         </div>
 
         {/* Class Filter */}
         <div>
-          <label style={{
-            display: 'block',
-            fontSize: '0.875rem',
-            fontWeight: '500',
-            color: 'var(--text-secondary)',
-            marginBottom: '0.5rem'
-          }}>
-            Class
-          </label>
-          <select
+          <ModernSelect
+            label="Class"
             value={selectedClass}
-            onChange={(e) => setSelectedClass(e.target.value)}
+            placeholder="All Classes"
             disabled={!selectedGrade && filteredClasses.length === 0}
-            style={{
-              width: '100%',
-              padding: '0.625rem',
-              borderRadius: '8px',
-              border: '1px solid var(--border-color)',
-              background: 'var(--bg-surface)',
-              color: 'var(--text-primary)',
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              opacity: !selectedGrade && filteredClasses.length === 0 ? 0.5 : 1
-            }}
-          >
-            <option value="">All Classes</option>
-            {filteredClasses.map(classItem => (
-              <option key={classItem.id} value={classItem.id}>{classItem.className || classItem.name}</option>
-            ))}
-          </select>
+            options={filteredClasses.map(classItem => ({ value: classItem.id, label: classItem.className || classItem.name }))}
+            onChange={(e) => setSelectedClass(e.target.value)}
+          />
         </div>
 
         {/* Start Date Filter */}
@@ -250,33 +206,15 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
 
         {/* Group By Filter */}
         <div>
-          <label style={{
-            display: 'block',
-            fontSize: '0.875rem',
-            fontWeight: '500',
-            color: 'var(--text-secondary)',
-            marginBottom: '0.5rem'
-          }}>
-            Group By
-          </label>
-          <select
+          <ModernSelect
+            label="Group By"
             value={selectedGroupBy}
+            options={[
+              { value: 'Student', label: 'Students' },
+              { value: 'Class', label: 'Class' }
+            ]}
             onChange={(e) => setSelectedGroupBy(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '0.625rem',
-              borderRadius: '8px',
-              border: '1px solid var(--border-color)',
-              background: 'var(--bg-surface)',
-              color: 'var(--text-primary)',
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-          >
-            <option value="Student">Students</option>
-            <option value="Class">Class</option>
-          </select>
+          />
         </div>
       </div>
 
@@ -291,41 +229,17 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
           <div style={{
             flex: '2 1 420px'
           }}>
-            <label style={{
-              display: 'block',
-              fontSize: '0.875rem',
-              fontWeight: '500',
-              color: 'var(--text-secondary)',
-              marginBottom: '0.5rem'
-            }}>
-              Selected Exam
-            </label>
-            <select
+            <ModernSelect
+              label="Selected Exam"
               value={selectedExamId || ''}
+              placeholder="All Exams"
+              options={filteredExams.map(exam => ({ value: exam.examId || exam.id, label: exam.title }))}
               onChange={(e) => {
                 if (onExamChange) {
                   onExamChange(e)
                 }
               }}
-              style={{
-                width: '100%',
-                padding: '0.625rem',
-                borderRadius: '8px',
-                border: '1px solid var(--border-color)',
-                background: 'var(--bg-surface)',
-                color: 'var(--text-primary)',
-                fontSize: '0.875rem',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              <option value="">All Exams</option>
-              {filteredExams.map(exam => (
-                <option key={exam.examId || exam.id} value={exam.examId || exam.id}>
-                  {exam.title}
-                </option>
-              ))}
-            </select>
+            />
           </div>
         ) : null}
 

@@ -95,8 +95,23 @@ export default function ModernDateRangePicker({
 
     const handleTimeChange = (type, unit, value) => {
         const target = type === 'start' ? new Date(tempStart || Date.now()) : new Date(tempEnd || Date.now());
-        if (unit === 'hours') target.setHours(parseInt(value) || 0);
+
+        if (unit === 'hours') {
+            let h = parseInt(value) || 0;
+            const isPM = target.getHours() >= 12;
+            if (isPM) {
+                if (h < 12) h += 12;
+            } else {
+                if (h === 12) h = 0;
+            }
+            target.setHours(h);
+        }
         if (unit === 'minutes') target.setMinutes(parseInt(value) || 0);
+        if (unit === 'period') {
+            let h = target.getHours();
+            if (value === 'PM' && h < 12) target.setHours(h + 12);
+            if (value === 'AM' && h >= 12) target.setHours(h - 12);
+        }
 
         if (type === 'start') {
             setTempStart(target);
@@ -107,7 +122,6 @@ export default function ModernDateRangePicker({
             }
         } else {
             if (tempStart && target <= tempStart) {
-                // Don't allow end time < start time on same day
                 return;
             }
             setTempEnd(target);
@@ -153,10 +167,23 @@ export default function ModernDateRangePicker({
         return date.toLocaleString('en-US', {
             month: 'short',
             day: 'numeric',
-            hour: '2-digit',
+            hour: 'numeric',
             minute: '2-digit',
             hour12: true
         });
+    };
+
+    const getDisplayHour = (date) => {
+        if (!date) return 12;
+        let h = date.getHours();
+        if (h === 0) return 12;
+        if (h > 12) return h - 12;
+        return h;
+    };
+
+    const getPeriod = (date) => {
+        if (!date) return 'AM';
+        return date.getHours() >= 12 ? 'PM' : 'AM';
     };
 
     const renderCalendar = () => {
@@ -365,10 +392,10 @@ export default function ModernDateRangePicker({
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                                 <div>
                                     <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Start Time</h4>
-                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.75rem' }}>
                                         <input
-                                            type="number" min="0" max="23"
-                                            value={tempStart ? tempStart.getHours() : 0}
+                                            type="number" min="1" max="12"
+                                            value={getDisplayHour(tempStart)}
                                             onChange={(e) => handleTimeChange('start', 'hours', e.target.value)}
                                             style={{ width: '60px', padding: '0.5rem', borderRadius: '8px', border: `1px solid ${colors.border}`, textAlign: 'center' }}
                                         />
@@ -380,14 +407,24 @@ export default function ModernDateRangePicker({
                                             style={{ width: '60px', padding: '0.5rem', borderRadius: '8px', border: `1px solid ${colors.border}`, textAlign: 'center' }}
                                         />
                                     </div>
+                                    <div style={{ display: 'flex', background: '#f3f4f6', padding: '3px', borderRadius: '8px', gap: '2px' }}>
+                                        <button
+                                            onClick={() => handleTimeChange('start', 'period', 'AM')}
+                                            style={{ flex: 1, padding: '0.375rem', borderRadius: '6px', border: 'none', background: getPeriod(tempStart) === 'AM' ? 'white' : 'transparent', color: getPeriod(tempStart) === 'AM' ? colors.primary : colors.textMuted, fontWeight: 700, fontSize: '0.7rem', cursor: 'pointer' }}
+                                        >AM</button>
+                                        <button
+                                            onClick={() => handleTimeChange('start', 'period', 'PM')}
+                                            style={{ flex: 1, padding: '0.375rem', borderRadius: '6px', border: 'none', background: getPeriod(tempStart) === 'PM' ? 'white' : 'transparent', color: getPeriod(tempStart) === 'PM' ? colors.primary : colors.textMuted, fontWeight: 700, fontSize: '0.7rem', cursor: 'pointer' }}
+                                        >PM</button>
+                                    </div>
                                 </div>
 
                                 <div>
                                     <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>End Time</h4>
-                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.75rem' }}>
                                         <input
-                                            type="number" min="0" max="23"
-                                            value={tempEnd ? tempEnd.getHours() : 0}
+                                            type="number" min="1" max="12"
+                                            value={getDisplayHour(tempEnd)}
                                             onChange={(e) => handleTimeChange('end', 'hours', e.target.value)}
                                             style={{ width: '60px', padding: '0.5rem', borderRadius: '8px', border: `1px solid ${colors.border}`, textAlign: 'center' }}
                                         />
@@ -398,6 +435,16 @@ export default function ModernDateRangePicker({
                                             onChange={(e) => handleTimeChange('end', 'minutes', e.target.value)}
                                             style={{ width: '60px', padding: '0.5rem', borderRadius: '8px', border: `1px solid ${colors.border}`, textAlign: 'center' }}
                                         />
+                                    </div>
+                                    <div style={{ display: 'flex', background: '#f3f4f6', padding: '3px', borderRadius: '8px', gap: '2px' }}>
+                                        <button
+                                            onClick={() => handleTimeChange('end', 'period', 'AM')}
+                                            style={{ flex: 1, padding: '0.375rem', borderRadius: '6px', border: 'none', background: getPeriod(tempEnd) === 'AM' ? 'white' : 'transparent', color: getPeriod(tempEnd) === 'AM' ? colors.primary : colors.textMuted, fontWeight: 700, fontSize: '0.7rem', cursor: 'pointer' }}
+                                        >AM</button>
+                                        <button
+                                            onClick={() => handleTimeChange('end', 'period', 'PM')}
+                                            style={{ flex: 1, padding: '0.375rem', borderRadius: '6px', border: 'none', background: getPeriod(tempEnd) === 'PM' ? 'white' : 'transparent', color: getPeriod(tempEnd) === 'PM' ? colors.primary : colors.textMuted, fontWeight: 700, fontSize: '0.7rem', cursor: 'pointer' }}
+                                        >PM</button>
                                     </div>
                                 </div>
                             </div>

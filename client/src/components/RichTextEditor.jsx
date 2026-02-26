@@ -178,46 +178,47 @@ const RichTextEditor = ({ value = '', onChange, placeholder = "Enter your questi
   }
 
   return (
-    <div className="rich-text-editor-container" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
+    <div className="rich-text-editor-container" style={{
+      width: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'stretch',
+      background: '#ffffff',
+      borderRadius: '16px',
+      overflow: 'hidden',
+      border: '2px solid #f1f5f9',
+      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+    }}>
       <div className="editor-toolbar" style={{
         display: 'flex',
-        gap: '.75rem',
-        marginBottom: '.75rem',
-        flexWrap: 'wrap'
+        gap: '.5rem',
+        padding: '1rem',
+        background: '#f8fafc',
+        borderBottom: '2px solid #f1f5f9',
+        flexWrap: 'wrap',
+        alignItems: 'center'
       }}>
         <button
           type="button"
           onClick={() => setShowMathSymbols(!showMathSymbols)}
           title="Math Symbols"
           style={{
-            padding: '.75rem 1.25rem',
+            padding: '.625rem 1rem',
             background: showMathSymbols ? '#dc2626' : 'white',
-            color: showMathSymbols ? 'white' : '#374151',
-            border: showMathSymbols ? 'none' : '2px solid #d1d5db',
-            borderRadius: '8px',
-            fontSize: '.875rem',
-            fontWeight: 600,
+            color: showMathSymbols ? 'white' : '#475569',
+            border: `1.5px solid ${showMathSymbols ? '#dc2626' : '#e2e8f0'}`,
+            borderRadius: '10px',
+            fontSize: '.85rem',
+            fontWeight: 700,
             cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            boxShadow: showMathSymbols ? '0 4px 12px rgba(220,38,38,.25)' : '0 1px 3px rgba(0,0,0,.1)',
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '.5rem'
-          }}
-          onMouseEnter={(e) => {
-            if (!showMathSymbols) {
-              e.currentTarget.style.borderColor = '#dc2626'
-              e.currentTarget.style.boxShadow = '0 2px 6px rgba(220,38,38,.15)'
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!showMathSymbols) {
-              e.currentTarget.style.borderColor = '#d1d5db'
-              e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,.1)'
-            }
+            gap: '.5rem',
+            boxShadow: showMathSymbols ? '0 4px 12px rgba(220, 38, 38, 0.15)' : 'none'
           }}
         >
-          ∑ Math
+          <span style={{ fontSize: '1.1rem' }}>∑</span> Math
         </button>
 
         <button
@@ -225,34 +226,23 @@ const RichTextEditor = ({ value = '', onChange, placeholder = "Enter your questi
           onClick={() => setShowFormatting(!showFormatting)}
           title="Text Formatting"
           style={{
-            padding: '.75rem 1.25rem',
+            padding: '.625rem 1rem',
             background: showFormatting ? '#dc2626' : 'white',
-            color: showFormatting ? 'white' : '#374151',
-            border: showFormatting ? 'none' : '2px solid #d1d5db',
-            borderRadius: '8px',
-            fontSize: '.875rem',
-            fontWeight: 600,
+            color: showFormatting ? 'white' : '#475569',
+            border: `1.5px solid ${showFormatting ? '#dc2626' : '#e2e8f0'}`,
+            borderRadius: '10px',
+            fontSize: '.85rem',
+            fontWeight: 700,
             cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            boxShadow: showFormatting ? '0 4px 12px rgba(220,38,38,.25)' : '0 1px 3px rgba(0,0,0,.1)',
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '.5rem'
-          }}
-          onMouseEnter={(e) => {
-            if (!showFormatting) {
-              e.currentTarget.style.borderColor = '#dc2626'
-              e.currentTarget.style.boxShadow = '0 2px 6px rgba(220,38,38,.15)'
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!showFormatting) {
-              e.currentTarget.style.borderColor = '#d1d5db'
-              e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,.1)'
-            }
+            gap: '.5rem',
+            boxShadow: showFormatting ? '0 4px 12px rgba(220, 38, 38, 0.15)' : 'none'
           }}
         >
-          ✎ Format
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>
+          Format
         </button>
 
         <button
@@ -260,30 +250,24 @@ const RichTextEditor = ({ value = '', onChange, placeholder = "Enter your questi
           onClick={() => fileInputRef.current?.click()}
           title="Insert Image"
           style={{
-            padding: '.75rem 1.25rem',
+            padding: '.625rem 1rem',
             background: 'white',
-            color: '#374151',
-            border: '2px solid #d1d5db',
-            borderRadius: '8px',
-            fontSize: '.875rem',
-            fontWeight: 600,
+            color: '#475569',
+            border: '1.5px solid #e2e8f0',
+            borderRadius: '10px',
+            fontSize: '.85rem',
+            fontWeight: 700,
             cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            boxShadow: '0 1px 3px rgba(0,0,0,.1)',
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
             display: 'inline-flex',
             alignItems: 'center',
             gap: '.5rem'
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#dc2626'
-            e.currentTarget.style.boxShadow = '0 2px 6px rgba(220,38,38,.15)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = '#d1d5db'
-            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,.1)'
-          }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#dc2626'; e.currentTarget.style.color = '#dc2626'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#475569'; }}
         >
-          🖼 Image
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+          Image
         </button>
 
         <input
@@ -293,110 +277,158 @@ const RichTextEditor = ({ value = '', onChange, placeholder = "Enter your questi
           onChange={handleImageUpload}
           style={{ display: 'none' }}
         />
+
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+          {['B', 'I', 'U'].map((label, idx) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => insertFormatting(label === 'B' ? 'bold' : label === 'I' ? 'italic' : 'underline')}
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '8px',
+                border: '1.5px solid #e2e8f0',
+                background: 'white',
+                color: '#475569',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#dc2626'; e.currentTarget.style.color = '#dc2626'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#475569'; }}
+            >
+              {label === 'B' ? <strong>B</strong> : label === 'I' ? <em>I</em> : <u>U</u>}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {showMathSymbols && (
-        <div className="math-symbols-panel card">
-          <div className="symbols-grid">
-            {mathSymbols.map((item, index) => (
-              <button
-                key={index}
-                type="button"
-                className="symbol-btn pill"
-                onClick={() => insertMathSymbol(item.symbol)}
-                title={item.name}
-              >
-                {item.symbol}
-              </button>
-            ))}
+      <div style={{ padding: '4px', background: 'white', position: 'relative' }}>
+        {showMathSymbols && (
+          <div className="math-symbols-panel" style={{
+            position: 'absolute',
+            top: '0',
+            left: '12px',
+            zIndex: 10,
+            background: 'white',
+            border: '1.5px solid #e2e8f0',
+            borderRadius: '16px',
+            padding: '1rem',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+            maxWidth: '400px',
+            animation: 'fadeInUp 0.3s ease'
+          }}>
+            <div className="symbols-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '8px' }}>
+              {mathSymbols.map((item, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => insertMathSymbol(item.symbol)}
+                  title={item.name}
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    border: '1.5px solid #f1f5f9',
+                    background: '#f8fafc',
+                    fontSize: '1rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = '#dc2626'; e.currentTarget.style.color = 'white'; e.currentTarget.style.borderColor = '#dc2626'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.borderColor = '#f1f5f9'; }}
+                >
+                  {item.symbol}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {showFormatting && (
-        <div className="formatting-panel card">
-          <button
-            type="button"
-            className="format-btn pill"
-            onClick={() => insertFormatting('bold')}
-            title="Bold"
-          >
-            <strong>B</strong>
-          </button>
-          <button
-            type="button"
-            className="format-btn pill"
-            onClick={() => insertFormatting('italic')}
-            title="Italic"
-          >
-            <em>I</em>
-          </button>
-          <button
-            type="button"
-            className="format-btn pill"
-            onClick={() => insertFormatting('underline')}
-            title="Underline"
-          >
-            <u>U</u>
-          </button>
-          <button
-            type="button"
-            className="format-btn pill"
-            onClick={() => insertFormatting('superscript')}
-            title="Superscript"
-          >
-            X<sup>2</sup>
-          </button>
-          <button
-            type="button"
-            className="format-btn pill"
-            onClick={() => insertFormatting('subscript')}
-            title="Subscript"
-          >
-            X<sub>2</sub>
-          </button>
-          <button
-            type="button"
-            className="format-btn pill"
-            onClick={() => insertFormatting('fraction')}
-            title="Fraction"
-          >
-            <span style={{ fontSize: '0.8em' }}>a/b</span>
-          </button>
-        </div>
-      )}
+        {showFormatting && (
+          <div className="formatting-panel" style={{
+            position: 'absolute',
+            top: '0',
+            left: '100px',
+            zIndex: 10,
+            background: 'white',
+            border: '1.5px solid #e2e8f0',
+            borderRadius: '16px',
+            padding: '1rem',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+            display: 'flex',
+            gap: '8px',
+            animation: 'fadeInUp 0.3s ease'
+          }}>
+            <button type="button" onClick={() => insertFormatting('superscript')} style={{ padding: '8px 12px', borderRadius: '8px', border: '1.5px solid #f1f5f9', background: '#f8fafc', cursor: 'pointer' }}>X<sup>2</sup></button>
+            <button type="button" onClick={() => insertFormatting('subscript')} style={{ padding: '8px 12px', borderRadius: '8px', border: '1.5px solid #f1f5f9', background: '#f8fafc', cursor: 'pointer' }}>X<sub>2</sub></button>
+            <button type="button" onClick={() => insertFormatting('fraction')} style={{ padding: '8px 12px', borderRadius: '8px', border: '1.5px solid #f1f5f9', background: '#f8fafc', cursor: 'pointer' }}>a/b</button>
+          </div>
+        )}
 
-      <textarea
-        id="rich-text-editor"
-        className="rich-text-input"
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.ctrlKey || e.metaKey) {
-            switch (e.key.toLowerCase()) {
-              case 'b':
-                e.preventDefault()
-                insertFormatting('bold')
-                break
-              case 'i':
-                e.preventDefault()
-                insertFormatting('italic')
-                break
-              case 'u':
-                e.preventDefault()
-                insertFormatting('underline')
-                break
-              default:
-                break
+        <textarea
+          id="rich-text-editor"
+          style={{
+            width: '100%',
+            minHeight: '220px',
+            padding: '1.5rem',
+            fontSize: '1.1rem',
+            lineHeight: '1.6',
+            color: '#1e293b',
+            background: 'transparent',
+            border: 'none',
+            outline: 'none',
+            fontFamily: 'inherit',
+            resize: 'vertical'
+          }}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.ctrlKey || e.metaKey) {
+              switch (e.key.toLowerCase()) {
+                case 'b': e.preventDefault(); insertFormatting('bold'); break;
+                case 'i': e.preventDefault(); insertFormatting('italic'); break;
+                case 'u': e.preventDefault(); insertFormatting('underline'); break;
+              }
             }
-          }
-        }}
-        rows={10}
-        autoFocus={autoFocus}
-      />
+          }}
+          rows={8}
+          autoFocus={autoFocus}
+        />
+      </div>
 
-      {renderPreview()}
+      {value && (
+        <div style={{ padding: '1.5rem', borderTop: '2px solid #f1f5f9', background: '#fcfdfe' }}>
+          <div style={{ fontSize: '.8rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ width: '8px', height: '8px', background: '#10b981', borderRadius: '50%' }}></div>
+            Live Preview
+          </div>
+          <div
+            style={{ fontSize: '1.1rem', color: '#334155', lineHeight: '1.6' }}
+            dangerouslySetInnerHTML={{
+              __html: value
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/__(.*?)__/g, '<u>$1</u>')
+                .replace(/\^(.*?)\^/g, '<sup>$1</sup>')
+                .replace(/~(.*?)~/g, '<sub>$1</sub>')
+                .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" style="max-width: 100%; height: auto; margin: 10px 0; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);" />')
+            }}
+          />
+        </div>
+      )}
+
+      <style>{`
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   )
 }

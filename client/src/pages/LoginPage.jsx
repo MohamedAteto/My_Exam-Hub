@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Mail, Lock, Eye, EyeOff, ArrowRight, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import api from '../api/axios.js'
 import ErrorBoundary from '../components/ErrorBoundary'
 import { storage } from '../utils/storage'
@@ -27,7 +28,8 @@ export default function LoginPage() {
       justify-content: center; 
       align-items: center; 
       min-height: 100vh;
-      background: #ffffff;
+      background: radial-gradient(circle at top right, rgba(239, 68, 68, 0.05), transparent),
+                  radial-gradient(circle at bottom left, rgba(239, 68, 68, 0.03), transparent);
       padding: 1.5rem;
     }
     .login-card { 
@@ -35,48 +37,66 @@ export default function LoginPage() {
       max-width: 440px; 
       background: white; 
       padding: 3rem 2.5rem; 
-      border-radius: 24px; 
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08); 
-      animation: slideDown 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-      border: 1px solid rgba(0,0,0,0.02);
+      border-radius: 32px; 
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08); 
+      animation: cardEntrance 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+      border: 1px solid rgba(0,0,0,0.04);
+      position: relative;
+      overflow: hidden;
     }
-    @keyframes slideDown {
-      from { transform: translateY(-20px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
+    @keyframes cardEntrance {
+      from { transform: translateY(30px) scale(0.95); opacity: 0; }
+      to { transform: translateY(0) scale(1); opacity: 1; }
     }
     .brand-section {
       text-align: center;
       margin-bottom: 2.5rem;
+      animation: fadeInDown 0.6s ease-out 0.2s both;
+    }
+    @keyframes fadeInDown {
+      from { transform: translateY(-10px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
     }
     .brand-logo {
-      width: 64px;
-      height: 64px;
-      background: #ffffff;
-      border-radius: 16px;
+      width: 72px;
+      height: 72px;
+      background: white;
+      border-radius: 20px;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 0 auto 1.25rem;
-      border: 1px solid #e5e7eb;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+      margin: 0 auto 1.5rem;
+      border: 1px solid #f3f4f6;
+      box-shadow: 0 12px 24px rgba(220, 38, 38, 0.1);
+      transition: transform 0.3s ease;
     }
-    .brand-logo svg {
-      width: 32px;
-      height: 32px;
-      fill: white;
-    }
+    .brand-logo:hover { transform: rotate(5deg) scale(1.05); }
     .brand-section h1 { 
-      font-size: 1.75rem; 
+      font-size: 2rem; 
       font-weight: 800; 
       color: #111827;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.025em;
       margin-bottom: 0.5rem;
     }
     .brand-section p {
       color: #6b7280;
-      font-size: 0.9375rem;
+      font-size: 1rem;
     }
-    .input-group { margin-bottom: 1.25rem; position: relative; }
+    .input-group { 
+      margin-bottom: 1.25rem; 
+      position: relative; 
+      animation: staggeredFade 0.5s ease-out both;
+    }
+    .input-group:nth-child(1) { animation-delay: 0.3s; }
+    .input-group:nth-child(2) { animation-delay: 0.4s; }
+    .auth-options { animation: staggeredFade 0.5s ease-out 0.5s both; }
+    .sign-in-btn { animation: staggeredFade 0.5s ease-out 0.6s both; }
+    
+    @keyframes staggeredFade {
+      from { transform: translateY(10px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
     .input-label {
       display: block;
       font-size: 0.875rem;
@@ -85,9 +105,7 @@ export default function LoginPage() {
       margin-bottom: 0.5rem;
       margin-left: 4px;
     }
-    .input-wrapper {
-      position: relative;
-    }
+    .input-wrapper { position: relative; }
     .input-icon {
       position: absolute;
       left: 1rem;
@@ -95,41 +113,43 @@ export default function LoginPage() {
       transform: translateY(-50%);
       color: #9ca3af;
       pointer-events: none;
+      transition: color 0.2s ease;
     }
     .input-group input { 
       width: 100%; 
       padding: 0.875rem 1rem 0.875rem 2.75rem; 
-      border: 1.5px solid #e5e7eb; 
-      border-radius: 12px; 
+      border: 2px solid #f3f4f6; 
+      border-radius: 14px; 
       font-size: 1rem; 
-      background: #fff; 
-      transition: all 0.2s ease; 
+      background: #f9fafb; 
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
       color: #111827;
     }
     .input-group input:focus { 
       outline: none; 
       border-color: #ef4444; 
-      box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.08);
       transform: translateY(-1px);
     }
-    .input-group input::placeholder { color: #9ca3af; }
+    .input-group input:focus + .input-icon { color: #ef4444; }
     .toggle-password { 
       position: absolute; 
       right: 0.75rem; 
       top: 50%; 
       transform: translateY(-50%); 
-      background: #f3f4f6; 
+      background: transparent; 
       border: none; 
       cursor: pointer; 
-      color: #6b7280; 
+      color: #9ca3af; 
       padding: 6px;
       border-radius: 8px;
       display: flex;
       align-items: center;
-      justify-content: center;
       transition: all 0.2s ease;
     }
-    .toggle-password:hover { background: #e5e7eb; color: #111827; }
+    .toggle-password:hover { color: #ef4444; background: rgba(239, 68, 68, 0.05); }
+    
     .auth-options {
       display: flex;
       justify-content: space-between;
@@ -141,71 +161,63 @@ export default function LoginPage() {
       text-decoration: none; 
       font-size: 0.875rem; 
       font-weight: 600;
-      transition: color 0.2s ease;
+      transition: all 0.2s ease;
     }
-    .forgot-password:hover { color: #dc2626; text-decoration: underline; }
+    .forgot-password:hover { color: #dc2626; opacity: 0.8; }
+    
     .remember-me {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.625rem;
       font-size: 0.875rem;
       color: #6b7280;
       cursor: pointer;
+      user-select: none;
     }
     .remember-me input {
-      width: 16px;
-      height: 16px;
+      width: 18px;
+      height: 18px;
       accent-color: #ef4444;
+      cursor: pointer;
     }
+    
     .sign-in-btn { 
       width: 100%; 
       background: #ef4444; 
       color: white; 
       border: none; 
-      padding: 1rem; 
-      border-radius: 14px; 
-      font-size: 1rem; 
+      padding: 1.125rem; 
+      border-radius: 16px; 
+      font-size: 1.0625rem; 
       font-weight: 700; 
       cursor: pointer; 
-      transition: all 0.32s cubic-bezier(0.4, 0, 0.2, 1); 
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
       display: flex; 
       align-items: center; 
       justify-content: center; 
-      gap: 10px; 
-      box-shadow: 0 10px 20px rgba(239, 68, 68, 0.15);
+      gap: 12px; 
+      box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.3);
     }
     .sign-in-btn:hover:not(:disabled) { 
       background: #dc2626; 
-      transform: translateY(-2px);
-      box-shadow: 0 12px 24px rgba(239, 68, 68, 0.25);
+      transform: translateY(-3px) scale(1.01);
+      box-shadow: 0 15px 30px -5px rgba(239, 68, 68, 0.4);
     }
-    .sign-in-btn:active:not(:disabled) { transform: translateY(0); }
-    .sign-in-btn:disabled { opacity: 0.7; cursor: not-allowed; }
-    .signup-text { 
-      text-align: center; 
-      color: #6b7280; 
-      font-size: 0.9375rem; 
-      margin-top: 2rem;
-    }
-    .signup-text a { 
-      color: #ef4444; 
-      text-decoration: none; 
-      font-weight: 700;
-      margin-left: 4px;
-    }
-    .signup-text a:hover { text-decoration: underline; }
+    .sign-in-btn:active:not(:disabled) { transform: translateY(-1px); }
+    .sign-in-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    
     .error-toast {
-      background: #fee2e2;
-      border: 1.5px solid #fecaca;
-      color: #dc2626;
+      background: #fff1f2;
+      border: 1px solid #fecaca;
+      color: #be123c;
       padding: 1rem;
-      border-radius: 12px;
-      font-size: 0.875rem;
+      border-radius: 14px;
+      font-size: 0.9rem;
       margin-bottom: 2rem;
       display: flex;
       align-items: center;
       gap: 0.75rem;
-      animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+      animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
     }
     @keyframes shake {
       10%, 90% { transform: translate3d(-1px, 0, 0); }
@@ -214,34 +226,48 @@ export default function LoginPage() {
       40%, 60% { transform: translate3d(4px, 0, 0); }
     }
     .success-toast {
-      background: #dcfce7;
-      border: 1.5px solid #bbf7d0;
-      color: #166534;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: #15803d;
       padding: 1rem;
-      border-radius: 12px;
-      font-size: 0.875rem;
+      border-radius: 14px;
+      font-size: 0.9rem;
       margin-bottom: 2rem;
       display: flex;
       align-items: center;
       gap: 0.75rem;
+      animation: pulse 2s infinite;
     }
-    .loading-spinner {
-      width: 20px;
-      height: 20px;
-      border: 3px solid rgba(255,255,255,0.3);
-      border-radius: 50%;
-      border-top-color: white;
-      animation: spin 0.8s linear infinite;
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.01); }
+      100% { transform: scale(1); }
     }
+    .spin-loader { animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    
+    .signup-text { 
+      text-align: center; 
+      color: #6b7280; 
+      font-size: 0.9375rem; 
+      margin-top: 2rem;
+      animation: fadeIn 0.8s ease-out 0.8s both;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .signup-text a { 
+      color: #ef4444; 
+      text-decoration: none; 
+      font-weight: 700;
+      margin-left: 4px;
+      transition: color 0.2s;
+    }
+    .signup-text a:hover { color: #dc2626; text-decoration: underline; }
   `,
     []
   )
 
   const [rememberMe, setRememberMe] = useState(false)
 
-  // Auto-redirect if already logged in
-  // Auto-redirect if already logged in
   useEffect(() => {
     if (storage.isAuthenticated()) {
       const role = storage.getItem('userRole')
@@ -290,19 +316,26 @@ export default function LoginPage() {
         || roles.find(r => r.toLowerCase() === 'student')
         || ''
 
-      // Use storage utility with persistence flag
       storage.setItem('token', token, rememberMe)
       storage.setItem('userRole', primaryRole)
       storage.setItem('userName', fullNameEn || fullNameAr || 'User')
 
-      setSuccessMessage('Login successful! Redirecting to your dashboard...')
+      setSuccessMessage('Welcome back! Taking you to your dashboard...')
+
+      const card = document.querySelector('.login-card')
+      if (card) {
+        card.style.transition = 'all 0.6s cubic-bezier(0.16, 1, 0.3, 1)'
+        card.style.transform = 'scale(0.9) translateY(-20px)'
+        card.style.opacity = '0'
+      }
+
       setTimeout(() => {
         const roleNorm = String(primaryRole || '').toLowerCase()
         if (roleNorm === 'admin' || roleNorm === 'board') navigate('/superadmin')
         else if (roleNorm === 'teacher') navigate('/teacher')
         else if (roleNorm === 'student') navigate('/student')
         else navigate('/')
-      }, 1500)
+      }, 800)
     } catch (err) {
       if (err.code === 'ERR_NETWORK' || !err.response) {
         setErrorMessage('Server unreachable. Please check your connection.')
@@ -319,31 +352,27 @@ export default function LoginPage() {
   return (
     <ErrorBoundary>
       <div className="login-container">
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
         <style>{styles}</style>
         <div className="login-card">
           <div className="brand-section">
             <div className="brand-logo">
-              <img src="/logo.png" style={{ width: '48px', height: '48px', objectFit: 'contain' }} alt="Exams Hub" />
+              <img src="/logo.png" style={{ width: '52px', height: '52px', objectFit: 'contain' }} alt="Exams Hub" />
             </div>
             <h1>Exams Hub</h1>
-            <p>Sign in to manage your examinations</p>
+            <p>Sign in to your account</p>
           </div>
 
           <form onSubmit={handleLogin}>
             {errorMessage && (
               <div className="error-toast">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
+                <AlertCircle size={20} />
                 {errorMessage}
               </div>
             )}
             {successMessage && (
               <div className="success-toast">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
-                </svg>
+                <CheckCircle size={20} />
                 {successMessage}
               </div>
             )}
@@ -351,11 +380,7 @@ export default function LoginPage() {
             <div className="input-group">
               <label className="input-label">Email Address</label>
               <div className="input-wrapper">
-                <span className="input-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" />
-                  </svg>
-                </span>
+                <span className="input-icon"><Mail size={18} /></span>
                 <input
                   type="email"
                   placeholder="name@example.com"
@@ -369,11 +394,7 @@ export default function LoginPage() {
             <div className="input-group">
               <label className="input-label">Password</label>
               <div className="input-wrapper">
-                <span className="input-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
-                </span>
+                <span className="input-icon"><Lock size={18} /></span>
                 <input
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
@@ -386,16 +407,7 @@ export default function LoginPage() {
                   className="toggle-password"
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  {showPassword ? (
-                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                    </svg>
-                  ) : (
-                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
@@ -407,27 +419,25 @@ export default function LoginPage() {
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
                 />
-                <span>Remember me</span>
+                <span>Keep me signed in</span>
               </label>
               <a href="#" className="forgot-password">Forgot password?</a>
             </div>
 
             <button type="submit" className="sign-in-btn" disabled={loading}>
               {loading ? (
-                <div className="loading-spinner"></div>
+                <Loader2 className="spin-loader" size={20} />
               ) : (
                 <>
                   <span>Sign In</span>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
-                  </svg>
+                  <ArrowRight size={20} />
                 </>
               )}
             </button>
           </form>
 
           <div className="signup-text">
-            Don't have an account? <a href="#">Create one now</a>
+            New to Exams Hub? <a href="#">Create account</a>
           </div>
         </div>
       </div>
