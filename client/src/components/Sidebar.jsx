@@ -202,17 +202,6 @@ const Sidebar = ({
             </>
           )}
 
-          {/* User Profile - Standardized to 'profile' */}
-          <div
-            className={`nav-item ${currentSection === 'profile' ? 'active' : ''}`}
-            onClick={() => handleNavClick('profile')}
-            style={{ marginTop: 'auto' }}
-          >
-            <div className="nav-item-content">
-              <User size={20} />
-              <span>My Profile</span>
-            </div>
-          </div>
         </nav>
 
         <div className="sidebar-footer">

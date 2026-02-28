@@ -70,7 +70,7 @@ export default function UserProfile({ userRole, onBack }) {
       setError(null)
       const tokenData = parseUserFromToken()
       console.log('[UserProfile] Parsed token data:', tokenData)
-      
+
       if (!tokenData || !tokenData.id) {
         const errorMsg = 'Unable to parse user information from token'
         console.error('[UserProfile]', errorMsg)
@@ -82,7 +82,7 @@ export default function UserProfile({ userRole, onBack }) {
       console.log('[UserProfile] Fetching profile for user ID:', tokenData.id)
       const response = await api.get(`/auth/profile/${tokenData.id}`)
       console.log('[UserProfile] Profile response:', response.data)
-      
+
       if (!response.data) {
         setError('No data received from server')
         setLoading(false)
@@ -259,12 +259,12 @@ export default function UserProfile({ userRole, onBack }) {
 
   // Always render something visible - even if there's an error
   return (
-    <div 
-      className="profile-page" 
+    <div
+      className="profile-page"
       data-testid="user-profile-page"
-      style={{ 
-        padding: '2rem', 
-        background: '#f9fafb', 
+      style={{
+        padding: '2rem',
+        background: '#f9fafb',
         minHeight: '100vh',
         width: '100%',
         display: 'block',
@@ -279,20 +279,9 @@ export default function UserProfile({ userRole, onBack }) {
           to { transform: rotate(360deg); }
         }
       `}</style>
-      
+
       {/* Always visible header to confirm component is rendering */}
-      <div style={{
-        maxWidth: '800px',
-        margin: '0 auto 2rem',
-        padding: '1rem',
-        background: '#3b82f6',
-        color: 'white',
-        borderRadius: '8px',
-        textAlign: 'center',
-        fontWeight: '600'
-      }}>
-        My Profile - {userRole || 'User'}
-      </div>
+      {/* Profile Header removed as per user request */}
 
       <div className="profile-container" style={{
         maxWidth: '800px',

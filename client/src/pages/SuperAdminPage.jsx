@@ -35,6 +35,7 @@ export default function SuperAdminPage() {
     startDate: null,
     endDate: null
   })
+  const [teacherSearchQuery, setTeacherSearchQuery] = useState('')
 
   // Modal State
   const [isModalActive, setIsModalActive] = useState(false)
@@ -327,16 +328,42 @@ export default function SuperAdminPage() {
                 <p style={{ fontSize: '1rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>Manage and monitor system teacher accounts</p>
               </div>
               <div style={{
-                background: 'rgba(59, 130, 246, 0.1)',
-                padding: '0.75rem 1.5rem',
-                borderRadius: '12px',
                 display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                border: '1px solid rgba(59, 130, 246, 0.2)'
+                gap: '1rem',
+                alignItems: 'center'
               }}>
-                <Users size={20} color="var(--primary)" />
-                <span style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '1.1rem' }}>{teachers.length} <span style={{ fontWeight: 500, opacity: 0.8 }}>Total</span></span>
+                <div style={{ position: 'relative', width: '300px' }}>
+                  <svg style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', width: '18px', height: '18px', fill: '#9ca3af' }} viewBox="0 0 24 24">
+                    <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="Search teachers..."
+                    value={teacherSearchQuery}
+                    onChange={(e) => setTeacherSearchQuery(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.625rem 0.625rem 0.625rem 2.5rem',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '10px',
+                      fontSize: '0.9rem',
+                      background: 'white',
+                      transition: 'all 0.2s',
+                    }}
+                  />
+                </div>
+                <div style={{
+                  background: 'rgba(59, 130, 246, 0.1)',
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  border: '1px solid rgba(59, 130, 246, 0.2)'
+                }}>
+                  <Users size={20} color="var(--primary)" />
+                  <span style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '1.1rem' }}>{teachers.length} <span style={{ fontWeight: 500, opacity: 0.8 }}>Total</span></span>
+                </div>
               </div>
             </div>
 
@@ -370,7 +397,12 @@ export default function SuperAdminPage() {
                 gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
                 gap: '1.5rem'
               }}>
-                {teachers.map((teacher) => (
+                {teachers.filter(t => {
+                  const q = teacherSearchQuery.toLowerCase();
+                  return (t.fullNameEn || '').toLowerCase().includes(q) ||
+                    (t.fullNameAr || '').toLowerCase().includes(q) ||
+                    (t.email || '').toLowerCase().includes(q);
+                }).map((teacher) => (
                   <div
                     key={teacher.id}
                     className="teacher-card"
@@ -531,7 +563,7 @@ export default function SuperAdminPage() {
       default:
         return null
     }
-  }, [currentSection, quizzes, teachers, students, dbGrades, dbClasses, selectedStudentId, studentFilterExamId, studentFilterGrade, teacherName, userRole, filters])
+  }, [currentSection, quizzes, teachers, students, dbGrades, dbClasses, selectedStudentId, studentFilterExamId, studentFilterGrade, teacherName, userRole, filters, teacherSearchQuery])
 
   return (
     <ErrorBoundary>

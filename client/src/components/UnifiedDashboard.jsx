@@ -414,7 +414,7 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                         }
                         userRole={userRole}
                         currentUserId={roleNorm === 'student' ? parseInt(userId) : null}
-                        onSeeAll={() => {
+                        onSeeAll={roleNorm === 'student' ? null : () => {
                             console.log('[UnifiedDashboard] See All Clicked. ExamId:', selectedExamId)
                             if (onSeeAllScores) {
                                 if (selectedExamId) {

@@ -299,6 +299,8 @@ export default function TeacherPage() {
     }
     setCurrentClass(null)
     setCurrentGrade(null)
+    setStudentFilterExamId(null)
+    setStudentFilterGrade(null)
     setCurrentQuizQuestions([])
     setSelectedBankQuestions(new Set())
     // setIsRichTextEditorOpen(false) // Removed as it's not defined

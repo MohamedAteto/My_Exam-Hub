@@ -127,7 +127,10 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
             label="Grade"
             value={selectedGrade}
             placeholder="All Grades"
-            options={grades.map(grade => ({ value: grade.id, label: grade.gradeName || grade.name }))}
+            options={[
+              { value: '', label: 'All Grades' },
+              ...grades.map(grade => ({ value: grade.id, label: grade.gradeName || grade.name }))
+            ]}
             onChange={(e) => {
               setSelectedGrade(e.target.value)
               setSelectedClass('') // Reset class when grade changes
@@ -233,7 +236,10 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
               label="Selected Exam"
               value={selectedExamId || ''}
               placeholder="All Exams"
-              options={filteredExams.map(exam => ({ value: exam.examId || exam.id, label: exam.title }))}
+              options={[
+                { value: '', label: 'All Exams' },
+                ...filteredExams.map(exam => ({ value: exam.examId || exam.id, label: exam.title }))
+              ]}
               onChange={(e) => {
                 if (onExamChange) {
                   onExamChange(e)

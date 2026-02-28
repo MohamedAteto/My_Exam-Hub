@@ -185,7 +185,7 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '1rem',
-                marginBottom: '2rem'
+                marginBottom: '1rem'
             }}>
                 <div style={{
                     display: 'flex',
@@ -245,7 +245,7 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                 width: '100%',
                 overflow: 'hidden',
                 position: 'relative',
-                minHeight: '200px',
+                minHeight: (displayLeaderboard && displayLeaderboard.length > 0) ? 'auto' : '200px',
                 opacity: loading && displayLeaderboard?.length > 0 ? 0.75 : 1,
                 filter: loading && displayLeaderboard?.length > 0 ? 'blur(1px)' : 'none',
                 transition: 'opacity 0.4s ease, filter 0.4s ease'

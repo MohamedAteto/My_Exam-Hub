@@ -144,7 +144,7 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedGrade, setSelectedGrade] = useState(initialGrade || '')
     const [selectedClass, setSelectedClass] = useState('')
-    const [selectedExamIds, setSelectedExamIds] = useState(initialExamId ? [initialExamId] : [])
+    const [selectedExamIds, setSelectedExamIds] = useState(initialExamId ? [String(initialExamId)] : [])
     const [minScore, setMinScore] = useState(0)
     const [maxScore, setMaxScore] = useState(100)
     // Scroll to Top State
@@ -233,7 +233,7 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
     // Sync state with prop if it changes
     useEffect(() => {
         if (initialExamId !== undefined) {
-            setSelectedExamIds(initialExamId ? [initialExamId] : [])
+            setSelectedExamIds(initialExamId ? [String(initialExamId)] : [])
         }
         if (initialGrade !== undefined) {
             setSelectedGrade(initialGrade)
@@ -305,7 +305,7 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
     }
 
     const selectedExams = useMemo(() => {
-        return allExams.filter(e => selectedExamIds.includes(String(e.id) || String(e.examId)))
+        return allExams.filter(e => selectedExamIds.includes(String(e.id || e.examId)))
     }, [selectedExamIds, allExams])
 
     const dropDownOptions = useMemo(() => {
@@ -384,7 +384,7 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
                             <svg style={{ width: '32px', height: '32px', fill: '#dc2626' }} viewBox="0 0 24 24">
                                 <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
                             </svg>
-                            Students Directory (Redesigned)
+                            Students Directory
                         </h1>
                         <p style={{ fontSize: '1rem', color: '#6b7280', margin: 0 }}>Manage and view student performance across all exams</p>
                     </div>
@@ -644,11 +644,14 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
                                             )}
                                         </div>
                                     </th>
-                                    {selectedExams.map(exam => (
-                                        <th key={exam.id || exam.examId} style={{ textAlign: 'center', padding: '1rem 1.5rem', fontSize: '0.85rem', color: '#dc2626', fontWeight: '700', textTransform: 'uppercase', background: '#fef2f2', minWidth: '150px', borderLeft: '1px solid #fecaca' }}>
-                                            {exam.title}
-                                        </th>
-                                    ))}
+                                    {selectedExamIds.map(examId => {
+                                        const exam = allExams.find(e => String(e.id || e.examId) === String(examId))
+                                        return (
+                                            <th key={examId} style={{ textAlign: 'center', padding: '1rem 1.5rem', fontSize: '0.85rem', color: '#dc2626', fontWeight: '700', textTransform: 'uppercase', background: '#fef2f2', minWidth: '150px', borderLeft: '1px solid #fecaca' }}>
+                                                {exam?.title || 'Exam'}
+                                            </th>
+                                        )
+                                    })}
                                     <th style={{ textAlign: 'right', padding: '1rem 1.5rem', fontSize: '0.85rem', color: '#6b7280', fontWeight: '700', textTransform: 'uppercase' }}>Actions</th>
                                 </tr>
                             </thead>
