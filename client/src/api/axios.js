@@ -28,6 +28,16 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Handle unauthorized access
+    if (error.response?.status === 401) {
+      storage.removeItem('token');
+      storage.removeItem('user');
+      // Optional: Redirect to login if not already there
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
+    }
+
     // Log detailed error information
     console.error('API Request Failed:', {
       url: error.config?.url,
@@ -40,5 +50,6 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
 
 export default api;
