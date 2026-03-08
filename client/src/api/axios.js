@@ -1,18 +1,44 @@
-import axios from "axios";
+import axios from 'axios';
 import { storage } from "../utils/storage";
+// Use environment variable in production. Ensure .env.production sets REACT_APP_API_BASE_URL
+// Fallback to relative path /api if not set, or localhost if needed
+// const BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5077';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL, // adjust to your backend
+  baseURL: `/api`,
+  timeout: 15000,
 });
-console.log(import.meta.env.VITE_API_BASE_URL);
 
-// Later when you add JWT:
-api.interceptors.request.use((config) => {
-  const token = storage.getItem("token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+// Request interceptor for adding auth token
+api.interceptors.request.use(
+  (config) => {
+    
+   const token = storage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
-  return config;
-});
+);
+
+// Response interceptor for handling errors globally
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Log detailed error information
+    console.error('API Request Failed:', {
+      url: error.config?.url,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      message: error.message,
+      data: error.response?.data
+    });
+
+    return Promise.reject(error);
+  }
+);
 
 export default api;
