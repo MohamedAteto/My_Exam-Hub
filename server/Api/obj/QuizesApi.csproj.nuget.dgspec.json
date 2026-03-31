@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "D:\\Mai\\Zspark\\Quiz-managent\\server\\Api\\QuizesApi.csproj": {}
+    "C:\\Users\\saif.hussien\\Desktop\\Exams_Hub\\Quiz-managent\\server\\api\\QuizesApi.csproj": {}
   },
   "projects": {
-    "D:\\Mai\\Zspark\\Quiz-managent\\server\\Api\\QuizesApi.csproj": {
+    "C:\\Users\\saif.hussien\\Desktop\\Exams_Hub\\Quiz-managent\\server\\api\\QuizesApi.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\Mai\\Zspark\\Quiz-managent\\server\\Api\\QuizesApi.csproj",
+        "projectUniqueName": "C:\\Users\\saif.hussien\\Desktop\\Exams_Hub\\Quiz-managent\\server\\api\\QuizesApi.csproj",
         "projectName": "QuizesApi",
-        "projectPath": "D:\\Mai\\Zspark\\Quiz-managent\\server\\Api\\QuizesApi.csproj",
-        "packagesPath": "C:\\Users\\mai.abdo\\.nuget\\packages\\",
-        "outputPath": "D:\\Mai\\Zspark\\Quiz-managent\\server\\Api\\obj\\",
+        "projectPath": "C:\\Users\\saif.hussien\\Desktop\\Exams_Hub\\Quiz-managent\\server\\api\\QuizesApi.csproj",
+        "packagesPath": "C:\\Users\\saif.hussien\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\saif.hussien\\Desktop\\Exams_Hub\\Quiz-managent\\server\\api\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\mai.abdo\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\saif.hussien\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -113,7 +113,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.302/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.301/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

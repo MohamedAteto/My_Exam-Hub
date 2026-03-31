@@ -178,7 +178,6 @@ C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\Api\obj\Debug\net9.
 C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\Api\obj\Debug\net9.0\staticwebassets.build.json.cache
 C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\Api\obj\Debug\net9.0\staticwebassets.development.json
 C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\Api\obj\Debug\net9.0\staticwebassets.build.endpoints.json
-C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\Api\obj\Debug\net9.0\swae.build.ex.cache
 C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\Api\obj\Debug\net9.0\QuizesApi.csproj.Up2Date
 C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\Api\obj\Debug\net9.0\QuizesApi.dll
 C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\Api\obj\Debug\net9.0\refint\QuizesApi.dll
@@ -561,3 +560,5 @@ D:\Mai\Zspark\Quiz-managent\server\Api\obj\Debug\net9.0\refint\QuizesApi.dll
 D:\Mai\Zspark\Quiz-managent\server\Api\obj\Debug\net9.0\QuizesApi.pdb
 D:\Mai\Zspark\Quiz-managent\server\Api\obj\Debug\net9.0\QuizesApi.genruntimeconfig.cache
 D:\Mai\Zspark\Quiz-managent\server\Api\obj\Debug\net9.0\ref\QuizesApi.dll
+C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\api\bin\Debug\net9.0\System.Formats.Asn1.dll
+C:\Users\saif.hussien\Desktop\Exams_Hub\Quiz-managent\server\api\bin\Debug\net9.0\System.Text.Json.dll

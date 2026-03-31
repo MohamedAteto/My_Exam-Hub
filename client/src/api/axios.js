@@ -5,15 +5,15 @@ import { storage } from "../utils/storage";
 // const BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5077';
 
 const api = axios.create({
-  baseURL: `/api`,
+  baseURL: `https://exam.sewedy.com.eg/api`,
   timeout: 15000,
 });
 
 // Request interceptor for adding auth token
 api.interceptors.request.use(
   (config) => {
-    
-   const token = storage.getItem("token");
+
+    const token = storage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
