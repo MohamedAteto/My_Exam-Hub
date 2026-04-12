@@ -65,14 +65,26 @@ export default function ModernDatePicker({
     const handleTimeChange = (unit, val) => {
         const target = new Date(tempValue || Date.now());
         if (unit === 'hours') {
-            let h = parseInt(val) || 0;
-            const isPM = target.getHours() >= 12;
-            if (isPM) {
-                if (h < 12) h += 12;
-            } else {
-                if (h === 12) h = 0;
+            let nextH = parseInt(val);
+            const currentH = getDisplayHour(target);
+            const period = getPeriod(target);
+            
+            // Wrap logic for type-in values or spin-buttons
+            if (nextH > 12) nextH = currentH === 12 ? 1 : nextH % 12 || 12;
+            if (nextH < 1) nextH = 12;
+            
+            let finalPeriod = period;
+            // AM/PM Toggle behavior: Flip period when crossing 11 <-> 12
+            if ((currentH === 11 && nextH === 12) || (currentH === 12 && nextH === 11)) {
+                finalPeriod = period === 'AM' ? 'PM' : 'AM';
             }
-            target.setHours(h);
+            
+            // Convert to 24h internal representation
+            let h24 = nextH;
+            if (finalPeriod === 'PM' && nextH < 12) h24 = nextH + 12;
+            if (finalPeriod === 'AM' && nextH === 12) h24 = 0;
+            
+            target.setHours(h24);
         }
         if (unit === 'minutes') target.setMinutes(parseInt(val) || 0);
         if (unit === 'period') {
@@ -288,14 +300,14 @@ export default function ModernDatePicker({
                                     <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: colors.textMuted, textTransform: 'uppercase', marginBottom: '1rem' }}>Selected Time</h4>
                                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem' }}>
                                         <input
-                                            type="number" min="1" max="12"
+                                            type="number"
                                             value={getDisplayHour(tempValue)}
                                             onChange={(e) => handleTimeChange('hours', e.target.value)}
                                             style={{ width: '70px', padding: '0.75rem', borderRadius: '10px', border: `2px solid ${colors.border}`, textAlign: 'center', fontSize: '1.25rem', fontWeight: 700 }}
                                         />
                                         <span style={{ fontSize: '1.5rem', fontWeight: 700, color: colors.border }}>:</span>
                                         <input
-                                            type="number" min="0" max="59"
+                                            type="number"
                                             value={tempValue ? tempValue.getMinutes() : 0}
                                             onChange={(e) => handleTimeChange('minutes', e.target.value)}
                                             style={{ width: '70px', padding: '0.75rem', borderRadius: '10px', border: `2px solid ${colors.border}`, textAlign: 'center', fontSize: '1.25rem', fontWeight: 700 }}

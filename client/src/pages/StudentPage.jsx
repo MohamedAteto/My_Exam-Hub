@@ -1067,11 +1067,23 @@ export default function StudentPage() {
                                       </svg>
                                       Randomized
                                     </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', marginTop: '1.5rem' }}>
-                                      <div>
-                                        <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-primary)', margin: '0 0 0.5rem 0' }}>{exam.title} <span style={{ fontSize: '0.8rem', opacity: 0.5 }}>(#{exam.examId})</span></h3>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', marginTop: '1.5rem', gap: '1rem' }}>
+                                      <div style={{ flex: 1, minWidth: 0 }}>
+                                        <h3 style={{ 
+                                          fontSize: '1.25rem', 
+                                          fontWeight: '700', 
+                                          color: 'var(--text-primary)', 
+                                          margin: '0 0 0.5rem 0',
+                                          display: '-webkit-box',
+                                          WebkitLineClamp: 2,
+                                          WebkitBoxOrient: 'vertical',
+                                          overflow: 'hidden',
+                                          wordBreak: 'break-word'
+                                        }}>
+                                          {exam.title} <span style={{ fontSize: '0.8rem', opacity: 0.5, fontWeight: 'normal' }}>(#{exam.examId})</span>
+                                        </h3>
                                       </div>
-                                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                                         {exam.isExpired && (
                                           <div style={{ background: '#fee2e2', color: '#ef4444', padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: '700', border: '1px solid #f87171' }}>
                                             EXPIRED
@@ -1147,10 +1159,26 @@ export default function StudentPage() {
                                     opacity: 0.9
                                   }}
                                 >
-                                  <div>
-                                    <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-primary)', margin: '0 0 0.5rem 0' }}>{exam.title}</h3>
-                                    <div style={{ display: 'inline-block', background: '#fef3c7', color: '#92400e', padding: '0.2rem 0.6rem', borderRadius: '999px', fontSize: '0.7rem', fontWeight: '700', marginBottom: '0.5rem' }}>
-                                      {exam.subject}
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem', gap: '1rem' }}>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                      <h3 style={{ 
+                                        fontSize: '1.25rem', 
+                                        fontWeight: '700', 
+                                        color: 'var(--text-primary)', 
+                                        margin: '0',
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: 2,
+                                        WebkitBoxOrient: 'vertical',
+                                        overflow: 'hidden',
+                                        wordBreak: 'break-word'
+                                      }}>
+                                        {exam.title}
+                                      </h3>
+                                    </div>
+                                    <div style={{ flexShrink: 0 }}>
+                                      <div style={{ display: 'inline-block', background: '#fef3c7', color: '#92400e', padding: '0.2rem 0.6rem', borderRadius: '999px', fontSize: '0.7rem', fontWeight: '700' }}>
+                                        {exam.subject}
+                                      </div>
                                     </div>
                                   </div>
                                   <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: '1rem 0' }}>
@@ -1309,10 +1337,22 @@ export default function StudentPage() {
                               e.currentTarget.style.boxShadow = 'var(--shadow-md)'
                             }}
                           >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                              <div>
-                                <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-primary)', margin: '0 0 0.5rem 0' }}>{exam.title} <span style={{ fontSize: '0.8rem', opacity: 0.5 }}>(#{exam.examId})</span></h3>
-                                <div style={{ display: 'inline-block', background: '#fef3c7', color: '#92400e', padding: '0.2rem 0.6rem', borderRadius: '999px', fontSize: '0.7rem', fontWeight: '700', marginBottom: '0.5rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', gap: '1rem' }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <h3 style={{ 
+                                  fontSize: '1.25rem', 
+                                  fontWeight: '700', 
+                                  color: 'var(--text-primary)', 
+                                  margin: '0 0 0.5rem 0',
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: 'hidden',
+                                  wordBreak: 'break-word'
+                                }}>
+                                  {exam.title} <span style={{ fontSize: '0.8rem', opacity: 0.5, fontWeight: 'normal' }}>(#{exam.examId})</span>
+                                </h3>
+                                <div style={{ display: 'inline-block', background: '#fef3c7', color: '#92400e', padding: '0.2rem 0.6rem', borderRadius: '999px', fontSize: '0.7rem', fontWeight: '700' }}>
                                   {exam.subject}
                                 </div>
                               </div>
