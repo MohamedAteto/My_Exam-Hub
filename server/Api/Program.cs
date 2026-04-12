@@ -17,7 +17,11 @@ namespace QuizesApi
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container BEFORE building the app
-            builder.Services.AddControllers();
+            builder.Services.AddControllers()
+                .AddJsonOptions(options => {
+                    options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+                    options.JsonSerializerOptions.DictionaryKeyPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+                });
 
             // Swagger/OpenAPI
             builder.Services.AddEndpointsApiExplorer();

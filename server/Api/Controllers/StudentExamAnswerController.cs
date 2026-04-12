@@ -49,7 +49,7 @@ namespace QuizesApi.Controllers
                 .Where(sea => sea.AccountId == accountId)
                 .ToListAsync();
 
-            var allExams = await _context.ExamDetails.ToListAsync();
+            var allExams = await _context.ExamDetails.Include(e => e.Subject).ToListAsync();
             await PopulateExamQuestions(allExams);
 
             var examAnswers = allExams.Select(exam =>
@@ -60,7 +60,10 @@ namespace QuizesApi.Controllers
                     .ToList();
                 
                 var answers = studentAnswers
-                    .Where(a => a.ExamDetailsId == exam.ExamId && a.QuestionBankId.HasValue && examQuestionIds.Contains(a.QuestionBankId.Value))
+                    .Where(a => a.ExamDetailsId.HasValue && 
+                               a.ExamDetailsId.Value == exam.ExamId && 
+                               a.QuestionBankId.HasValue && 
+                               examQuestionIds.Contains(a.QuestionBankId.Value))
                     .ToList();
 
                 if (examQuestionIds.Count == 0 || answers.Count == 0 || answers.Count < examQuestionIds.Count) return null;
@@ -73,10 +76,9 @@ namespace QuizesApi.Controllers
                 {
                     ExamId = exam.ExamId,
                     Title = exam.Title,
-                    ExamSubject = exam.ExamSubject ?? string.Empty,
                     ExamDescription = exam.ExamDescription,
-                    StartDate = exam.StartDate,
-                    EndDate = exam.EndDate,
+                    StartDate = DateTime.SpecifyKind(exam.StartDate.GetValueOrDefault(), DateTimeKind.Utc),
+                    EndDate = DateTime.SpecifyKind(exam.EndDate.GetValueOrDefault(), DateTimeKind.Utc),
                     TotalMarks = totalMarks,
                     EarnedMarks = earnedMarks,
                     Score = totalMarks > 0 ? Math.Round((double)(earnedMarks * 100m / totalMarks), 2) : 0.0,
@@ -91,10 +93,10 @@ namespace QuizesApi.Controllers
                 {
                     ea.ExamId,
                     ea.Title,
-                    ea.ExamSubject,
+                    SubjectName = exam.Subject?.StatusName ?? exam.ExamSubject,
                     ea.ExamDescription,
-                    ea.StartDate,
-                    ea.EndDate,
+                    StartDate = DateTime.SpecifyKind(ea.StartDate, DateTimeKind.Utc),
+                    EndDate = DateTime.SpecifyKind(ea.EndDate, DateTimeKind.Utc),
                     ea.TotalMarks,
                     ea.EarnedMarks,
                     ea.Score,
@@ -126,8 +128,25 @@ namespace QuizesApi.Controllers
         [HttpGet("student/{accountId}/exam/{examId}")]
         public async Task<ActionResult> GetStudentExamAnswers(long accountId, long examId)
         {
-            var exam = await _context.ExamDetails.FirstOrDefaultAsync(e => e.ExamId == examId);
+            var exam = await _context.ExamDetails.Include(e => e.Subject).FirstOrDefaultAsync(e => e.ExamId == examId);
             if (exam == null) return NotFound();
+
+            // Strict Access Control for Teachers
+            var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                ?? User.FindFirst("sub")?.Value 
+                ?? User.FindFirst("id")?.Value;
+            
+            if (long.TryParse(accountIdClaim, out long requesterId))
+            {
+                var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+                bool isTeacher = roles.Contains("Teacher");
+                bool isAdmin = roles.Contains("Superadmin") || roles.Contains("Admin") || roles.Contains("Board");
+
+                if (isTeacher && !isAdmin && exam.CreatedBy_AccId != requesterId)
+                {
+                    return Forbid();
+                }
+            }
 
             await PopulateExamQuestions(new List<ExamDetail> { exam });
 
@@ -148,10 +167,10 @@ namespace QuizesApi.Controllers
             {
                 ExamId = exam.ExamId,
                 Title = exam.Title,
-                ExamSubject = exam.ExamSubject ?? string.Empty,
+                SubjectName = exam.Subject?.StatusName ?? exam.ExamSubject,
                 ExamDescription = exam.ExamDescription,
-                StartDate = exam.StartDate,
-                EndDate = exam.EndDate,
+                StartDate = DateTime.SpecifyKind(exam.StartDate.GetValueOrDefault(), DateTimeKind.Utc),
+                EndDate = DateTime.SpecifyKind(exam.EndDate.GetValueOrDefault(), DateTimeKind.Utc),
                 TotalMarks = totalMarks,
                 EarnedMarks = earnedMarks,
                 Score = totalMarks > 0 ? Math.Round((double)(earnedMarks * 100m / totalMarks), 2) : 0.0,

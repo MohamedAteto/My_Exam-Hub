@@ -281,7 +281,9 @@ public class DashboardRepo : IDashboardRepo
         var teacher = await _context.Accounts.FirstOrDefaultAsync(a => a.Id == teacherId);
         if (teacher == null) return null;
 
+        // Strict filter: Teachers ONLY see exams they created
         var examsQuery = _context.ExamDetails.AsQueryable().Where(e => e.CreatedBy_AccId == teacherId);
+
         examsQuery = ApplyFilters(examsQuery, filters);
         
         // Use AsNoTracking for read-only optimization
@@ -462,7 +464,7 @@ public class DashboardRepo : IDashboardRepo
         double avgPassPercentage = totalStudentExamInstances > 0 ? Math.Round((double)totalPassedAcrossAllExams / totalStudentExamInstances * 100, 2) : 0;
         double avgFailPercentage = totalStudentExamInstances > 0 ? Math.Round(100 - avgPassPercentage, 2) : 0;
 
-        var recentExams = exams
+        var recentExamsDto = exams
             .OrderByDescending(e => e.EndDate)
             .Take(10)
             .Select(e => new ExamSelectionDto
@@ -483,7 +485,7 @@ public class DashboardRepo : IDashboardRepo
             AverageFailPercentage = avgFailPercentage,
             TotalStudentsWhoTookExams = uniqueStudents.Count,
             ExamBreakdown = examBreakdown,
-            RecentExams = recentExams,
+            RecentExams = recentExamsDto,
             LatestExamLeaderboard = null,
             ScoreDistribution = scoreDistribution
         };

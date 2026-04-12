@@ -146,64 +146,88 @@ export default function StudentPage() {
 
         // Filter exams into categories
         const now = new Date()
-        const completedExamIds = new Set(completedData.map(e => e.examId))
+        const completedExamIds = new Set(completedData.map(e => e.examId ?? e.ExamId).filter(Boolean))
 
         // Helper to check if date is valid
         const isValidDate = (d) => d instanceof Date && !isNaN(d) && d.getFullYear() > 1970
 
-        const availableExams = []
-        const upcomingExams = []
         const expiredExams = []
+        const activeExams = []
+        const upcomingList = []
 
         examsData.forEach(exam => {
-          // Skip if already completed by student
-          if (completedExamIds.has(exam.examId)) return
+          // Robust ID check
+          const eId = exam.examId ?? exam.ExamId
+          if (!eId || completedExamIds.has(eId)) return
 
-          const startDate = exam.startDate ? new Date(exam.startDate) : null
-          const endDate = exam.endDate ? new Date(exam.endDate) : null
+          const startDateRaw = exam.startDate ?? exam.StartDate
+          const endDateRaw = exam.endDate ?? exam.EndDate
+
+          const startDate = startDateRaw ? new Date(startDateRaw) : null
+          const endDate = endDateRaw ? new Date(endDateRaw) : null
 
           // treat null start date as "now" (started)
           const hasStarted = !startDate || !isValidDate(startDate) || startDate <= now
-
           // treat null end date as "never expires" (future)
           const hasExpired = endDate && isValidDate(endDate) && endDate <= now
 
-          // DEBUG LOGGING
-          if (true) {
-            console.log(`Exam: ${exam.title} (ID: ${exam.examId})`)
-            console.log(`  Raw Start: ${exam.startDate}, Parsed: ${startDate}`)
-            console.log(`  Raw End: ${exam.endDate}, Parsed: ${endDate}`)
-            console.log(`  Now: ${now}`)
-            console.log(`  hasStarted: ${hasStarted}, hasExpired: ${hasExpired}`)
-            console.log(`  In CompletedData: ${completedExamIds.has(exam.examId)}`)
-          }
+          // Debugging log (only uncomment if timing issues persist)
+          // console.log(`[Exam ${exam.examId}] EndDate: ${endDate?.toISOString()} | Now: ${now.toISOString()} | Expired: ${hasExpired}`);
 
           if (hasExpired) {
             expiredExams.push(exam)
           } else if (hasStarted) {
-            availableExams.push(exam)
+            activeExams.push(exam)
           } else {
-            // Not started yet
-            upcomingExams.push(exam)
+            upcomingList.push(exam)
           }
         })
 
-        // Add expired exams to completed if they're not already there
-        const expiredCompleted = expiredExams.map(exam => ({
+        // Map missed exams to look like completed entries but with 0 score
+        const missedExams = expiredExams.map(exam => ({
           examId: exam.examId,
           title: exam.title,
-          examSubject: exam.subjectName || exam.examSubject || '',
+          name: exam.title,
+          subject: exam.subjectName || exam.SubjectName || exam.examSubject || exam.ExamSubject || 'General',
           examDescription: exam.examDescription,
           startDate: exam.startDate,
           endDate: exam.endDate,
           totalMarks: exam.questions?.reduce((sum, q) => sum + (q.mark || 0), 0) || 0,
           earnedMarks: 0,
           score: 0,
+          isMissed: true, // Flag for UI
           questions: exam.questions || []
         }))
 
-        setExams({ available: availableExams, upcoming: upcomingExams })
-        setCompletedExams([...completedData, ...expiredCompleted.filter(e => !completedExamIds.has(e.examId))])
+        setExams({ 
+          available: activeExams.map(exam => ({
+            ...exam,
+            id: exam.examId,
+            name: exam.title,
+            title: exam.title,
+            subject: exam.subjectName || exam.SubjectName || exam.examSubject || exam.ExamSubject || 'General',
+            deadline: exam.endDate,
+            startDate: exam.startDate,
+            duration: 60
+          })), 
+          upcoming: upcomingList.map(exam => ({
+            ...exam,
+            id: exam.examId,
+            name: exam.title,
+            title: exam.title,
+            subject: exam.subjectName || exam.SubjectName || exam.examSubject || exam.ExamSubject || 'General',
+            deadline: exam.endDate,
+            startDate: exam.startDate,
+            duration: 60
+          })) 
+        })
+
+        // Merge actual taken exams with missed exams
+        const mappedCompleted = completedData.map(exam => ({
+          ...exam,
+          subject: exam.subjectName || exam.SubjectName || exam.examSubject || exam.ExamSubject || 'General'
+        }))
+        setCompletedExams([...mappedCompleted, ...missedExams])
 
       } catch (err) {
         console.error('Error fetching exams:', err)
@@ -687,7 +711,9 @@ export default function StudentPage() {
 
       return {
         id: exam.examId,
+        id: exam.examId,
         name: exam.title,
+        title: exam.title,
         subject: exam.subjectName || exam.examSubject || 'General',
         deadline: exam.endDate,
         startDate: exam.startDate,
@@ -730,6 +756,7 @@ export default function StudentPage() {
       return {
         ...exam,
         id: exam.examId,
+        title: exam.title || exam.Title || 'Untitled Exam',
         subject: exam.subjectName || exam.examSubject || exam.subject || 'General',
         deadline: exam.endDate,
         questions: questions
@@ -1045,6 +1072,11 @@ export default function StudentPage() {
                                         <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-primary)', margin: '0 0 0.5rem 0' }}>{exam.title} <span style={{ fontSize: '0.8rem', opacity: 0.5 }}>(#{exam.examId})</span></h3>
                                       </div>
                                       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                        {exam.isExpired && (
+                                          <div style={{ background: '#fee2e2', color: '#ef4444', padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: '700', border: '1px solid #f87171' }}>
+                                            EXPIRED
+                                          </div>
+                                        )}
                                         <div style={{ background: 'var(--primary-light)', color: 'var(--primary)', padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: '700' }}>
                                           {exam.questions ? exam.questions.length : 0} Qs
                                         </div>
@@ -1059,23 +1091,28 @@ export default function StudentPage() {
                                     </p>
 
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: exam.isExpired ? 'var(--text-light)' : 'var(--text-secondary)' }}>
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z" /><path d="M12.5 7H11v6l5.25 3.15.75-1.23-4.5-2.67z" /></svg>
-                                        {timeUntil ? `Ends in ${timeUntil}` : 'Ends soon'}
+                                        {exam.isExpired ? 'Expired' : (timeUntil ? `Ends in ${timeUntil}` : 'Ends soon')}
                                       </div>
-                                      <button style={{
-                                        background: 'var(--primary)',
-                                        color: 'white',
-                                        border: 'none',
-                                        padding: '0.5rem 1.25rem',
-                                        borderRadius: '8px',
-                                        fontWeight: '600',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem'
-                                      }}>
-                                        Start <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+                                      <button 
+                                        onClick={() => !exam.isExpired && startExam(exam)}
+                                        disabled={exam.isExpired}
+                                        style={{
+                                          background: exam.isExpired ? 'var(--bg-light)' : 'var(--primary)',
+                                          color: exam.isExpired ? 'var(--text-light)' : 'white',
+                                          border: 'none',
+                                          padding: '0.5rem 1.25rem',
+                                          borderRadius: '8px',
+                                          fontWeight: '600',
+                                          cursor: exam.isExpired ? 'not-allowed' : 'pointer',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '0.5rem'
+                                        }}
+                                      >
+                                        {exam.isExpired ? 'Time Over' : 'Start'} 
+                                        {!exam.isExpired && <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>}
                                       </button>
                                     </div>
                                   </div>
@@ -1279,8 +1316,15 @@ export default function StudentPage() {
                                   {exam.subject}
                                 </div>
                               </div>
-                              <div style={{ background: 'var(--success-bg)', color: 'var(--success)', padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: '700' }}>
-                                {Math.round((exam.score || 0) * 100) / 100}%
+                              <div style={{ 
+                                background: exam.isMissed ? '#fee2e2' : 'var(--success-bg)', 
+                                color: exam.isMissed ? '#ef4444' : 'var(--success)', 
+                                padding: '0.25rem 0.75rem', 
+                                borderRadius: '999px', 
+                                fontSize: '0.75rem', 
+                                fontWeight: '700' 
+                              }}>
+                                {exam.isMissed ? '0%' : (Math.round((exam.score || 0) * 100) / 100 + '%')}
                               </div>
                             </div>
 
@@ -1289,9 +1333,13 @@ export default function StudentPage() {
                             </p>
 
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" /></svg>
-                                Completed
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: exam.isMissed ? '#ef4444' : 'var(--text-secondary)' }}>
+                                {exam.isMissed ? (
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" /></svg>
+                                ) : (
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" /></svg>
+                                )}
+                                {exam.isMissed ? 'Missed' : 'Completed'}
                               </div>
                               <button style={{
                                 background: 'var(--bg-surface)',

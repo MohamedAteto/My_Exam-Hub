@@ -145,12 +145,18 @@ export default function TeacherPage() {
             marks: q.mark || q.Mark
           }));
 
-          const gradeId = quiz.gradeId || quiz.GradeId || quiz.GradeID;
-          const classId = quiz.classId || quiz.ClassId || quiz.ClassID;
-          const classIds = quiz.classIds || quiz.ClassIds || (classId ? [classId] : []);
+          const gradeId = quiz.gradeId || quiz.GradeId;
+          const subjectId = quiz.subjectId || quiz.SubjectId;
+          
+          // Parse raw ClassId string (format: ,10,12,)
+          const rawClassId = quiz.classId || quiz.ClassId || '';
+          const classIds = typeof rawClassId === 'string' 
+            ? rawClassId.split(',').filter(s => s && !isNaN(s)).map(s => parseInt(s, 10))
+            : (Array.isArray(quiz.classIds) ? quiz.classIds : []);
+          const firstClassId = classIds[0] || null;
 
-          const gradeName = lookupRes.data?.grades?.find(g => String(g.id) === String(gradeId))?.gradeName || quiz.grade || '';
-          const className = lookupRes.data?.classes?.find(c => String(c.id) === String(classId))?.className || quiz.class || '';
+          const gradeName = lookupRes.data?.grades?.find(g => String(g.id) === String(gradeId))?.gradeName || '';
+          const className = classIds.map(id => lookupRes.data?.classes?.find(c => String(c.id) === String(id))?.className).filter(Boolean).join(', ');
 
           return {
             examId: quiz.examId || quiz.ExamId,
@@ -161,10 +167,11 @@ export default function TeacherPage() {
             grade: gradeName,
             gradeId: gradeId,
             class: className,
-            classId: classId,
+            classId: firstClassId,
             classIds: classIds,
             classNames: quiz.classNames || quiz.ClassNames || [],
-            subject: quiz.examSubject || quiz.ExamSubject || quiz.subject,
+            subject: quiz.subjectName || quiz.SubjectName || quiz.examSubject || '',
+            subjectId: subjectId,
             startDate: quiz.startDate || quiz.StartDate,
             datetime: quiz.endDate || quiz.EndDate || quiz.datetime,
             endDate: quiz.endDate || quiz.EndDate,
@@ -2530,38 +2537,46 @@ export default function TeacherPage() {
 
                             {question.type === 'mcq' && question.options ? (
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                                {question.options.map((option, optIdx) => (
-                                  <div
-                                    key={optIdx}
-                                    style={{
-                                      padding: '0.875rem 1rem',
-                                      background: 'white',
-                                      border: `1px solid ${question.correct === optIdx ? '#10b981' : '#f1f3f5'}`,
-                                      borderRadius: '12px',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '0.75rem',
-                                      boxShadow: question.correct === optIdx ? '0 4px 12px rgba(16, 185, 129, 0.08)' : 'none'
-                                    }}
-                                  >
-                                    <div style={{
-                                      width: '24px',
-                                      height: '24px',
-                                      borderRadius: '6px',
-                                      background: question.correct === optIdx ? '#10b981' : '#f8fafc',
-                                      color: question.correct === optIdx ? 'white' : '#6b7280',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      fontWeight: 800,
-                                      fontSize: '0.75rem'
-                                    }}>
-                                      {String.fromCharCode(65 + optIdx)}
+                                {question.options.map((option, optIdx) => {
+                                  // Correct answer might be stored as letter "A", "B", etc. Index starts at 0 for A.
+                                  const correctValue = question.correct;
+                                  const isCorrect = typeof correctValue === 'string' && correctValue.length === 1 
+                                    ? correctValue.toUpperCase().charCodeAt(0) - 65 === optIdx
+                                    : Number(correctValue) === optIdx;
+
+                                  return (
+                                    <div
+                                      key={optIdx}
+                                      style={{
+                                        padding: '0.875rem 1rem',
+                                        background: 'white',
+                                        border: `1px solid ${isCorrect ? '#10b981' : '#f1f3f5'}`,
+                                        borderRadius: '12px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.75rem',
+                                        boxShadow: isCorrect ? '0 4px 12px rgba(16, 185, 129, 0.08)' : 'none'
+                                      }}
+                                    >
+                                      <div style={{
+                                        width: '24px',
+                                        height: '24px',
+                                        borderRadius: '6px',
+                                        background: isCorrect ? '#10b981' : '#f8fafc',
+                                        color: isCorrect ? 'white' : '#6b7280',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontWeight: 800,
+                                        fontSize: '0.75rem'
+                                      }}>
+                                        {String.fromCharCode(65 + optIdx)}
+                                      </div>
+                                      <span style={{ fontSize: '0.9rem', color: '#374151' }} dangerouslySetInnerHTML={{ __html: renderRichText(option) }} />
+                                      {isCorrect && <svg style={{ marginLeft: 'auto', color: '#10b981' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
                                     </div>
-                                    <span style={{ fontSize: '0.9rem', color: '#374151' }} dangerouslySetInnerHTML={{ __html: renderRichText(option) }} />
-                                    {question.correct === optIdx && <svg style={{ marginLeft: 'auto', color: '#10b981' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             ) : question.type === 'true_false' ? (
                               <div style={{ display: 'flex', gap: '0.75rem' }}>
