@@ -214,6 +214,7 @@ public class DashboardController : ControllerBase
             {
                 GradeId = gradeId,
                 ClassId = classId,
+                ExamId = examId,
                 StartDate = startDate,
                 EndDate = endDate
             };
