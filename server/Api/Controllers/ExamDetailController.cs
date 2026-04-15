@@ -42,11 +42,7 @@ namespace QuizesApi.Controllers
                 bool isTeacher = roles.Contains("Teacher");
                 bool isAdmin = roles.Contains("Superadmin") || roles.Contains("Admin") || roles.Contains("Board");
 
-                // Teachers (non-admins) ONLY see exams they created
-                if (isTeacher && !isAdmin)
-                {
-                    exams = exams.Where(e => e.CreatedBy_AccId == accountId.Value);
-                }
+                // Teachers can now see ALL exams. No longer restricted to CreatedBy_AccId.
 
                 var studentExtension = await _context.StudentExtensions
                     .FirstOrDefaultAsync(se => se.AccountId == accountId.Value);
@@ -297,7 +293,7 @@ namespace QuizesApi.Controllers
         {
             var subjects = await _context.Statuses
                 .Where(s => s.BusinessEntity == "Exams")
-                .Select(s => new { Id = s.Id, SubjectName = s.StatusName })
+                .Select(s => new { id = s.Id, statusName = s.StatusName })
                 .ToListAsync();
             return Ok(subjects);
         }

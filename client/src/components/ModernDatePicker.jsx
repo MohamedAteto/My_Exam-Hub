@@ -5,7 +5,8 @@ export default function ModernDatePicker({
     value,
     onChange,
     label = "Select Date & Time",
-    placeholder = "Select Date"
+    placeholder = "Select Date",
+    required = false
 }) {
     const [isOpen, setIsOpen] = useState(false);
     const [viewDate, setViewDate] = useState(new Date(value || Date.now()));
@@ -179,9 +180,9 @@ export default function ModernDatePicker({
     };
 
     return (
-        <div className="modern-date-picker" ref={dropdownRef} style={{ position: 'relative', width: '100%', maxWidth: '400px' }}>
+        <div className="modern-date-picker" ref={dropdownRef} style={{ position: 'relative', width: '100%' }}>
             <label style={{ display: 'block', fontSize: '.875rem', fontWeight: 600, color: '#374151', marginBottom: '.5rem' }}>
-                {label} <span style={{ color: '#dc2626' }}>*</span>
+                {label} {required && <span style={{ color: '#dc2626' }}>*</span>}
             </label>
 
             <div
@@ -190,7 +191,8 @@ export default function ModernDatePicker({
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.75rem',
-                    padding: '0.75rem 1rem',
+                    height: '48px', // Fixed height
+                    padding: '0.75rem 1rem', // Adjusted padding for vertical centering
                     background: 'white',
                     border: `2px solid ${isOpen ? colors.primary : colors.border}`,
                     borderRadius: '12px',
@@ -203,7 +205,7 @@ export default function ModernDatePicker({
                     <CalendarDays size={20} />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-                    <span style={{ fontSize: '0.9rem', color: tempValue ? colors.text : '#9ca3af', fontWeight: 600 }}>
+                    <span style={{ fontSize: '1rem', color: tempValue ? colors.text : '#9ca3af', fontWeight: 600 }}>
                         {formatDate(tempValue)}
                     </span>
                 </div>

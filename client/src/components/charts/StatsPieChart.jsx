@@ -1,12 +1,24 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts'
 
 export default function StatsPieChart({ passPercentage, failPercentage, title }) {
-    const data = [
-        { name: 'Pass', value: passPercentage || 0 },
-        { name: 'Fail', value: failPercentage || 0 }
-    ]
+    // Normalize pass/fail so the donut always has both colors and sums to ~100
+    const rawPass = Math.max(0, Math.min(100, passPercentage || 0))
+    let rawFail = typeof failPercentage === 'number' ? failPercentage : (100 - rawPass)
 
-    const hasData = (passPercentage > 0 || failPercentage > 0)
+    // If backend fail is missing or inconsistent, derive it from pass
+    if (rawFail < 0 || rawFail > 100 || Math.abs(rawPass + rawFail - 100) > 0.5) {
+        rawFail = 100 - rawPass
+    }
+
+    const hasData = rawPass > 0 || rawFail > 0
+
+    const normalizedPass = Math.round(rawPass * 100) / 100
+    const normalizedFail = Math.round(rawFail * 100) / 100
+
+    const data = [
+        { name: 'Pass', value: normalizedPass },
+        { name: 'Fail', value: normalizedFail }
+    ]
 
     return (
         <div style={{
@@ -82,18 +94,20 @@ export default function StatsPieChart({ passPercentage, failPercentage, title })
                         </PieChart>
                     </ResponsiveContainer>
                     {/* Center Text for Donut */}
-                    <div style={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -60%)',
-                        textAlign: 'center',
-                        pointerEvents: 'none'
-                    }}>
-                        <div style={{ fontSize: '2.5rem', fontWeight: '800', color: 'var(--text-primary)', lineHeight: 1 }}>
-                            {passPercentage}%
+                    <div
+                        style={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -60%)',
+                            textAlign: 'center',
+                            pointerEvents: 'none'
+                        }}
+                    >
+                        <div style={{ fontSize: '2.4rem', fontWeight: '800', color: 'var(--text-primary)', lineHeight: 1 }}>
+                            {normalizedPass}%
                         </div>
-                        <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: '600', marginTop: '4px' }}>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600', marginTop: '4px' }}>
                             Pass Rate
                         </div>
                     </div>

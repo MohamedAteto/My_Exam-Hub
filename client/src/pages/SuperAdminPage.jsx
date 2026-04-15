@@ -26,6 +26,7 @@ export default function SuperAdminPage() {
   const [students, setStudents] = useState([])
   const [dbGrades, setDbGrades] = useState([])
   const [dbClasses, setDbClasses] = useState([])
+  const [dbSubjects, setDbSubjects] = useState([])
   const [selectedStudentId, setSelectedStudentId] = useState(null)
 
   // Filter and Search State
@@ -88,6 +89,7 @@ export default function SuperAdminPage() {
         if (lookupRes?.data) {
           setDbGrades(lookupRes.data.grades || [])
           setDbClasses(lookupRes.data.classes || [])
+          setDbSubjects(lookupRes.data.subjects || [])
         }
 
         if (studentRes?.data) {
@@ -207,6 +209,7 @@ export default function SuperAdminPage() {
               userRole="SuperAdmin"
               grades={dbGrades}
               classes={dbClasses}
+              subjects={dbSubjects}
             />
 
             <div style={{
@@ -307,6 +310,7 @@ export default function SuperAdminPage() {
             allExams={quizzes}
             grades={dbGrades}
             classes={dbClasses}
+            subjects={dbSubjects}
             onSeeAllScores={handleSeeAllScores}
           />
         )

@@ -9,10 +9,12 @@ import StudentPage from './pages/StudentPage.jsx'
 import TeacherPage from './pages/TeacherPage.jsx'
 import SuperAdminPage from './pages/SuperAdminPage.jsx'
 import StudentDetailsPage from './pages/StudentDetailsPage.jsx'
+import GreetingPage from './pages/GreetingPage.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 
 const router = createBrowserRouter([
   { path: '/', element: <LoginPage /> },
+  { path: '/greeting', element: <GreetingPage /> },
   {
     path: '/student',
     element: (

@@ -69,7 +69,12 @@ public class DashboardController : ControllerBase
 
         Console.WriteLine("[DIAG] Exams mapped: " + mappedExams.Count());
 
-        return Ok(new { grades, classes, exams = mappedExams });
+        var subjects = await _context.Statuses
+            .Where(s => s.BusinessEntity == "Exams")
+            .Select(s => new { id = s.Id, statusName = s.StatusName })
+            .ToListAsync();
+
+        return Ok(new { grades, classes, subjects, exams = mappedExams });
     }
 
     /// <summary>

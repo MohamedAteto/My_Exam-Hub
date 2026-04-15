@@ -32,6 +32,9 @@ namespace QuizesApi
             builder.Services.AddDbContext<ElsewedySchoolSysDbDevContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
                 
+            // Add Memory Cache for performance
+            builder.Services.AddMemoryCache();
+                
                
 
 

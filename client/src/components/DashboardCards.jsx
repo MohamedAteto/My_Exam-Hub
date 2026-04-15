@@ -1,10 +1,34 @@
 import { useEffect, useState, useRef } from 'react'
 
-export default function DashboardCards({ data, loading, userRole, selectedExamId = null }) {
+export default function DashboardCards({ data, loading, userRole, selectedExamId = null, leaderboard = null }) {
     const [animatedTotal, setAnimatedTotal] = useState(0)
     const [animatedPass, setAnimatedPass] = useState(0)
     const [animatedFail, setAnimatedFail] = useState(0)
     const [animatedAverage, setAnimatedAverage] = useState(0)
+
+    const calculateFromLeaderboard = () => {
+        if (!selectedExamId || !leaderboard || !Array.isArray(leaderboard) || leaderboard.length === 0) {
+            return { avgScore: 0, passPercentage: 0, failPercentage: 0 }
+        }
+
+        let totalScore = 0
+        let passCount = 0
+
+        leaderboard.forEach(entry => {
+            const score = typeof entry.score === 'number' ? entry.score : 0
+            totalScore += score
+            if (score >= 50) passCount += 1
+        })
+
+        const count = leaderboard.length
+        if (count === 0) return { avgScore: 0, passPercentage: 0, failPercentage: 0 }
+
+        const avgScore = totalScore / count
+        const passPercentage = (passCount / count) * 100
+        const failPercentage = 100 - passPercentage
+
+        return { avgScore, passPercentage, failPercentage }
+    }
 
     // Calculate average score based on selected exam or overall
     const calculateAverageScore = () => {
@@ -20,8 +44,31 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
             }
         }
 
-        // Otherwise calculate overall average
+        // Fallback: derive from leaderboard when breakdown has no stats
+        if (selectedExamId && (!data.examBreakdown || data.examBreakdown.length === 0)) {
+            const fromLb = calculateFromLeaderboard()
+            if (fromLb.avgScore > 0) return fromLb.avgScore
+        }
+
+        // Otherwise calculate overall average (weighted by number of students per exam when available)
         if (data.examBreakdown && data.examBreakdown.length > 0) {
+            let weightedSum = 0
+            let totalStudents = 0
+
+            data.examBreakdown.forEach(exam => {
+                const avg = exam.averageScore || 0
+                const students = exam.totalStudents || 0
+                if (students > 0) {
+                    weightedSum += avg * students
+                    totalStudents += students
+                }
+            })
+
+            if (totalStudents > 0) {
+                return weightedSum / totalStudents
+            }
+
+            // Fallback to simple average if no student counts are available
             const total = data.examBreakdown.reduce((sum, exam) => sum + (exam.averageScore || 0), 0)
             return total / data.examBreakdown.length
         }
@@ -39,7 +86,7 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
     const calculatePassPercentage = () => {
         if (!data) return 0
 
-        let val = data.passPercentage || data.averagePassPercentage || 0
+        let val = data.passPercentage || data.averagePassPercentage || data.overallPassPercentage || 0
 
         if (selectedExamId && data.examBreakdown) {
             const exam = data.examBreakdown.find(e =>
@@ -60,6 +107,12 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
                 }
             }
         }
+
+        // Fallback: derive from leaderboard when breakdown has no stats
+        if (selectedExamId && (!data.examBreakdown || data.examBreakdown.length === 0)) {
+            const fromLb = calculateFromLeaderboard()
+            if (fromLb.passPercentage > 0) val = fromLb.passPercentage
+        }
         return val
     }
 
@@ -67,7 +120,8 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
     const calculateFailPercentage = () => {
         if (!data) return 0
 
-        let val = data.failPercentage || data.averageFailPercentage || 0
+        let val = data.failPercentage || data.averageFailPercentage || data.overallFailPercentage || 0
+        const basePass = data.passPercentage || data.averagePassPercentage || data.overallPassPercentage || 0
 
         if (selectedExamId && data.examBreakdown) {
             const exam = data.examBreakdown.find(e =>
@@ -87,6 +141,18 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
                 }
             }
         }
+
+        // Fallback: derive from leaderboard when breakdown has no stats
+        if (selectedExamId && (!data.examBreakdown || data.examBreakdown.length === 0)) {
+            const fromLb = calculateFromLeaderboard()
+            if (fromLb.failPercentage > 0) val = fromLb.failPercentage
+        }
+
+        // Global fallback: if fail is zero but pass is known, derive fail as 100 - pass
+        if (!selectedExamId && val === 0 && basePass > 0) {
+            val = Math.max(0, 100 - basePass)
+        }
+
         return val
     }
 

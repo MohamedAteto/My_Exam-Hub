@@ -14,18 +14,22 @@ export default function DashboardCharts({ dashboardData, userRole, selectedExamI
     let lineChartData = []
     if (roleNorm === 'student') {
         const recent = dashboardData.recentExams || []
-        lineChartData = recent.map(exam => ({
-            Title: exam.title,
-            StudentScore: exam.studentScore,
-            AverageScore: exam.averageScore
-        }))
+        lineChartData = recent
+            .map(exam => ({
+                Title: exam.title,
+                StudentScore: exam.studentScore,
+                AverageScore: exam.averageScore
+            }))
+            .slice(-20)
     } else {
-        // For teachers/admins: show breakdown of exams (if filtered by one, only one shows)
+        // For teachers/admins: limit to latest 20 exams (approximate by taking last 20 entries)
         const breakdown = dashboardData.examBreakdown || []
-        lineChartData = breakdown.map(exam => ({
-            Title: exam.examTitle || exam.title,
-            AverageScore: exam.averageScore || 0
-        }))
+        lineChartData = breakdown
+            .map(exam => ({
+                Title: exam.examTitle || exam.title,
+                AverageScore: exam.averageScore || 0
+            }))
+            .slice(-20)
     }
 
     // Prepare bar chart data (score distribution) - filter by selected exam if applicable

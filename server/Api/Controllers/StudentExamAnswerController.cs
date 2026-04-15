@@ -142,10 +142,8 @@ namespace QuizesApi.Controllers
                 bool isTeacher = roles.Contains("Teacher");
                 bool isAdmin = roles.Contains("Superadmin") || roles.Contains("Admin") || roles.Contains("Board");
 
-                if (isTeacher && !isAdmin && exam.CreatedBy_AccId != requesterId)
-                {
-                    return Forbid();
-                }
+                // Teachers can now see ANY exam's answers
+                // No longer restricting by CreatedBy_AccId
             }
 
             await PopulateExamQuestions(new List<ExamDetail> { exam });

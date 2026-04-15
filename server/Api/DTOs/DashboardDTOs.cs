@@ -136,6 +136,8 @@ public class LeaderboardFilterDto
     public long? GradeId { get; set; }
     public long? ClassId { get; set; }
     public long? ExamId { get; set; }
+    public long? SubjectId { get; set; }
+    public string? SearchTerm { get; set; }
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     public string GroupBy { get; set; } = "Student"; // "Student" or "Class"

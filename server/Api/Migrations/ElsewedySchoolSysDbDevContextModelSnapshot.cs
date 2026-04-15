@@ -53,7 +53,7 @@ namespace QuizesApi.Migrations
                     b.HasKey("Id")
                         .HasName("PK__AbsenceR__3214EC0794E16F35");
 
-                    b.ToTable("AbsenceRecords");
+                    b.ToTable("AbsenceRecords", (string)null);
                 });
 
             modelBuilder.Entity("QuizesApi.Models.Account", b =>
@@ -154,7 +154,7 @@ namespace QuizesApi.Migrations
                     b.HasKey("Id")
                         .HasName("PK_AccountRoles_Account");
 
-                    b.ToTable("AccountRoles");
+                    b.ToTable("AccountRoles", (string)null);
                 });
 
             modelBuilder.Entity("QuizesApi.Models.AccountTemp", b =>
@@ -236,7 +236,7 @@ namespace QuizesApi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Achievements");
+                    b.ToTable("Achievements", (string)null);
                 });
 
             modelBuilder.Entity("QuizesApi.Models.AdmissionProfile", b =>
@@ -473,7 +473,7 @@ namespace QuizesApi.Migrations
 
                     b.HasIndex("StudentId");
 
-                    b.ToTable("AttendanceRecords");
+                    b.ToTable("AttendanceRecords", (string)null);
                 });
 
             modelBuilder.Entity("QuizesApi.Models.BehaviorNote", b =>
@@ -513,7 +513,7 @@ namespace QuizesApi.Migrations
 
                     b.HasIndex("AttendanceRecordId");
 
-                    b.ToTable("BehaviorNotes");
+                    b.ToTable("BehaviorNotes", (string)null);
                 });
 
             modelBuilder.Entity("QuizesApi.Models.CapstoneSupervisorExtension", b =>
@@ -674,7 +674,7 @@ namespace QuizesApi.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("EmailSettings");
+                    b.ToTable("EmailSettings", (string)null);
                 });
 
             modelBuilder.Entity("QuizesApi.Models.EmploymentRequest", b =>
@@ -743,7 +743,7 @@ namespace QuizesApi.Migrations
 
                     b.HasIndex("StatusId");
 
-                    b.ToTable("EmploymentRequests");
+                    b.ToTable("EmploymentRequests", (string)null);
                 });
 
             modelBuilder.Entity("QuizesApi.Models.ExamDetail", b =>
@@ -1065,7 +1065,7 @@ namespace QuizesApi.Migrations
                         .HasColumnType("float")
                         .HasColumnName("#");
 
-                    b.ToTable("Juniors");
+                    b.ToTable("Juniors", (string)null);
                 });
 
             modelBuilder.Entity("QuizesApi.Models.Level", b =>
@@ -1152,7 +1152,7 @@ namespace QuizesApi.Migrations
 
                     b.HasIndex("AccountId");
 
-                    b.ToTable("Notifications");
+                    b.ToTable("Notifications", (string)null);
                 });
 
             modelBuilder.Entity("QuizesApi.Models.Project", b =>
@@ -1400,7 +1400,7 @@ namespace QuizesApi.Migrations
 
                     b.HasIndex(new[] { "RoleName" }, "NonClusteredIndex-20250911-154853");
 
-                    b.ToTable("Roles");
+                    b.ToTable("Roles", (string)null);
                 });
 
             modelBuilder.Entity("QuizesApi.Models.Scholarship", b =>
@@ -1500,7 +1500,7 @@ namespace QuizesApi.Migrations
                         .HasColumnType("float")
                         .HasColumnName("#");
 
-                    b.ToTable("Seniors");
+                    b.ToTable("Seniors", (string)null);
                 });
 
             modelBuilder.Entity("QuizesApi.Models.Session", b =>

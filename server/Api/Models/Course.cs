@@ -18,6 +18,4 @@ public partial class Course
     public long? MaxStudents { get; set; }
 
     public decimal? Price { get; set; }
-
-    public virtual ICollection<ExamDetail> ExamDetails { get; set; } = new List<ExamDetail>();
 }

@@ -9,13 +9,14 @@ import StatsBarChart from './charts/StatsBarChart'
 import DashboardCharts from './DashboardCharts'
 import LoadingSpinner from './LoadingSpinner'
 
-export default function UnifiedDashboard({ userRole, userId, allExams = [], grades = [], classes = [], onSeeAllScores }) {
+export default function UnifiedDashboard({ userRole, userId, allExams = [], grades = [], classes = [], subjects = [], onSeeAllScores }) {
     console.log('[UnifiedDashboard] Grades received:', grades)
     const GRADES_ORDER = ['Junior', 'Wheeler', 'Senior']
     const [sliderGradeIndex, setSliderGradeIndex] = useState(0) // Default to Junior (index 0)
     const [filters, setFilters] = useState({
         gradeId: null,
         classId: null,
+        subjectId: null,
         startDate: null,
         endDate: null,
         groupBy: 'Student'
@@ -28,6 +29,7 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
     const [loading, setLoading] = useState(true)
     const [leaderboardLoading, setLeaderboardLoading] = useState(true)
     const [error, setError] = useState(null)
+    const [autoExamSelected, setAutoExamSelected] = useState(false)
 
     // Normalize role for comparison
     const roleNorm = String(userRole || '').toLowerCase()
@@ -53,6 +55,24 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
         }
     }, [filters, dashboardData, selectedExamId, roleNorm, sliderGradeIndex, grades])
 
+    // Auto-select a meaningful exam when "All Exams" view has no leaderboard data
+    useEffect(() => {
+        if (autoExamSelected) return
+        if (selectedExamId) return
+        if (!leaderboardData || leaderboardData.length > 0) return
+        if (!dashboardData || !dashboardData.examBreakdown || dashboardData.examBreakdown.length === 0) return
+
+        const breakdown = dashboardData.examBreakdown
+        const candidate = breakdown.find(e =>
+            (e.totalStudents || e.passedStudents || e.failedStudents || 0) > 0
+        ) || breakdown[0]
+
+        if (candidate && candidate.examId) {
+            setSelectedExamId(candidate.examId)
+            setAutoExamSelected(true)
+        }
+    }, [leaderboardData, selectedExamId, autoExamSelected, dashboardData])
+
     const handleNextGrade = () => {
         setSliderGradeIndex(prev => (prev + 1) % GRADES_ORDER.length)
     }
@@ -70,6 +90,7 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
             const queryParams = new URLSearchParams()
             if (filters.gradeId) queryParams.append('gradeId', filters.gradeId)
             if (filters.classId) queryParams.append('classId', filters.classId)
+            if (filters.subjectId) queryParams.append('subjectId', filters.subjectId)
             if (filters.startDate) queryParams.append('startDate', filters.startDate)
             if (filters.endDate) queryParams.append('endDate', filters.endDate)
             if (selectedExamId) queryParams.append('examId', selectedExamId)
@@ -147,24 +168,8 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                 const params = new URLSearchParams()
 
                 if (filters.gradeId) params.append('gradeId', filters.gradeId)
-
-                // For specific exam, we usually default to no grade filter unless specified or if Teacher wants to filter
-                // But previously we tried to map Slider Grade. 
-                // However, for Specific Exam, it's safer to show ALL participants unless explicitly filtered.
-                // Or do we still apply Slider Grade?
-                // The prompt for "Aggregated" implies Slider is mainly for that. 
-                // Let's stick to: If filter.gradeId is set, use it. If not, check if we need to apply slider.
-                // Actually, for specific exams, typical behavior is "Show All".
-                // But let's keep the logic consistent: If User is Teacher/Admin, maybe applying slider is good?
-                // Let's rely on filters.gradeId mostly.
-                if ((roleNorm === 'teacher' || roleNorm === 'admin' || roleNorm === 'superadmin') && !filters.gradeId) {
-                    // Optionally apply slider grade here too?
-                    // Let's SKIP slider for specific exam to allow seeing all students.
-                    // Unless user requested "Wire Slider to use Grade Leaderboard endpoint when no exam selected".
-                    // So for specific exam, maybe don't force slider.
-                }
-
                 if (filters.classId) params.append('classId', filters.classId)
+                if (filters.subjectId) params.append('subjectId', filters.subjectId)
                 if (filters.startDate) params.append('startDate', filters.startDate)
                 if (filters.endDate) params.append('endDate', filters.endDate)
                 if (filters.groupBy) params.append('groupBy', filters.groupBy)
@@ -213,6 +218,7 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                             const params = new URLSearchParams()
                             params.append('gradeId', gradeId)
                             if (filters.classId) params.append('classId', filters.classId)
+                            if (filters.subjectId) params.append('subjectId', filters.subjectId)
                             if (filters.startDate) params.append('startDate', filters.startDate)
                             if (filters.endDate) params.append('endDate', filters.endDate)
                             if (filters.groupBy) params.append('groupBy', filters.groupBy)
@@ -390,6 +396,7 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                         userRole={userRole}
                         grades={grades}
                         classes={classes}
+                        subjects={subjects}
                         allExams={allExams}
                         recentExams={recentExams}
                         selectedExamId={selectedExamId}
@@ -403,6 +410,7 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                         loading={loading}
                         userRole={userRole}
                         selectedExamId={selectedExamId}
+                        leaderboard={leaderboardData}
                     />
 
                     <DashboardLeaderboard

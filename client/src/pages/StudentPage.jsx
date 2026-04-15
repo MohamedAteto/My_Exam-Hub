@@ -34,6 +34,7 @@ export default function StudentPage() {
   const [completedExams, setCompletedExams] = useState([])
   const [dbGrades, setDbGrades] = useState([])
   const [dbClasses, setDbClasses] = useState([])
+  const [dbSubjects, setDbSubjects] = useState([])
 
   // Subject metadata (icons + descriptions) used by DashboardView rendering
   const subjectInfo = useMemo(() => ({
@@ -138,10 +139,11 @@ export default function StudentPage() {
         const examsData = examsRes.data || []
         const completedData = completedRes.data || []
 
-        // Set grades and classes for filters
+        // Set grades, classes, and subjects for filters
         if (lookupRes.data) {
           setDbGrades(lookupRes.data.grades || [])
           setDbClasses(lookupRes.data.classes || [])
+          setDbSubjects(lookupRes.data.subjects || [])
         }
 
         // Filter exams into categories
@@ -963,6 +965,7 @@ export default function StudentPage() {
                   allExams={[...exams.available, ...exams.upcoming]}
                   grades={dbGrades}
                   classes={dbClasses}
+                  subjects={dbSubjects}
                 />
               )}
 

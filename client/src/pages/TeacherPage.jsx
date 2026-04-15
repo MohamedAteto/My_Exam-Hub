@@ -122,6 +122,7 @@ export default function TeacherPage() {
           console.log('🔍 Lookup Data Received:', lookupRes.data);
           setDbGrades(lookupRes.data.grades || [])
           setDbClasses(lookupRes.data.classes || [])
+          setDbSubjects(lookupRes.data.subjects || [])
         } else {
           console.warn('⚠️ No lookup data received');
         }
@@ -1374,6 +1375,7 @@ export default function TeacherPage() {
             allExams={quizzes}
             grades={dbGrades}
             classes={dbClasses}
+            subjects={dbSubjects}
             onSeeAllScores={handleSeeAllScores}
           />
         )
@@ -1396,6 +1398,7 @@ export default function TeacherPage() {
                 userRole="Teacher"
                 grades={dbGrades}
                 classes={dbClasses}
+                subjects={dbSubjects}
               />
             </div>
             <div className="quiz-list" id="quiz-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
@@ -2116,14 +2119,14 @@ export default function TeacherPage() {
                       label="Subject"
                       placeholder="Select subject"
                       value={quizForm.subjectId || ''}
-                      options={dbSubjects.map(s => ({ id: s.id, value: s.id, label: s.subjectName }))}
+                      options={dbSubjects.map(s => ({ id: s.id, value: s.id, label: s.statusName }))}
                       onChange={(e) => {
                         const newSubjectId = e.target.value
                         const subjectObj = dbSubjects.find(s => String(s.id) === String(newSubjectId))
                         setQuizForm({
                           ...quizForm,
                           subjectId: newSubjectId,
-                          subject: subjectObj ? subjectObj.subjectName : ''
+                          subject: subjectObj ? subjectObj.statusName : ''
                         })
                       }}
                     />

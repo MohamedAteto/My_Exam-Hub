@@ -7,10 +7,15 @@ export default function ModernSelect({
     label,
     placeholder = 'Select option',
     disabled = false,
-    id
+    id,
+    searchable = false,
+    searchPlaceholder = 'Search options...',
+    required = false
 }) {
     const [isOpen, setIsOpen] = useState(false)
+    const [searchTerm, setSearchTerm] = useState('')
     const dropdownRef = useRef(null)
+    const searchInputRef = useRef(null)
 
     // App Theme Colors (Red)
     const colors = {
@@ -32,11 +37,16 @@ export default function ModernSelect({
         }
         if (isOpen) {
             document.addEventListener('mousedown', handleClickOutside)
+            if (searchable && searchInputRef.current) {
+                setTimeout(() => searchInputRef.current.focus(), 50)
+            }
+        } else {
+            setSearchTerm('')
         }
         return () => {
             document.removeEventListener('mousedown', handleClickOutside)
         }
-    }, [isOpen])
+    }, [isOpen, searchable])
 
     const handleToggle = (e) => {
         if (disabled) return
@@ -49,6 +59,13 @@ export default function ModernSelect({
         setIsOpen(false)
     }
 
+    const filteredOptions = searchable 
+        ? options.filter(opt => {
+            const labelStr = String(opt.label || opt.name || opt.text || '').toLowerCase()
+            return labelStr.includes(searchTerm.toLowerCase())
+          })
+        : options
+
     const selectedOption = options.find(opt => String(opt.value || opt.id) === String(value))
 
     return (
@@ -59,7 +76,7 @@ export default function ModernSelect({
                     htmlFor={id}
                     style={{ display: 'block', fontSize: '.875rem', fontWeight: 600, color: '#374151', marginBottom: '.5rem' }}
                 >
-                    {label} <span className="required" style={{ color: colors.primary }}>*</span>
+                    {label} {required && <span className="required" style={{ color: colors.primary }}>*</span>}
                 </label>
             )}
 
@@ -70,7 +87,8 @@ export default function ModernSelect({
                 disabled={disabled}
                 style={{
                     width: '100%',
-                    padding: '.75rem 1rem',
+                    height: '48px', // Fixed height
+                    padding: '0.75rem 1rem', // Adjusted padding for vertical centering
                     border: `2px solid ${isOpen ? colors.primary : colors.border}`,
                     borderRadius: '12px',
                     fontSize: '1rem',
@@ -125,7 +143,6 @@ export default function ModernSelect({
                         boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.05)',
                         zIndex: 10000,
                         maxHeight: '300px',
-                        overflowY: 'auto',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '2px',
@@ -138,12 +155,43 @@ export default function ModernSelect({
               to { opacity: 1; transform: translateY(0); }
             }
           `}</style>
-                    {options.length === 0 ? (
+                    {searchable && (
+                        <div style={{ padding: '0.25rem', marginBottom: '4px', position: 'sticky', top: 0, background: 'white', zIndex: 10001 }}>
+                            <div style={{ position: 'relative' }}>
+                                <input
+                                    ref={searchInputRef}
+                                    type="text"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    placeholder={searchPlaceholder}
+                                    style={{
+                                        width: '100%',
+                                        padding: '0.625rem 1rem 0.625rem 2.25rem',
+                                        borderRadius: '10px',
+                                        border: `1.5px solid ${colors.border}`,
+                                        fontSize: '0.875rem',
+                                        outline: 'none',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    onFocus={(e) => e.target.style.borderColor = colors.primary}
+                                    onBlur={(e) => e.target.style.borderColor = colors.border}
+                                />
+                                <svg 
+                                    style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: colors.textMuted, width: '16px', height: '16px' }} 
+                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                                >
+                                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                </svg>
+                            </div>
+                        </div>
+                    )}
+                    <div style={{ overflowY: 'auto', maxHeight: searchable ? 'calc(300px - 60px)' : '300px' }}> {/* Adjusted maxHeight for scrollable options */}
+                    {filteredOptions.length === 0 ? (
                         <div style={{ padding: '1.5rem', textAlign: 'center', color: colors.textMuted }}>
-                            <p style={{ margin: 0, fontSize: '0.875rem' }}>No options available</p>
+                            <p style={{ margin: 0, fontSize: '0.875rem' }}>{searchTerm ? 'No results found' : 'No options available'}</p>
                         </div>
                     ) : (
-                        options.map((option) => {
+                        filteredOptions.map((option) => {
                             const optValue = option.value || option.id
                             const isSelected = String(optValue) === String(value)
                             return (
@@ -181,6 +229,7 @@ export default function ModernSelect({
                             )
                         })
                     )}
+                    </div>
                 </div>
             )}
         </div>

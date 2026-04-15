@@ -320,7 +320,7 @@ export default function LoginPage() {
       storage.setItem('userRole', primaryRole)
       storage.setItem('userName', fullNameEn || fullNameAr || 'User')
 
-      setSuccessMessage('Welcome back! Taking you to your dashboard...')
+      setSuccessMessage('Login successful! Welcome back.')
 
       const card = document.querySelector('.login-card')
       if (card) {
@@ -330,11 +330,7 @@ export default function LoginPage() {
       }
 
       setTimeout(() => {
-        const roleNorm = String(primaryRole || '').toLowerCase()
-        if (roleNorm === 'admin' || roleNorm === 'board') navigate('/superadmin')
-        else if (roleNorm === 'teacher') navigate('/teacher')
-        else if (roleNorm === 'student') navigate('/student')
-        else navigate('/')
+        navigate('/greeting')
       }, 800)
     } catch (err) {
       if (err.code === 'ERR_NETWORK' || !err.response) {
