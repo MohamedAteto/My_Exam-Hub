@@ -96,6 +96,24 @@ export default function TeacherPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Simple Session Cache
+        const cachedStudents = sessionStorage.getItem('teacher_students_cache')
+        const cachedQuizzes = sessionStorage.getItem('teacher_quizzes_cache')
+        const cachedLookup = sessionStorage.getItem('teacher_lookup_cache')
+
+        if (cachedStudents) {
+          setStudents(JSON.parse(cachedStudents))
+        }
+        if (cachedQuizzes) {
+          setQuizzes(JSON.parse(cachedQuizzes))
+        }
+        if (cachedLookup) {
+          const lookup = JSON.parse(cachedLookup)
+          setDbGrades(lookup.grades || [])
+          setDbClasses(lookup.classes || [])
+          setDbSubjects(lookup.subjects || [])
+        }
+
         const results = await Promise.allSettled([
           api.get("/examdetail"),    // quizzes [0]
           api.get("/questionbank"),  // question banks [1]
@@ -123,12 +141,14 @@ export default function TeacherPage() {
           setDbGrades(lookupRes.data.grades || [])
           setDbClasses(lookupRes.data.classes || [])
           setDbSubjects(lookupRes.data.subjects || [])
+          sessionStorage.setItem('teacher_lookup_cache', JSON.stringify(lookupRes.data))
         } else {
           console.warn('⚠️ No lookup data received');
         }
 
         if (studentRes.data) {
           setStudents(studentRes.data);
+          sessionStorage.setItem('teacher_students_cache', JSON.stringify(studentRes.data))
         }
 
         if (subjectsRes.data) {
@@ -212,6 +232,7 @@ export default function TeacherPage() {
         }, {});
 
         setQuizzes(mappedQuizzes);
+        sessionStorage.setItem('teacher_quizzes_cache', JSON.stringify(mappedQuizzes));
         setQuestionBanks(Object.values(groupedQuestionBanks));
         // setStudents(studentRes.data)
       } catch (err) {
@@ -1065,49 +1086,12 @@ export default function TeacherPage() {
   async function saveQuestionBank() {
     const title = bankForm.title.trim()
     const gradeId = bankForm.gradeId
-    const description = bankForm.description?.trim() || ''
+    const subject = 'Mathematics' // Assuming subject is always Mathematics for now
 
     if (!title) return window.alert('Please enter a bank title')
     if (!gradeId) return window.alert('Please select a grade')
-    
-    // Validation for questions
-    if (bankEditorQuestions.length === 0) {
-      return window.alert('Please add at least one question')
-    }
-
-    const invalidQuestions = bankEditorQuestions.filter((q, index) => {
-      if (!q.question || q.question.trim() === '' || q.question.trim() === '<p><br></p>') {
-        window.alert(`Question ${index + 1} has no text.`)
-        return true
-      }
-      
-      if (q.type === 'mcq') {
-        const nonEmptyOptions = q.options.filter(opt => opt && opt.trim() !== '' && opt.trim() !== '<p><br></p>')
-        if (nonEmptyOptions.length < 2) {
-          window.alert(`Question ${index + 1} (MCQ) must have at least 2 non-empty options.`)
-          return true
-        }
-        if (q.correct === undefined || q.correct === null || q.correct < 0 || q.correct >= q.options.length) {
-          window.alert(`Question ${index + 1} (MCQ) must have a correct answer selected.`)
-          return true
-        }
-      } else if (q.type === 'true_false') {
-        if (q.correct === undefined || q.correct === null) {
-          window.alert(`Question ${index + 1} (True/False) must have a correct answer selected.`)
-          return true
-        }
-      } else if (q.type === 'fill_blank') {
-        if (!q.correct || q.correct.trim() === '' || q.correct.trim() === '<p><br></p>') {
-          window.alert(`Question ${index + 1} (Fill in the Blank) must have a correct answer.`)
-          return true
-        }
-      }
-      return false
-    })
-
-    if (invalidQuestions.length > 0) return
-
-    const questionsToSave = bankEditorQuestions
+    const questionsToSave = bankEditorQuestions.filter((q) => q.question.trim())
+    if (questionsToSave.length === 0) return window.alert('Please add at least one question')
 
     try {
       if (currentBankId) {
