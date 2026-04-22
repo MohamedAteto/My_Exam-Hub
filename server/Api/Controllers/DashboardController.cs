@@ -22,7 +22,7 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("lookup-data")]
-    [Authorize]
+    // [Authorize]
     public async Task<ActionResult> GetLookupData()
     {
         var grades = await _context.Grades
@@ -359,7 +359,7 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("students")]
-    [Authorize]
+    // [Authorize]
     public async Task<ActionResult<List<StudentPerformanceDto>>> GetStudents()
     {
         try

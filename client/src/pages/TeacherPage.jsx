@@ -1065,12 +1065,49 @@ export default function TeacherPage() {
   async function saveQuestionBank() {
     const title = bankForm.title.trim()
     const gradeId = bankForm.gradeId
-    const subject = 'Mathematics' // Assuming subject is always Mathematics for now
+    const description = bankForm.description?.trim() || ''
 
     if (!title) return window.alert('Please enter a bank title')
     if (!gradeId) return window.alert('Please select a grade')
-    const questionsToSave = bankEditorQuestions.filter((q) => q.question.trim())
-    if (questionsToSave.length === 0) return window.alert('Please add at least one question')
+    
+    // Validation for questions
+    if (bankEditorQuestions.length === 0) {
+      return window.alert('Please add at least one question')
+    }
+
+    const invalidQuestions = bankEditorQuestions.filter((q, index) => {
+      if (!q.question || q.question.trim() === '' || q.question.trim() === '<p><br></p>') {
+        window.alert(`Question ${index + 1} has no text.`)
+        return true
+      }
+      
+      if (q.type === 'mcq') {
+        const nonEmptyOptions = q.options.filter(opt => opt && opt.trim() !== '' && opt.trim() !== '<p><br></p>')
+        if (nonEmptyOptions.length < 2) {
+          window.alert(`Question ${index + 1} (MCQ) must have at least 2 non-empty options.`)
+          return true
+        }
+        if (q.correct === undefined || q.correct === null || q.correct < 0 || q.correct >= q.options.length) {
+          window.alert(`Question ${index + 1} (MCQ) must have a correct answer selected.`)
+          return true
+        }
+      } else if (q.type === 'true_false') {
+        if (q.correct === undefined || q.correct === null) {
+          window.alert(`Question ${index + 1} (True/False) must have a correct answer selected.`)
+          return true
+        }
+      } else if (q.type === 'fill_blank') {
+        if (!q.correct || q.correct.trim() === '' || q.correct.trim() === '<p><br></p>') {
+          window.alert(`Question ${index + 1} (Fill in the Blank) must have a correct answer.`)
+          return true
+        }
+      }
+      return false
+    })
+
+    if (invalidQuestions.length > 0) return
+
+    const questionsToSave = bankEditorQuestions
 
     try {
       if (currentBankId) {

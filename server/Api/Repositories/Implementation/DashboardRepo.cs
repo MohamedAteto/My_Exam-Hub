@@ -47,13 +47,19 @@ public class DashboardRepo : IDashboardRepo
         var links = await _context.ExamQuestionBanks
             .AsNoTracking()
             .Where(eq => eq.ExamId == exam.ExamId)
-            .Include(eq => eq.Question)
             .ToListAsync();
             
+        var questionIds = links.Where(l => l.QuestionId.HasValue).Select(l => l.QuestionId!.Value).ToList();
+        var questions = await _context.QuestionBanks
+            .AsNoTracking()
+            .Where(q => questionIds.Contains(q.QuestionId))
+            .ToDictionaryAsync(q => q.QuestionId);
+
         foreach (var link in links)
         {
-            if (link.Question != null)
+            if (link.QuestionId.HasValue && questions.TryGetValue(link.QuestionId.Value, out var question))
             {
+                link.Question = question;
                 exam.ExamQuestionBanks.Add(link);
             }
         }
@@ -61,30 +67,52 @@ public class DashboardRepo : IDashboardRepo
     
     private async Task PopulateExamQuestions(List<ExamDetail> exams)
     {
-        var examIds = exams.Select(e => e.ExamId).ToList();
-        if (!examIds.Any()) return;
-
-        var links = await _context.ExamQuestionBanks
-            .AsNoTracking()
-            .Where(eq => eq.ExamId.HasValue && examIds.Contains(eq.ExamId.Value))
-            .Include(eq => eq.Question)
-            .ToListAsync();
-        
-        var linksByExam = links.GroupBy(l => l.ExamId!.Value).ToDictionary(g => g.Key, g => g.ToList());
-
-        foreach (var exam in exams)
+        try
         {
-            exam.ExamQuestionBanks.Clear();
-            if (linksByExam.TryGetValue(exam.ExamId, out var examLinks))
+            Console.WriteLine($"[DIAG] PopulateExamQuestions for {exams.Count} exams");
+            var examIds = exams.Select(e => e.ExamId).ToList();
+            if (!examIds.Any()) return;
+
+            Console.WriteLine($"[DIAG] Querying ExamQuestionBanks for IDs: {string.Join(", ", examIds)}");
+            var links = await _context.ExamQuestionBanks
+                .AsNoTracking()
+                .Where(eq => eq.ExamId.HasValue && examIds.Contains(eq.ExamId.Value))
+                .ToListAsync();
+            
+            Console.WriteLine($"[DIAG] ExamQuestionBanks links found: {links.Count}");
+            
+            var questionIds = links.Where(l => l.QuestionId.HasValue).Select(l => l.QuestionId!.Value).Distinct().ToList();
+            var questions = await _context.QuestionBanks
+                .AsNoTracking()
+                .Where(q => questionIds.Contains(q.QuestionId))
+                .ToDictionaryAsync(q => q.QuestionId);
+
+            var linksByExam = links.GroupBy(l => l.ExamId!.Value).ToDictionary(g => g.Key, g => g.ToList());
+
+            foreach (var exam in exams)
             {
-                foreach (var link in examLinks)
+                if (linksByExam.TryGetValue(exam.ExamId, out var examLinks))
                 {
-                    if (link.Question != null)
+                    foreach (var link in examLinks)
                     {
-                        exam.ExamQuestionBanks.Add(link);
+                        if (link.QuestionId.HasValue && questions.TryGetValue(link.QuestionId.Value, out var question))
+                        {
+                            link.Question = question;
+                        }
                     }
+                    exam.ExamQuestionBanks = examLinks;
+                }
+                else
+                {
+                    exam.ExamQuestionBanks = new List<ExamQuestionBank>();
                 }
             }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ERROR] Error in PopulateExamQuestions: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
+            throw;
         }
     }
 
@@ -407,8 +435,16 @@ public class DashboardRepo : IDashboardRepo
             allAnswers = await answersQuery.Select(sea => new StudentExamAnswer { AccountId = sea.AccountId, ExamDetailsId = sea.ExamDetailsId, QuestionBankId = sea.QuestionBankId, Score = sea.Score }).ToListAsync();
         }
 
-        var totalStudentsCount = await _context.Accounts.AsNoTracking().Where(a => a.Role.RoleName == "Student").CountAsync();
-        var totalTeachersCount = await _context.Accounts.AsNoTracking().Where(a => a.Role.RoleName == "Teacher").CountAsync();
+        var studentRoleIds = await _context.Roles.AsNoTracking().Where(r => r.RoleName.ToLower() == "student").Select(r => r.Id).ToListAsync();
+        var teacherRoleIds = await _context.Roles.AsNoTracking().Where(r => r.RoleName.ToLower() == "teacher").Select(r => r.Id).ToListAsync();
+
+        var totalStudentsCount = await _context.Accounts.AsNoTracking()
+            .Where(a => studentRoleIds.Contains(a.RoleId) || _context.AccountRoles.Any(ar => ar.AccountId == a.Id && ar.RoleId.HasValue && studentRoleIds.Contains(ar.RoleId.Value)))
+            .CountAsync();
+            
+        var totalTeachersCount = await _context.Accounts.AsNoTracking()
+            .Where(a => teacherRoleIds.Contains(a.RoleId) || _context.AccountRoles.Any(ar => ar.AccountId == a.Id && ar.RoleId.HasValue && teacherRoleIds.Contains(ar.RoleId.Value)))
+            .CountAsync();
         var topPerformingStudents = await GetTopPerformingStudentsAsync(10);
         var recentActivity = await GetRecentActivityAsync(20);
 
@@ -546,7 +582,12 @@ public class DashboardRepo : IDashboardRepo
 
     private async Task<List<LeaderboardEntryDto>> GetTopPerformingStudentsAsync(int count)
     {
-        var studentIds = await _context.Accounts.AsNoTracking().Where(a => a.Role.RoleName == "Student").Select(a => a.Id).ToListAsync();
+        var studentRoleIds = await _context.Roles.AsNoTracking().Where(r => r.RoleName.ToLower() == "student").Select(r => r.Id).ToListAsync();
+        
+        var studentIds = await _context.Accounts.AsNoTracking()
+            .Where(a => studentRoleIds.Contains(a.RoleId) || _context.AccountRoles.Any(ar => ar.AccountId == a.Id && ar.RoleId.HasValue && studentRoleIds.Contains(ar.RoleId.Value)))
+            .Select(a => a.Id)
+            .ToListAsync();
         var allAnswers = await _context.StudentExamAnswers.AsNoTracking().Where(sea => studentIds.Contains(sea.AccountId))
             .Select(sea => new { sea.AccountId, sea.ExamDetailsId, sea.QuestionBankId, sea.Score }).ToListAsync();
 
@@ -646,79 +687,142 @@ public class DashboardRepo : IDashboardRepo
 
     public async Task<List<StudentPerformanceDto>> GetStudentsAsync()
     {
-        // Start from students who actually have exam answers
-        var answeredStudentIds = await _context.StudentExamAnswers.AsNoTracking()
-            .Where(sea => sea.ExamDetailsId.HasValue)
-            .Select(sea => sea.AccountId)
-            .Distinct()
+        var allRoles = await _context.Roles.AsNoTracking().ToListAsync();
+        Console.WriteLine($"[DIAG] All Roles: {string.Join(", ", allRoles.Select(r => r.RoleName))}");
+
+        var studentRoleIds = allRoles
+            .Where(r => r.RoleName.ToLower() == "student")
+            .Select(r => r.Id)
+            .ToList();
+        
+        Console.WriteLine($"[DIAG] Student Role IDs: {string.Join(", ", studentRoleIds)}");
+
+        if (!studentRoleIds.Any()) return new List<StudentPerformanceDto>();
+
+        var accountsWithRole = await _context.Accounts.AsNoTracking()
+            .Where(a => studentRoleIds.Contains(a.RoleId))
+            .ToListAsync();
+        
+        Console.WriteLine($"[DIAG] Accounts with RoleId in StudentRoleIds: {accountsWithRole.Count}");
+
+        var accountRoles = await _context.AccountRoles.AsNoTracking()
+            .Where(ar => ar.RoleId.HasValue && studentRoleIds.Contains(ar.RoleId.Value))
+            .ToListAsync();
+        
+        Console.WriteLine($"[DIAG] AccountRoles entries for StudentRoleIds: {accountRoles.Count}");
+
+        var studentIds = await _context.Accounts.AsNoTracking()
+            .Where(a => studentRoleIds.Contains(a.RoleId) || _context.AccountRoles.Any(ar => ar.AccountId == a.Id && ar.RoleId.HasValue && studentRoleIds.Contains(ar.RoleId.Value)))
+            .Select(a => a.Id)
             .ToListAsync();
 
-        if (!answeredStudentIds.Any()) return new List<StudentPerformanceDto>();
+        Console.WriteLine($"[DIAG] Total Student IDs found: {studentIds.Count}");
+        if (studentIds.Count == 0)
+        {
+            // Debug: Check why it's 0
+            var allAccountsCount = await _context.Accounts.CountAsync();
+            var allAccountRolesCount = await _context.AccountRoles.CountAsync();
+            Console.WriteLine($"[DIAG] Total Accounts in DB: {allAccountsCount}");
+            Console.WriteLine($"[DIAG] Total AccountRoles in DB: {allAccountRolesCount}");
+        }
+
+        if (!studentIds.Any()) return new List<StudentPerformanceDto>();
 
         var students = await _context.Accounts.AsNoTracking()
             .Include(a => a.StudentExtension)
-            .Where(a => answeredStudentIds.Contains(a.Id))
+            .Where(a => studentIds.Contains(a.Id))
             .ToListAsync();
 
+        Console.WriteLine($"[DIAG] Students with StudentExtension: {students.Count(s => s.StudentExtension != null)}");
+        Console.WriteLine($"[DIAG] Students with ClassId: {students.Count(s => s.StudentExtension?.ClassId != null)}");
+
         var allAnswers = await _context.StudentExamAnswers.AsNoTracking()
-            .Where(sea => answeredStudentIds.Contains(sea.AccountId) && sea.ExamDetailsId.HasValue)
+            .Where(sea => studentIds.Contains(sea.AccountId) && sea.ExamDetailsId.HasValue)
             .Select(sea => new { sea.AccountId, sea.ExamDetailsId, sea.QuestionBankId, sea.Score })
             .ToListAsync();
 
+        Console.WriteLine($"[DIAG] Total StudentExamAnswers found: {allAnswers.Count}");
+
         var examIds = allAnswers.Select(a => a.ExamDetailsId!.Value).Distinct().ToList();
-        if (!examIds.Any()) return new List<StudentPerformanceDto>();
-
-        var exams = await _context.ExamDetails.AsNoTracking()
-            .Where(e => examIds.Contains(e.ExamId))
-            .ToListAsync();
-
-        await PopulateExamQuestions(exams);
-
-        var grades = await _context.Grades.AsNoTracking().ToDictionaryAsync(g => g.Id, g => g.GradeName);
-        var classes = await _context.TblClasses.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c);
-        var examMap = exams.ToDictionary(e => e.ExamId);
-
-        return students.Select(student =>
+        
+        var exams = new List<ExamDetail>();
+        if (examIds.Any())
         {
-            var studentAnswers = allAnswers.Where(a => a.AccountId == student.Id && a.ExamDetailsId.HasValue && examMap.ContainsKey(a.ExamDetailsId.Value)).ToList();
+            exams = await _context.ExamDetails.AsNoTracking()
+                .Where(e => examIds.Contains(e.ExamId))
+                .ToListAsync();
 
-            var scores = studentAnswers
-                .GroupBy(a => a.ExamDetailsId!.Value)
-                .ToDictionary(g => g.Key.ToString(), g =>
-                {
-                    var exam = examMap[g.Key];
-                    double total = (double)exam.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0);
-                    double earned = (double)g.Where(a => a.Score && a.QuestionBankId.HasValue)
-                        .Sum(a => exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId == a.QuestionBankId)?.Question?.Mark ?? 0);
-                    return total > 0 ? Math.Round(earned * 100.0 / total, 2) : 0.0;
-                });
-
-            var classId = student.StudentExtension?.ClassId;
-            string gradeName = "N/A";
-            string className = "N/A";
-
-            if (classId.HasValue && classes.TryGetValue(classId.Value, out var classEntity))
+            Console.WriteLine($"[DIAG] Exams fetched: {exams.Count}");
+            var duplicateExamIds = exams.GroupBy(e => e.ExamId).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+            if (duplicateExamIds.Any())
             {
-                className = classEntity.ClassName ?? "N/A";
-                if (grades.TryGetValue(classEntity.GradeId, out var gName))
-                {
-                    gradeName = gName;
-                }
+                Console.WriteLine($"[ERROR] Duplicate Exam IDs found: {string.Join(", ", duplicateExamIds)}");
             }
 
-            return new StudentPerformanceDto
+            await PopulateExamQuestions(exams);
+        }
+
+        var examMap = exams.ToDictionary(e => e.ExamId);
+        Console.WriteLine("[DIAG] Fetching grades...");
+        var grades = await _context.Grades.AsNoTracking().ToDictionaryAsync(g => g.Id, g => g.GradeName);
+        Console.WriteLine($"[DIAG] Grades fetched: {grades.Count}");
+
+        Console.WriteLine("[DIAG] Fetching classes...");
+        var classes = await _context.TblClasses.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c);
+        Console.WriteLine($"[DIAG] Classes fetched: {classes.Count}");
+
+        try
+        {
+            return students.Select(student =>
             {
-                Id = student.Id,
-                Name = student.FullNameEn ?? string.Empty,
-                Initials = string.IsNullOrWhiteSpace(student.FullNameEn)
-                    ? "NA"
-                    : string.Join("", student.FullNameEn.Split(' ').Select(s => s[0])).ToUpper()
-                        .Substring(0, Math.Min(2, student.FullNameEn.Split(' ').Length)),
-                Grade = gradeName,
-                Class = className,
-                QuizScores = scores
-            };
-        }).ToList();
+                var studentAnswers = allAnswers.Where(a => a.AccountId == student.Id).ToList();
+
+                var scores = studentAnswers
+                    .GroupBy(a => a.ExamDetailsId!.Value)
+                    .ToDictionary(g => g.Key.ToString(), g =>
+                    {
+                        if (!examMap.TryGetValue(g.Key, out var exam)) return 0.0;
+                        if (exam.ExamQuestionBanks == null) return 0.0;
+                        double total = (double)exam.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0);
+                        double earned = (double)g.Where(a => a.Score && a.QuestionBankId.HasValue)
+                            .Sum(a => exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId == a.QuestionBankId)?.Question?.Mark ?? 0);
+                        return total > 0 ? Math.Round(earned * 100.0 / total, 2) : 0.0;
+                    });
+
+                var classId = student.StudentExtension?.ClassId;
+                string gradeName = "N/A";
+                string className = "N/A";
+
+                if (classId.HasValue && classes.TryGetValue(classId.Value, out var classEntity))
+                {
+                    className = classEntity.ClassName ?? "N/A";
+                    if (classEntity.GradeId != 0 && grades.TryGetValue(classEntity.GradeId, out var gName))
+                    {
+                        gradeName = gName;
+                    }
+                }
+
+                return new StudentPerformanceDto
+                {
+                    Id = student.Id,
+                    Name = student.FullNameEn ?? string.Empty,
+                    Email = student.Email ?? string.Empty,
+                    Initials = string.IsNullOrWhiteSpace(student.FullNameEn)
+                        ? "NA"
+                        : string.Join("", student.FullNameEn.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Select(s => s[0])).ToUpper()
+                            .Substring(0, Math.Min(2, student.FullNameEn.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Length)),
+                    Grade = gradeName,
+                    Class = className,
+                    QuizScores = scores
+                };
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ERROR] Error in GetStudentsAsync projection: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
+            throw;
+        }
     }
 
     public async Task<LeaderboardDto> GetCombinedLeaderboardAsync(LeaderboardFilterDto? filters)

@@ -115,6 +115,7 @@ public class StudentPerformanceDto
 {
     public long Id { get; set; }
     public string Name { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
     public string Initials { get; set; } = string.Empty;
     public string Grade { get; set; } = string.Empty;
     public string Class { get; set; } = string.Empty;
