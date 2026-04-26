@@ -113,7 +113,7 @@ export default function SuperAdminPage() {
               class: quiz.class || quiz.Class || '',
               classId: quiz.classId || quiz.ClassId,
               classIds: quiz.classIds || quiz.ClassIds || (quiz.classId ? [quiz.classId] : []),
-              subject: quiz.examSubject || quiz.subject || quiz.Subject,
+              subject: quiz.subjectName || quiz.SubjectName || quiz.examSubject || quiz.subject || quiz.Subject,
               startDate: quiz.startDate || quiz.StartDate,
               endDate: quiz.endDate || quiz.EndDate,
               created: quiz.createdDate || quiz.created,

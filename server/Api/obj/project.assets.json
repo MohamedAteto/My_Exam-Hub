@@ -5540,23 +5540,23 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\Seif\\.nuget\\packages\\": {},
-    "D:\\Sdk\\NuGetPackages": {}
+    "C:\\Users\\saif.hussien\\.nuget\\packages\\": {},
+    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Seif\\Desktop\\ExamsHub\\Quiz-managent\\server\\api\\QuizesApi.csproj",
+      "projectUniqueName": "C:\\Users\\saif.hussien\\Desktop\\Exams_Hub\\Quiz-managent\\server\\api\\QuizesApi.csproj",
       "projectName": "QuizesApi",
-      "projectPath": "C:\\Users\\Seif\\Desktop\\ExamsHub\\Quiz-managent\\server\\api\\QuizesApi.csproj",
-      "packagesPath": "C:\\Users\\Seif\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Seif\\Desktop\\ExamsHub\\Quiz-managent\\server\\api\\obj\\",
+      "projectPath": "C:\\Users\\saif.hussien\\Desktop\\Exams_Hub\\Quiz-managent\\server\\api\\QuizesApi.csproj",
+      "packagesPath": "C:\\Users\\saif.hussien\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\saif.hussien\\Desktop\\Exams_Hub\\Quiz-managent\\server\\api\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
-        "D:\\Sdk\\NuGetPackages"
+        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
       ],
       "configFilePaths": [
-        "C:\\Users\\Seif\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\saif.hussien\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
@@ -5565,6 +5565,7 @@
       ],
       "sources": {
         "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+        "C:\\Program Files\\dotnet\\library-packs": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
@@ -5651,7 +5652,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.313/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.301/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

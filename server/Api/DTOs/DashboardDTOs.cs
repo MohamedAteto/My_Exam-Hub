@@ -24,6 +24,7 @@ public class StudentRecentExamDto
 {
     public long ExamId { get; set; }
     public string Title { get; set; } = string.Empty;
+    public string? SubjectName { get; set; }
     public double? StudentScore { get; set; }
     public double? AverageScore { get; set; }
     public DateTime Date { get; set; }
@@ -71,6 +72,7 @@ public class LeaderboardDto
 {
     public long ExamId { get; set; }
     public string ExamTitle { get; set; } = string.Empty;
+    public string? SubjectName { get; set; }
     public List<LeaderboardEntryDto> TopStudents { get; set; } = new();
     public List<LeaderboardEntryDto> HighlightedStudents { get; set; } = new(); // Top 3 highest scores
     public int TotalParticipants { get; set; }
@@ -92,6 +94,7 @@ public class ExamStatsDto
 {
     public long ExamId { get; set; }
     public string ExamTitle { get; set; } = string.Empty;
+    public string? SubjectName { get; set; }
     public int TotalStudents { get; set; }
     public int PassedStudents { get; set; }
     public int FailedStudents { get; set; }
@@ -115,6 +118,7 @@ public class StudentPerformanceDto
 {
     public long Id { get; set; }
     public string Name { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
     public string Initials { get; set; } = string.Empty;
     public string Grade { get; set; } = string.Empty;
     public string Class { get; set; } = string.Empty;
