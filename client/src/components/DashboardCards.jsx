@@ -86,74 +86,52 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
     const calculatePassPercentage = () => {
         if (!data) return 0
 
-        let val = data.passPercentage || data.averagePassPercentage || data.overallPassPercentage || 0
+        let val = 0
 
+        // Check for selected specific exam first
         if (selectedExamId && data.examBreakdown) {
             const exam = data.examBreakdown.find(e =>
-                String(e.examId) === String(selectedExamId)
+                String(e.examId || e.ExamId) === String(selectedExamId)
             )
             if (exam) {
-                console.log('[DashboardCards] Selected Exam Stats:', exam)
-                if (exam.passPercentage !== undefined) {
-                    val = exam.passPercentage
-                } else {
-                    const pass = exam.passCount || 0
-                    const fail = exam.failCount || 0
-                    const total = exam.totalStudents || exam.totalAttempts || (pass + fail)
-
-                    if (total > 0) {
-                        val = (pass / total) * 100
-                    }
-                }
+                val = exam.passPercentage || exam.PassPercentage || exam.averageScore || 0
+                return val
             }
         }
 
-        // Fallback: derive from leaderboard when breakdown has no stats
-        if (selectedExamId && (!data.examBreakdown || data.examBreakdown.length === 0)) {
-            const fromLb = calculateFromLeaderboard()
-            if (fromLb.passPercentage > 0) val = fromLb.passPercentage
+        // Fallback: check for top-level aggregate values (case-insensitive)
+        val = data.passPercentage || data.PassPercentage || data.averagePassPercentage || data.AveragePassPercentage || 0
+
+        // If still 0, derive from score distribution if available
+        if (val === 0 && data.scoreDistribution) {
+            const dist = data.scoreDistribution
+            const passBucket = dist.find(d => (d.Name || d.name || '').includes('85-100'))
+            if (passBucket) {
+                const passVal = passBucket.Value || passBucket.value || 0
+                const totalVal = dist.reduce((sum, d) => sum + (d.Value || d.value || 0), 0)
+                if (totalVal > 0) val = (passVal / totalVal) * 100
+            }
         }
+
         return val
     }
 
-    // Calculate fail percentage based on selected exam or overall
+    // Calculate fail percentage - MUST be 100 - passPercentage for consistency
     const calculateFailPercentage = () => {
-        if (!data) return 0
-
-        let val = data.failPercentage || data.averageFailPercentage || data.overallFailPercentage || 0
-        const basePass = data.passPercentage || data.averagePassPercentage || data.overallPassPercentage || 0
-
-        if (selectedExamId && data.examBreakdown) {
-            const exam = data.examBreakdown.find(e =>
-                String(e.examId) === String(selectedExamId)
-            )
-            if (exam) {
-                if (exam.failPercentage !== undefined) {
-                    val = exam.failPercentage
-                } else {
-                    const pass = exam.passCount || 0
-                    const fail = exam.failCount || 0
-                    const total = exam.totalStudents || exam.totalAttempts || (pass + fail)
-
-                    if (total > 0) {
-                        val = (fail / total) * 100
-                    }
+        const pass = calculatePassPercentage()
+        if (pass > 0) return 100 - pass
+        if (pass === 0 && data) {
+            // If pass is 0, check if we have explicit fail data for selected exam
+            if (selectedExamId && data.examBreakdown) {
+                const exam = data.examBreakdown.find(e =>
+                    String(e.examId || e.ExamId) === String(selectedExamId)
+                )
+                if (exam && (exam.failPercentage !== undefined || exam.FailedStudents !== undefined)) {
+                    return exam.failPercentage || exam.FailedStudents || 100
                 }
             }
         }
-
-        // Fallback: derive from leaderboard when breakdown has no stats
-        if (selectedExamId && (!data.examBreakdown || data.examBreakdown.length === 0)) {
-            const fromLb = calculateFromLeaderboard()
-            if (fromLb.failPercentage > 0) val = fromLb.failPercentage
-        }
-
-        // Global fallback: if fail is zero but pass is known, derive fail as 100 - pass
-        if (!selectedExamId && val === 0 && basePass > 0) {
-            val = Math.max(0, 100 - basePass)
-        }
-
-        return val
+        return 100 - pass
     }
 
     // Refs to track current animated values for smooth transitions
