@@ -37,7 +37,7 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
     // Fetch dashboard data based on role, filters and selected exam
     useEffect(() => {
         fetchDashboardData()
-    }, [userRole, userId, filters, selectedExamId])
+    }, [userRole, userId, filters, selectedExamId, sliderGradeIndex, grades])
 
     // Fetch leaderboard when filters, exam selection, or slider grade changes
     useEffect(() => {
@@ -56,7 +56,10 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
     }, [filters, dashboardData, selectedExamId, roleNorm, sliderGradeIndex, grades])
 
     // Auto-select a meaningful exam when "All Exams" view has no leaderboard data
+    // Only do this for students or on initial load if desired. 
+    // For teachers/admins, "All Exams" should be a valid aggregate view.
     useEffect(() => {
+        if (roleNorm !== 'student') return // Disable auto-select for teachers/admins to allow "All Exams" aggregate view
         if (autoExamSelected) return
         if (selectedExamId) return
         if (!leaderboardData || leaderboardData.length > 0) return
@@ -71,7 +74,7 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
             setSelectedExamId(candidate.examId)
             setAutoExamSelected(true)
         }
-    }, [leaderboardData, selectedExamId, autoExamSelected, dashboardData])
+    }, [leaderboardData, selectedExamId, autoExamSelected, dashboardData, roleNorm])
 
     const handleNextGrade = () => {
         setSliderGradeIndex(prev => (prev + 1) % GRADES_ORDER.length)
@@ -88,7 +91,20 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
 
             // Build filter query string
             const queryParams = new URLSearchParams()
-            if (filters.gradeId) queryParams.append('gradeId', filters.gradeId)
+            
+            // Determine active gradeId (either from explicit filters or slider)
+            let activeGradeId = filters.gradeId
+            if (!activeGradeId && (roleNorm === 'teacher' || roleNorm === 'admin' || roleNorm === 'superadmin') && grades && grades.length > 0) {
+                const sliderGradeName = GRADES_ORDER[sliderGradeIndex].toLowerCase()
+                const gObj = grades.find(g => {
+                    const gn = (g.gradeName || g.name || '').toLowerCase()
+                    return gn === sliderGradeName || gn.includes(sliderGradeName) || sliderGradeName.includes(gn) ||
+                           (sliderGradeName === 'wheeler' && (gn.includes('wheel') || gn.includes('prep') || gn.includes('foundation')))
+                })
+                if (gObj) activeGradeId = gObj.id
+            }
+
+            if (activeGradeId) queryParams.append('gradeId', activeGradeId)
             if (filters.classId) queryParams.append('classId', filters.classId)
             if (filters.subjectId) queryParams.append('subjectId', filters.subjectId)
             if (filters.startDate) queryParams.append('startDate', filters.startDate)
@@ -120,14 +136,10 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
             console.log('[UnifiedDashboard] recentExams:', data.recentExams)
             console.log('[UnifiedDashboard] examBreakdown:', data.examBreakdown)
 
-            // Transform data to match card component expectations
+            // Transform data to match card component expectations while preserving original field names
             const transformedData = {
+                ...data, // Spread to preserve all original fields including averagePassPercentage
                 totalExams: data.totalExamsTaken || data.totalExamsCreated || data.totalExams || 0,
-                passPercentage: data.passPercentage || data.averagePassPercentage || data.overallPassPercentage || 0,
-                failPercentage: data.failPercentage || data.averageFailPercentage || data.overallFailPercentage || 0,
-                latestExamLeaderboard: data.latestExamLeaderboard || null,
-                studentRankInLatestExam: data.studentRankInLatestExam || null,
-                topPerformingStudents: data.topPerformingStudents || [],
                 scoreDistribution: data.scoreDistribution || [],
                 recentExams: data.recentExams || [],
                 examBreakdown: data.examBreakdown || []
@@ -196,10 +208,18 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                     if (filters.gradeId) {
                         gradeId = filters.gradeId
                     } else if (grades && grades.length > 0) {
-                        // Case-insensitive search
+                        // Case-insensitive search with multiple variations for Wheeler
                         const gObj = grades.find(g => {
                             const gn = (g.gradeName || g.name || '').toLowerCase()
-                            return gn === sliderGradeName || gn.includes(sliderGradeName) || sliderGradeName.includes(gn)
+                            const target = sliderGradeName.toLowerCase()
+                            
+                            // Exact match or contains
+                            if (gn === target || gn.includes(target) || target.includes(gn)) return true
+                            
+                            // Special case for Wheeler variations
+                            if (target === 'wheeler' && (gn.includes('wheel') || gn.includes('prep') || gn.includes('foundation'))) return true
+                            
+                            return false
                         })
 
                         if (gObj) {

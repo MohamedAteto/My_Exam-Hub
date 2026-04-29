@@ -35,8 +35,14 @@ public class DashboardRepo : IDashboardRepo
         if (className.StartsWith("S", StringComparison.OrdinalIgnoreCase) && className.Length > 1 && char.IsDigit(className[1]))
             return $"Senior {className.Substring(1)}";
             
-        if (className.StartsWith("W", StringComparison.OrdinalIgnoreCase) && className.Length > 1 && char.IsDigit(className[1]))
-            return $"Wheeler {className.Substring(1)}";
+        if (className.StartsWith("W", StringComparison.OrdinalIgnoreCase))
+        {
+            if (className.Length > 1 && char.IsDigit(className[1]))
+                return $"Wheeler {className.Substring(1)}";
+            return className.Length > 7 && className.StartsWith("Wheeler", StringComparison.OrdinalIgnoreCase) 
+                ? className 
+                : $"Wheeler {className}";
+        }
         
         return className;
     }
@@ -47,13 +53,19 @@ public class DashboardRepo : IDashboardRepo
         var links = await _context.ExamQuestionBanks
             .AsNoTracking()
             .Where(eq => eq.ExamId == exam.ExamId)
-            .Include(eq => eq.Question)
             .ToListAsync();
+
+        var questionIds = links.Where(l => l.QuestionId.HasValue).Select(l => l.QuestionId!.Value).Distinct().ToList();
+        var questions = await _context.QuestionBanks
+            .AsNoTracking()
+            .Where(q => questionIds.Contains(q.QuestionId))
+            .ToDictionaryAsync(q => q.QuestionId);
             
         foreach (var link in links)
         {
-            if (link.Question != null)
+            if (link.QuestionId.HasValue && questions.TryGetValue(link.QuestionId.Value, out var q))
             {
+                link.Question = q;
                 exam.ExamQuestionBanks.Add(link);
             }
         }
@@ -61,14 +73,19 @@ public class DashboardRepo : IDashboardRepo
     
     private async Task PopulateExamQuestions(List<ExamDetail> exams)
     {
-        var examIds = exams.Select(e => e.ExamId).ToList();
+        var examIds = exams.Select(e => e.ExamId).Distinct().ToList();
         if (!examIds.Any()) return;
 
         var links = await _context.ExamQuestionBanks
             .AsNoTracking()
             .Where(eq => eq.ExamId.HasValue && examIds.Contains(eq.ExamId.Value))
-            .Include(eq => eq.Question)
             .ToListAsync();
+
+        var questionIds = links.Where(l => l.QuestionId.HasValue).Select(l => l.QuestionId!.Value).Distinct().ToList();
+        var questions = await _context.QuestionBanks
+            .AsNoTracking()
+            .Where(q => questionIds.Contains(q.QuestionId))
+            .ToDictionaryAsync(q => q.QuestionId);
         
         var linksByExam = links.GroupBy(l => l.ExamId!.Value).ToDictionary(g => g.Key, g => g.ToList());
 
@@ -79,8 +96,9 @@ public class DashboardRepo : IDashboardRepo
             {
                 foreach (var link in examLinks)
                 {
-                    if (link.Question != null)
+                    if (link.QuestionId.HasValue && questions.TryGetValue(link.QuestionId.Value, out var q))
                     {
+                        link.Question = q;
                         exam.ExamQuestionBanks.Add(link);
                     }
                 }
@@ -104,12 +122,7 @@ public class DashboardRepo : IDashboardRepo
         examsQuery = ApplyFilters(examsQuery, filters);
         
         var exams = await examsQuery
-            .Select(e => new ExamDetail {
-                ExamId = e.ExamId,
-                Title = e.Title,
-                EndDate = e.EndDate,
-                SubjectId = e.SubjectId
-            })
+            .Include(e => e.Subject)
             .ToListAsync();
         
         if (!exams.Any()) 
@@ -123,7 +136,7 @@ public class DashboardRepo : IDashboardRepo
             return emptyResult;
         }
 
-        var examIds = exams.Select(e => e.ExamId).ToList();
+        var examIds = exams.Select(e => e.ExamId).Distinct().ToList();
 
         // Sequential fetching to avoid EF Core thread-safety issues
         var marksMapRaw = await _context.ExamQuestionBanks
@@ -207,6 +220,7 @@ public class DashboardRepo : IDashboardRepo
             
             recentExamsData.Add(new StudentRecentExamDto {
                 ExamId = examId, Title = exam.Title ?? "Untitled Exam",
+                SubjectName = exam.Subject?.StatusName ?? exam.ExamSubject,
                 StudentScore = Math.Round(score, 2),
                 AverageScore = examAverages.ContainsKey(examId) ? examAverages[examId] : 0,
                 Date = exam.EndDate ?? DateTime.Now
@@ -243,13 +257,11 @@ public class DashboardRepo : IDashboardRepo
             
         if (teacher == null) return null;
 
-        var examsQuery = _context.ExamDetails.AsNoTracking();
+        var examsQuery = _context.ExamDetails.AsNoTracking().Where(e => e.CreatedBy_AccId == teacherId);
         examsQuery = ApplyFilters(examsQuery, filters);
         
         var exams = await examsQuery
-            .Select(e => new ExamDetail {
-                ExamId = e.ExamId, Title = e.Title, EndDate = e.EndDate, SubjectId = e.SubjectId
-            })
+            .Include(e => e.Subject)
             .ToListAsync();
         
         if (!exams.Any())
@@ -259,7 +271,7 @@ public class DashboardRepo : IDashboardRepo
             return emptyResult;
         }
 
-        var examIds = exams.Select(e => e.ExamId).ToList();
+        var examIds = exams.Select(e => e.ExamId).Distinct().ToList();
 
         // Sequential fetching to avoid EF Core thread-safety issues
         var marksMapRaw = await _context.ExamQuestionBanks
@@ -309,6 +321,7 @@ public class DashboardRepo : IDashboardRepo
         var examBreakdown = new List<ExamStatsDto>();
         int totalPassed = 0, totalFailed = 0;
         var uniqueStudents = new HashSet<long>();
+        var studentPerformanceMap = new Dictionary<long, List<double>>();
 
         var answersByExam = allAnswers.GroupBy(a => a.ExamDetailsId!.Value).ToDictionary(g => g.Key, g => g.GroupBy(a => a.AccountId));
 
@@ -316,34 +329,51 @@ public class DashboardRepo : IDashboardRepo
         {
             if (!answersByExam.TryGetValue(exam.ExamId, out var studentGroups)) 
             {
-                examBreakdown.Add(new ExamStatsDto { ExamId = exam.ExamId, ExamTitle = exam.Title, TotalStudents = 0 });
+                examBreakdown.Add(new ExamStatsDto { 
+                    ExamId = exam.ExamId, 
+                    ExamTitle = exam.Title, 
+                    SubjectName = exam.Subject?.StatusName ?? exam.ExamSubject,
+                    TotalStudents = 0 
+                });
                 continue;
             }
 
+            if (!examTotalMarks.TryGetValue(exam.ExamId, out var max) || max <= 0) continue;
             var qMarks = examQuestionMarks.ContainsKey(exam.ExamId) ? examQuestionMarks[exam.ExamId] : new();
-            var max = examTotalMarks.ContainsKey(exam.ExamId) ? examTotalMarks[exam.ExamId] : 0;
             int ep = 0, ef = 0; double ets = 0;
 
             foreach (var sg in studentGroups)
             {
                  uniqueStudents.Add(sg.Key);
                  double earned = sg.Where(ans => ans.Score && ans.QuestionBankId.HasValue && qMarks.ContainsKey(ans.QuestionBankId.Value)).Sum(ans => qMarks[ans.QuestionBankId!.Value]);
-                 double score = max > 0 ? (earned * 100.0 / max) : 0.0;
+                 double score = (earned * 100.0 / max);
                  ets += score;
-                 if (score >= PassThreshold) { ep++; totalPassed++; } else { ef++; totalFailed++; }
-                 if (max > 0) {
-                     if (score < 50) scoreBuckets["0-50%"]++;
-                     else if (score < 70) scoreBuckets["50-70%"]++;
-                     else if (score < 85) scoreBuckets["70-85%"]++;
-                     else scoreBuckets["85-100%"]++;
-                 }
+                 if (score >= PassThreshold) ep++; else ef++;
+
+                 if (!studentPerformanceMap.ContainsKey(sg.Key)) studentPerformanceMap[sg.Key] = new List<double>();
+                 studentPerformanceMap[sg.Key].Add(score);
             }
 
             examBreakdown.Add(new ExamStatsDto {
-                ExamId = exam.ExamId, ExamTitle = exam.Title, TotalStudents = studentGroups.Count(),
-                PassedStudents = ep, FailedStudents = ef, PassPercentage = Math.Round((double)ep / studentGroups.Count() * 100, 2),
+                ExamId = exam.ExamId, ExamTitle = exam.Title,
+                SubjectName = exam.Subject?.StatusName ?? exam.ExamSubject,
+                TotalStudents = studentGroups.Count(),
+                PassedStudents = ep, FailedStudents = ef, 
+                PassPercentage = Math.Round((double)ep / studentGroups.Count() * 100, 2),
                 AverageScore = Math.Round(ets / studentGroups.Count(), 2)
             });
+        }
+
+        // Calculate aggregate stats based on student averages for "All Exams" view
+        foreach (var studentScores in studentPerformanceMap.Values)
+        {
+            double avgScore = studentScores.Average();
+            if (avgScore >= PassThreshold) totalPassed++; else totalFailed++;
+
+            if (avgScore < 50) scoreBuckets["0-50%"]++;
+            else if (avgScore < 70) scoreBuckets["50-70%"]++;
+            else if (avgScore < 85) scoreBuckets["70-85%"]++;
+            else scoreBuckets["85-100%"]++;
         }
 
         var result = new TeacherDashboardDto {
@@ -369,7 +399,7 @@ public class DashboardRepo : IDashboardRepo
         examsQuery = ApplyFilters(examsQuery, filters);
         
         var exams = await examsQuery
-            .Select(e => new ExamDetail { ExamId = e.ExamId, Title = e.Title, EndDate = e.EndDate, SubjectId = e.SubjectId })
+            .Include(e => e.Subject)
             .ToListAsync();
         
         if (!exams.Any())
@@ -379,7 +409,7 @@ public class DashboardRepo : IDashboardRepo
             return emptyResult;
         }
 
-        var examIds = exams.Select(e => e.ExamId).ToList();
+        var examIds = exams.Select(e => e.ExamId).Distinct().ToList();
 
         // Sequential fetching to avoid EF Core thread-safety issues
         var marksMapRaw = await _context.ExamQuestionBanks.AsNoTracking()
@@ -417,6 +447,7 @@ public class DashboardRepo : IDashboardRepo
         var scoreBuckets = new Dictionary<string, int> { { "0-50%", 0 }, { "50-70%", 0 }, { "70-85%", 0 }, { "85-100%", 0 } };
         var examBreakdown = new List<ExamStatsDto>();
         int tp = 0, tf = 0;
+        var studentPerformanceMap = new Dictionary<long, List<double>>();
 
         foreach (var group in allAnswers.GroupBy(a => a.ExamDetailsId!.Value))
         {
@@ -430,10 +461,32 @@ public class DashboardRepo : IDashboardRepo
                 double earned = sg.Where(ans => ans.Score && ans.QuestionBankId.HasValue && qMarks.ContainsKey(ans.QuestionBankId.Value)).Sum(ans => qMarks[ans.QuestionBankId!.Value]);
                 double score = earned * 100.0 / max;
                 ets += score;
-                if (score >= PassThreshold) { ep++; tp++; } else { ef++; tf++; }
-                if (score < 50) scoreBuckets["0-50%"]++; else if (score < 70) scoreBuckets["50-70%"]++; else if (score < 85) scoreBuckets["70-85%"]++; else scoreBuckets["85-100%"]++;
+                if (score >= PassThreshold) ep++; else ef++;
+                
+                if (!studentPerformanceMap.ContainsKey(sg.Key)) studentPerformanceMap[sg.Key] = new List<double>();
+                studentPerformanceMap[sg.Key].Add(score);
             }
-            examBreakdown.Add(new ExamStatsDto { ExamId = group.Key, ExamTitle = exam?.Title, TotalStudents = group.GroupBy(a => a.AccountId).Count(), PassedStudents = ep, FailedStudents = ef, AverageScore = Math.Round(ets / group.GroupBy(a => a.AccountId).Count(), 2) });
+            examBreakdown.Add(new ExamStatsDto { 
+                ExamId = group.Key, 
+                ExamTitle = exam?.Title, 
+                SubjectName = exam?.Subject?.StatusName ?? exam?.ExamSubject,
+                TotalStudents = group.GroupBy(a => a.AccountId).Count(), 
+                PassedStudents = ep, 
+                FailedStudents = ef, 
+                AverageScore = Math.Round(ets / group.GroupBy(a => a.AccountId).Count(), 2) 
+            });
+        }
+
+        // Calculate aggregate stats based on student averages
+        foreach (var studentScores in studentPerformanceMap.Values)
+        {
+            double avgScore = studentScores.Average();
+            if (avgScore >= PassThreshold) tp++; else tf++;
+
+            if (avgScore < 50) scoreBuckets["0-50%"]++;
+            else if (avgScore < 70) scoreBuckets["50-70%"]++;
+            else if (avgScore < 85) scoreBuckets["70-85%"]++;
+            else scoreBuckets["85-100%"]++;
         }
 
         var result = new SuperadminDashboardDto {
@@ -454,7 +507,7 @@ public class DashboardRepo : IDashboardRepo
         string cacheKey = GetCacheKey("Leaderboard", examId, filters);
         if (_cache.TryGetValue(cacheKey, out LeaderboardDto? cachedData)) return cachedData;
 
-        var exam = await _context.ExamDetails.AsNoTracking().FirstOrDefaultAsync(e => e.ExamId == examId);
+        var exam = await _context.ExamDetails.AsNoTracking().Include(e => e.Subject).FirstOrDefaultAsync(e => e.ExamId == examId);
         if (exam == null) return null;
         
         var marksMapRaw = await _context.ExamQuestionBanks.AsNoTracking()
@@ -495,21 +548,25 @@ public class DashboardRepo : IDashboardRepo
         if (string.Equals(filters?.GroupBy, "Class", StringComparison.OrdinalIgnoreCase))
         {
             var classes = await _context.TblClasses.AsNoTracking().Where(c => c.GradeId == exam.GradeId).ToListAsync();
-            var classScores = entries.Where(e => students[e.StudentId].ClassId.HasValue).GroupBy(e => students[e.StudentId].ClassId!.Value).ToDictionary(g => g.Key, g => g.Average(x => x.Score));
+            var classScores = entries
+                .Select(e => new { e.Score, ClassId = students.TryGetValue(e.StudentId, out var s) ? s.ClassId : null })
+                .Where(x => x.ClassId.HasValue)
+                .GroupBy(x => x.ClassId!.Value)
+                .ToDictionary(g => g.Key, g => g.Average(x => x.Score));
             var classResults = classes.Select(c => new LeaderboardEntryDto { StudentId = c.Id, StudentName = FormatClassName(c.ClassName ?? $"Class {c.Id}"), Score = classScores.ContainsKey(c.Id) ? Math.Round(classScores[c.Id], 2) : 0.0 }).OrderByDescending(e => e.Score).ToList();
             for (int i = 0; i < classResults.Count; i++) classResults[i].Rank = i + 1;
-            var resultClass = new LeaderboardDto { ExamId = examId, ExamTitle = exam.Title, TopStudents = classResults.Take(10).ToList(), TotalParticipants = classResults.Count };
+            var resultClass = new LeaderboardDto { ExamId = examId, ExamTitle = exam.Title, SubjectName = exam.Subject?.StatusName ?? exam.ExamSubject, TopStudents = classResults.Take(10).ToList(), TotalParticipants = classResults.Count };
             _cache.Set(cacheKey, resultClass, CacheDuration); return resultClass;
         }
 
-        var result = new LeaderboardDto { ExamId = examId, ExamTitle = exam.Title, TopStudents = entries.Take(10).ToList(), TotalParticipants = entries.Count };
+        var result = new LeaderboardDto { ExamId = examId, ExamTitle = exam.Title, SubjectName = exam.Subject?.StatusName ?? exam.ExamSubject, TopStudents = entries.Take(10).ToList(), TotalParticipants = entries.Count };
         _cache.Set(cacheKey, result, CacheDuration);
         return result;
     }
 
     public async Task<ExamStatsDto?> GetExamStatsAsync(long examId)
     {
-        var exam = await _context.ExamDetails.AsNoTracking().FirstOrDefaultAsync(e => e.ExamId == examId);
+        var exam = await _context.ExamDetails.AsNoTracking().Include(e => e.Subject).FirstOrDefaultAsync(e => e.ExamId == examId);
         if (exam == null) return null;
         
         var marksMapRaw = await _context.ExamQuestionBanks.AsNoTracking()
@@ -537,7 +594,9 @@ public class DashboardRepo : IDashboardRepo
         }
 
         return new ExamStatsDto {
-            ExamId = examId, ExamTitle = exam.Title, TotalStudents = studentGroups.Count(),
+            ExamId = examId, ExamTitle = exam.Title, 
+            SubjectName = exam.Subject?.StatusName ?? exam.ExamSubject,
+            TotalStudents = studentGroups.Count(),
             PassedStudents = passed, FailedStudents = studentGroups.Count() - passed,
             PassPercentage = studentGroups.Any() ? Math.Round((double)passed / studentGroups.Count() * 100, 2) : 0,
             AverageScore = studentGroups.Any() ? Math.Round(totalScore / studentGroups.Count(), 2) : 0
@@ -619,12 +678,13 @@ public class DashboardRepo : IDashboardRepo
         if (filters.ClassId.HasValue) 
         { 
             var classIdStr = filters.ClassId.Value.ToString();
-            // Match if ClassId is exactly the ID, starts with "ID,", ends with ",ID", or contains ",ID,"
+            // Match if ClassId is exactly the ID, contains it in a comma-separated list, or in a JSON array format
             query = query.Where(e => e.ClassId != null && (
                 e.ClassId == classIdStr || 
                 e.ClassId.StartsWith(classIdStr + ",") || 
                 e.ClassId.EndsWith("," + classIdStr) || 
-                e.ClassId.Contains("," + classIdStr + ",")
+                e.ClassId.Contains("," + classIdStr + ",") ||
+                e.ClassId.Contains("\"" + classIdStr + "\"")
             )); 
         }
 
@@ -646,33 +706,41 @@ public class DashboardRepo : IDashboardRepo
 
     public async Task<List<StudentPerformanceDto>> GetStudentsAsync()
     {
-        // Start from students who actually have exam answers
-        var answeredStudentIds = await _context.StudentExamAnswers.AsNoTracking()
-            .Where(sea => sea.ExamDetailsId.HasValue)
-            .Select(sea => sea.AccountId)
-            .Distinct()
+        // Get Student Role IDs
+        var studentRoleIds = await _context.Roles.AsNoTracking()
+            .Where(r => r.RoleName.ToLower() == "student")
+            .Select(r => r.Id)
             .ToListAsync();
 
-        if (!answeredStudentIds.Any()) return new List<StudentPerformanceDto>();
+        if (!studentRoleIds.Any()) return new List<StudentPerformanceDto>();
 
+        // Fetch all students by role
         var students = await _context.Accounts.AsNoTracking()
             .Include(a => a.StudentExtension)
-            .Where(a => answeredStudentIds.Contains(a.Id))
+            .Where(a => studentRoleIds.Contains(a.RoleId) || _context.AccountRoles.Any(ar => ar.AccountId == a.Id && ar.RoleId.HasValue && studentRoleIds.Contains(ar.RoleId.Value)))
             .ToListAsync();
 
+        if (!students.Any()) return new List<StudentPerformanceDto>();
+
+        var studentIds = students.Select(s => s.Id).ToList();
+
+        // Get all answers for these students
         var allAnswers = await _context.StudentExamAnswers.AsNoTracking()
-            .Where(sea => answeredStudentIds.Contains(sea.AccountId) && sea.ExamDetailsId.HasValue)
+            .Where(sea => studentIds.Contains(sea.AccountId) && sea.ExamDetailsId.HasValue)
             .Select(sea => new { sea.AccountId, sea.ExamDetailsId, sea.QuestionBankId, sea.Score })
             .ToListAsync();
 
         var examIds = allAnswers.Select(a => a.ExamDetailsId!.Value).Distinct().ToList();
-        if (!examIds.Any()) return new List<StudentPerformanceDto>();
-
-        var exams = await _context.ExamDetails.AsNoTracking()
-            .Where(e => examIds.Contains(e.ExamId))
-            .ToListAsync();
-
-        await PopulateExamQuestions(exams);
+        
+        // Prepare data for mapping
+        var exams = new List<ExamDetail>();
+        if (examIds.Any())
+        {
+            exams = await _context.ExamDetails.AsNoTracking()
+                .Where(e => examIds.Contains(e.ExamId))
+                .ToListAsync();
+            await PopulateExamQuestions(exams);
+        }
 
         var grades = await _context.Grades.AsNoTracking().ToDictionaryAsync(g => g.Id, g => g.GradeName);
         var classes = await _context.TblClasses.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c);
@@ -710,10 +778,11 @@ public class DashboardRepo : IDashboardRepo
             {
                 Id = student.Id,
                 Name = student.FullNameEn ?? string.Empty,
+                Email = student.Email ?? string.Empty,
                 Initials = string.IsNullOrWhiteSpace(student.FullNameEn)
                     ? "NA"
-                    : string.Join("", student.FullNameEn.Split(' ').Select(s => s[0])).ToUpper()
-                        .Substring(0, Math.Min(2, student.FullNameEn.Split(' ').Length)),
+                    : string.Join("", student.FullNameEn.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(s => s[0])).ToUpper()
+                        .Substring(0, Math.Min(2, student.FullNameEn.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length)),
                 Grade = gradeName,
                 Class = className,
                 QuizScores = scores
@@ -728,11 +797,15 @@ public class DashboardRepo : IDashboardRepo
 
         var examsQuery = _context.ExamDetails.AsNoTracking();
         examsQuery = ApplyFilters(examsQuery, filters);
-        var exams = await examsQuery.ToListAsync();
-        if (!exams.Any()) return new LeaderboardDto { ExamTitle = "Overall Performance", TopStudents = new() };
+        var exams = await examsQuery
+            .Include(e => e.Subject)
+            .ToListAsync();
+        
+        bool isGroupByClass = string.Equals(filters?.GroupBy, "Class", StringComparison.OrdinalIgnoreCase);
+        if (!exams.Any() && !isGroupByClass) return new LeaderboardDto { ExamTitle = "Overall Performance", TopStudents = new() };
 
         await PopulateExamQuestions(exams);
-        var examIds = exams.Select(e => e.ExamId).ToList();
+        var examIds = exams.Select(e => e.ExamId).Distinct().ToList();
         var marksMapRaw = await _context.ExamQuestionBanks.AsNoTracking()
             .Where(eq => eq.ExamId.HasValue && eq.QuestionId.HasValue && examIds.Contains(eq.ExamId.Value))
             .Join(_context.QuestionBanks.AsNoTracking(),
@@ -747,7 +820,8 @@ public class DashboardRepo : IDashboardRepo
         var allAnswers = await _context.StudentExamAnswers.AsNoTracking().Where(sea => sea.ExamDetailsId.HasValue && examIds.Contains(sea.ExamDetailsId.Value))
             .Select(sea => new { sea.AccountId, sea.ExamDetailsId, sea.QuestionBankId, sea.Score }).ToListAsync();
 
-        var students = await _context.Accounts.AsNoTracking().Include(a => a.StudentExtension).Where(a => allAnswers.Select(x => x.AccountId).Contains(a.Id)).ToDictionaryAsync(a => a.Id);
+        var studentIds = allAnswers.Select(x => x.AccountId).Distinct().ToList();
+        var students = await _context.Accounts.AsNoTracking().Include(a => a.StudentExtension).Where(a => studentIds.Contains(a.Id)).ToDictionaryAsync(a => a.Id);
 
         var leaderboardEntries = allAnswers.GroupBy(a => a.AccountId).Select(group => {
             if (!students.TryGetValue(group.Key, out var s) || (filters?.ClassId.HasValue == true && s.StudentExtension?.ClassId != filters.ClassId.Value)) return null;
@@ -767,12 +841,16 @@ public class DashboardRepo : IDashboardRepo
         LeaderboardDto result;
         if (string.Equals(filters?.GroupBy, "Class", StringComparison.OrdinalIgnoreCase)) {
             var classes = await _context.TblClasses.AsNoTracking().Where(c => !filters.GradeId.HasValue || c.GradeId == filters.GradeId.Value).ToListAsync();
-            var classScores = leaderboardEntries.Where(e => students[e.StudentId].StudentExtension?.ClassId != null).GroupBy(e => students[e.StudentId].StudentExtension!.ClassId!.Value).ToDictionary(g => g.Key, g => g.Average(x => x.Score));
+            var classScores = leaderboardEntries
+                .Select(e => new { e.Score, ClassId = students.TryGetValue(e.StudentId, out var s) ? s.StudentExtension?.ClassId : null })
+                .Where(x => x.ClassId.HasValue)
+                .GroupBy(x => x.ClassId!.Value)
+                .ToDictionary(g => g.Key, g => g.Average(x => x.Score));
             var classResults = classes.Select(c => new LeaderboardEntryDto { StudentId = c.Id, StudentName = FormatClassName(c.ClassName ?? $"Class {c.Id}"), Score = classScores.ContainsKey(c.Id) ? Math.Round(classScores[c.Id], 2) : 0.0 }).OrderByDescending(e => e.Score).ToList();
             for (int i = 0; i < classResults.Count; i++) classResults[i].Rank = i + 1;
-            result = new LeaderboardDto { ExamTitle = "Overall Class Performance", TopStudents = classResults.Take(20).ToList(), TotalParticipants = classResults.Count };
+            result = new LeaderboardDto { ExamTitle = "Overall Class Performance", SubjectName = filters?.SubjectId.HasValue == true ? exams.FirstOrDefault(e => e.SubjectId == filters.SubjectId.Value)?.Subject?.StatusName : null, TopStudents = classResults.Take(10).ToList(), TotalParticipants = classResults.Count };
         } else {
-            result = new LeaderboardDto { ExamTitle = "Overall Performance", TopStudents = leaderboardEntries.Take(10).ToList(), TotalParticipants = leaderboardEntries.Count };
+            result = new LeaderboardDto { ExamTitle = "Overall Performance", SubjectName = filters?.SubjectId.HasValue == true ? exams.FirstOrDefault(e => e.SubjectId == filters.SubjectId.Value)?.Subject?.StatusName : null, TopStudents = leaderboardEntries.Take(10).ToList(), TotalParticipants = leaderboardEntries.Count };
         }
 
         _cache.Set(cacheKey, result, CacheDuration);
