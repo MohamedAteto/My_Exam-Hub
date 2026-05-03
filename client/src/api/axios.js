@@ -5,8 +5,8 @@ import { storage } from "../utils/storage";
 // const BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5077';
 
 const api = axios.create({
-  // baseURL: `https://exam.sewedy.com.eg/api`,
-  baseURL: `http://localhost:5051/api`,
+  baseURL: `https://exam.sewedy.com.eg/api`,
+  // baseURL: `http://localhost:5051/api`,
   timeout: 15000,
 });
 
