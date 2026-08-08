@@ -290,7 +290,8 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                                         background: isTopThree ? medal.bg : 'var(--bg-surface)',
                                         border: `2px solid ${isCurrentUser ? 'var(--primary)' : medal.border}`,
                                         borderRadius: '12px',
-                                        padding: '1rem',
+                                        padding: '1.25rem',
+                                        minHeight: '72px',
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '1rem',
@@ -309,9 +310,9 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                                 >
                                     {/* Rank Badge */}
                                     <div style={{
-                                        width: '52px',
-                                        height: '52px',
-                                        borderRadius: '12px',
+                                        width: '56px',
+                                        height: '56px',
+                                        borderRadius: '14px',
                                         background: isTopThree ? 'rgba(255,255,255,0.3)' : 'var(--bg-main)',
                                         display: 'flex',
                                         alignItems: 'center',
@@ -327,7 +328,7 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                                     {/* Student Info */}
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{
-                                            fontSize: '1.125rem',
+                                            fontSize: '1.25rem',
                                             fontWeight: '600',
                                             color: isTopThree ? '#fff' : 'var(--text-primary)',
                                             marginBottom: '0.25rem',
@@ -361,10 +362,10 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                                     <div style={{
                                         textAlign: 'right',
                                         flexShrink: 0,
-                                        minWidth: '90px'
+                                        minWidth: '110px'
                                     }}>
                                         <div style={{
-                                            fontSize: '1.75rem',
+                                            fontSize: '1.9rem',
                                             fontWeight: '700',
                                             color: isTopThree ? '#fff' : 'var(--primary)',
                                             lineHeight: 1
