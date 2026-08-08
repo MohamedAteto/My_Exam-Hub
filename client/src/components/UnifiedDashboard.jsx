@@ -157,8 +157,6 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                 if (selectedExamId && !currentStillExists) {
                     setSelectedExamId(recent[0].examId)
                 }
-            } else {
-                setSelectedExamId(null)
             }
 
             setDashboardData(transformedData)

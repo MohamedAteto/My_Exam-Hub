@@ -309,9 +309,9 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                                 >
                                     {/* Rank Badge */}
                                     <div style={{
-                                        width: '48px',
-                                        height: '48px',
-                                        borderRadius: '10px',
+                                        width: '52px',
+                                        height: '52px',
+                                        borderRadius: '12px',
                                         background: isTopThree ? 'rgba(255,255,255,0.3)' : 'var(--bg-main)',
                                         display: 'flex',
                                         alignItems: 'center',
@@ -327,7 +327,7 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                                     {/* Student Info */}
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{
-                                            fontSize: '1rem',
+                                            fontSize: '1.125rem',
                                             fontWeight: '600',
                                             color: isTopThree ? '#fff' : 'var(--text-primary)',
                                             marginBottom: '0.25rem',
@@ -360,10 +360,11 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                                     {/* Score */}
                                     <div style={{
                                         textAlign: 'right',
-                                        flexShrink: 0
+                                        flexShrink: 0,
+                                        minWidth: '90px'
                                     }}>
                                         <div style={{
-                                            fontSize: '1.5rem',
+                                            fontSize: '1.75rem',
                                             fontWeight: '700',
                                             color: isTopThree ? '#fff' : 'var(--primary)',
                                             lineHeight: 1
