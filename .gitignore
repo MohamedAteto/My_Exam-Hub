@@ -1,0 +1,16 @@
+# Ignore .NET build outputs
+/server/Api/bin/
+/server/Api/obj/
+
+# Node modules and build (client)
+client/node_modules/
+client/dist/
+
+# VSCode settings
+.vscode/
+
+# Environment files
+client/.env*
+
+# Logs
+*.log
