@@ -3144,3 +3144,86 @@ button {
   opacity: 0;
   animation: slideInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+/* ===== Dashboard Statistic Card Tooltip ===== */
+.stat-card {
+  position: relative;
+}
+
+/* Small info ("?") button shown on each statistic card */
+.stat-info-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface-hover);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: help;
+  padding: 0;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+.stat-info-btn:hover {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+/* Rich tooltip shown on card / info-button hover */
+.stat-tooltip {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(100% + 10px);
+  width: 336px;
+  max-width: 90vw;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xl);
+  padding: 0.9rem 1rem;
+  z-index: 60;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--transition-base), visibility var(--transition-base);
+  text-align: left;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  line-height: 1.45;
+}
+.stat-card:hover .stat-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.stat-tooltip-title {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  margin-bottom: 0.55rem;
+}
+.stat-tooltip-row {
+  margin-bottom: 0.5rem;
+}
+.stat-tooltip-row span {
+  display: block;
+  font-weight: 700;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  margin-bottom: 0.1rem;
+}
+.stat-tooltip-note {
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-weight: 500;
+}

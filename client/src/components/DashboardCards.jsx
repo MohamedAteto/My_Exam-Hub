@@ -94,7 +94,7 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
                 String(e.examId || e.ExamId) === String(selectedExamId)
             )
             if (exam) {
-                val = exam.passPercentage || exam.PassPercentage || exam.averageScore || 0
+                val = exam.passPercentage ?? exam.PassPercentage ?? 0
                 return val
             }
         }
@@ -247,6 +247,13 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
 
     const labels = getRoleSpecificLabels()
 
+    // Lookup calculation metadata returned by the backend.
+    // The backend builds this from the same constants/values used to compute the
+    // statistics, so the tooltip always reflects the real calculation.
+    const metaByKey = (data && Array.isArray(data.statisticMeta))
+        ? Object.fromEntries(data.statisticMeta.map(m => [m.key, m]))
+        : {}
+
     if (loading) {
         return (
             <div style={{
@@ -290,6 +297,8 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
 
     const cards = [
         {
+            key: 'totalExams',
+            meta: metaByKey['totalExams'],
             label: labels.total,
             value: totalExamsValue,
             icon: (
@@ -301,6 +310,8 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
             bgColor: 'rgba(59, 130, 246, 0.1)'
         },
         {
+            key: 'passRate',
+            meta: metaByKey['passRate'],
             label: labels.pass,
             value: Math.ceil(animatedPass), // Round up (ceiling) for pass rate
             suffix: '%',
@@ -313,6 +324,8 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
             bgColor: 'rgba(16, 185, 129, 0.1)'
         },
         {
+            key: 'failRate',
+            meta: metaByKey['failRate'],
             label: labels.fail,
             value: Math.floor(animatedFail), // Round down (floor) for fail rate
             suffix: '%',
@@ -325,6 +338,8 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
             bgColor: 'rgba(239, 68, 68, 0.1)'
         },
         {
+            key: 'averageScore',
+            meta: metaByKey['averageScore'],
             label: labels.average,
             value: Math.round(animatedAverage), // Round to nearest integer for average score
             suffix: '%',
@@ -347,9 +362,10 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
         }}>
             {cards.map((card, index) => (
                 <div
-                    key={index}
-                    className={`animate-card stagger-${index + 1}`}
+                    key={card.key || index}
+                    className={`stat-card animate-card stagger-${index + 1}`}
                     style={{
+                        position: 'relative',
                         background: 'var(--bg-main)',
                         borderRadius: '12px',
                         padding: '1rem',
@@ -384,17 +400,29 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
                         }}>
                             {card.label}
                         </div>
-                        <div style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '8px',
-                            background: card.bgColor,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
-                            <div style={{ width: '18px', height: '18px', fill: card.color }}>
-                                {card.icon}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {card.meta && (
+                                <button
+                                    type="button"
+                                    className="stat-info-btn"
+                                    aria-label={`How ${card.label} is calculated`}
+                                    title="How is this calculated?"
+                                >
+                                    ?
+                                </button>
+                            )}
+                            <div style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '8px',
+                                background: card.bgColor,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }}>
+                                <div style={{ width: '18px', height: '18px', fill: card.color }}>
+                                    {card.icon}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -406,6 +434,28 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
                     }}>
                         {card.value}{card.suffix || ''}
                     </div>
+                    {card.meta && (
+                        <div className="stat-tooltip" role="tooltip">
+                            <div className="stat-tooltip-title">{card.meta.label || card.label}</div>
+                            <div className="stat-tooltip-row">
+                                <span>Formula</span>
+                                {card.meta.formula}
+                            </div>
+                            <div className="stat-tooltip-row">
+                                <span>Data</span>
+                                {card.meta.dataSource}
+                            </div>
+                            <div className="stat-tooltip-row">
+                                <span>Includes</span>
+                                {card.meta.includes}
+                            </div>
+                            <div className="stat-tooltip-row">
+                                <span>Conditions</span>
+                                {card.meta.conditions}
+                            </div>
+                            <div className="stat-tooltip-note">{card.meta.explanation}</div>
+                        </div>
+                    )}
                 </div>
             ))}
         </div>

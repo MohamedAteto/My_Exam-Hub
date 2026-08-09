@@ -272,7 +272,7 @@ export default function LoginPage() {
     if (storage.isAuthenticated()) {
       const role = storage.getItem('userRole')
       const roleNorm = String(role || '').toLowerCase()
-      if (roleNorm === 'admin' || roleNorm === 'board') navigate('/superadmin')
+      if (roleNorm === 'admin' || roleNorm === 'board' || roleNorm === 'superadmin') navigate('/superadmin')
       else if (roleNorm === 'teacher') navigate('/teacher')
       else if (roleNorm === 'student') navigate('/student')
     }
@@ -311,7 +311,7 @@ export default function LoginPage() {
       const response = await api.post('/auth/login', { email, password })
       const { token, roles, fullNameEn, fullNameAr } = response.data
 
-      const primaryRole = roles.find(r => r.toLowerCase() === 'admin' || r.toLowerCase() === 'board')
+      const primaryRole = roles.find(r => r.toLowerCase() === 'admin' || r.toLowerCase() === 'board' || r.toLowerCase() === 'superadmin')
         || roles.find(r => r.toLowerCase() === 'teacher')
         || roles.find(r => r.toLowerCase() === 'student')
         || ''

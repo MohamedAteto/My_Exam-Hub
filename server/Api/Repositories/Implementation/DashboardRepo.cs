@@ -130,7 +130,8 @@ public class DashboardRepo : IDashboardRepo
             var emptyResult = new StudentDashboardDto {
                 StudentId = studentId,
                 StudentName = student.FullNameEn ?? "Unknown",
-                RecentExams = new()
+                RecentExams = new(),
+                StatisticMeta = BuildStudentStatisticMeta(examsTaken: 0, passedExams: 0, recentExamCount: 0)
             };
             _cache.Set(cacheKey, emptyResult, CacheDuration);
             return emptyResult;
@@ -238,7 +239,11 @@ public class DashboardRepo : IDashboardRepo
             LatestExamLeaderboard = latestExamLeaderboard,
             StudentRankInLatestExam = latestExamLeaderboard?.TopStudents?.FirstOrDefault(s => s.StudentId == studentId)?.Rank,
             RecentExams = recentExamsData.OrderByDescending(e => e.Date).Take(10).ToList(),
-            ScoreDistribution = scoreBuckets.Select(b => new ChartDataPointDto { Name = b.Key, Value = b.Value }).ToList()
+            ScoreDistribution = scoreBuckets.Select(b => new ChartDataPointDto { Name = b.Key, Value = b.Value }).ToList(),
+            StatisticMeta = BuildStudentStatisticMeta(
+                examsTaken: studentExams.Count,
+                passedExams: passedExams,
+                recentExamCount: recentExamsData.Count)
         };
 
         _cache.Set(cacheKey, result, CacheDuration);
@@ -266,7 +271,20 @@ public class DashboardRepo : IDashboardRepo
         
         if (!exams.Any())
         {
-            var emptyResult = new TeacherDashboardDto { TeacherId = teacherId, TeacherName = teacher.FullNameEn ?? "Unknown", RecentExams = new() };
+            var emptyResult = new TeacherDashboardDto {
+                TeacherId = teacherId,
+                TeacherName = teacher.FullNameEn ?? "Unknown",
+                RecentExams = new(),
+                StatisticMeta = BuildClassStatisticMeta(
+                    singleExam: filters?.ExamId.HasValue == true,
+                    dataScope: "created by this teacher",
+                    apiTotalField: "totalExamsCreated",
+                    apiPassField: "averagePassPercentage",
+                    examCount: 0,
+                    passCount: 0,
+                    failCount: 0,
+                    attempts: 0)
+            };
             _cache.Set(cacheKey, emptyResult, CacheDuration);
             return emptyResult;
         }
@@ -376,14 +394,28 @@ public class DashboardRepo : IDashboardRepo
             else scoreBuckets["85-100%"]++;
         }
 
+        int totalAttempts = examBreakdown.Sum(e => e.TotalStudents);
+        bool teacherSingleExam = filters?.ExamId.HasValue == true;
+        double teacherPassPct = (totalPassed + totalFailed) > 0 ? Math.Round((double)totalPassed / (totalPassed + totalFailed) * 100, 2) : 0;
+
         var result = new TeacherDashboardDto {
             TeacherId = teacherId, TeacherName = teacher.FullNameEn ?? "Unknown",
             TotalExamsCreated = exams.Count,
-            AveragePassPercentage = (totalPassed + totalFailed) > 0 ? Math.Round((double)totalPassed / (totalPassed + totalFailed) * 100, 2) : 0,
+            AveragePassPercentage = teacherPassPct,
+            AverageFailPercentage = (totalPassed + totalFailed) > 0 ? Math.Round(100 - teacherPassPct, 2) : 0,
             TotalStudentsWhoTookExams = uniqueStudents.Count,
             ExamBreakdown = examBreakdown,
             RecentExams = exams.OrderByDescending(e => e.EndDate).Take(10).Select(e => new ExamSelectionDto { ExamId = e.ExamId, Title = e.Title ?? "Untitled Exam" }).ToList(),
-            ScoreDistribution = scoreBuckets.Select(b => new ChartDataPointDto { Name = b.Key, Value = b.Value }).ToList()
+            ScoreDistribution = scoreBuckets.Select(b => new ChartDataPointDto { Name = b.Key, Value = b.Value }).ToList(),
+            StatisticMeta = BuildClassStatisticMeta(
+                singleExam: teacherSingleExam,
+                dataScope: "created by this teacher",
+                apiTotalField: "totalExamsCreated",
+                apiPassField: "averagePassPercentage",
+                examCount: exams.Count,
+                passCount: totalPassed,
+                failCount: totalFailed,
+                attempts: totalAttempts)
         };
 
         _cache.Set(cacheKey, result, CacheDuration);
@@ -404,7 +436,17 @@ public class DashboardRepo : IDashboardRepo
         
         if (!exams.Any())
         {
-            var emptyResult = new SuperadminDashboardDto();
+            var emptyResult = new SuperadminDashboardDto {
+                StatisticMeta = BuildClassStatisticMeta(
+                    singleExam: filters?.ExamId.HasValue == true,
+                    dataScope: "in the system",
+                    apiTotalField: "totalExams",
+                    apiPassField: "overallPassPercentage",
+                    examCount: 0,
+                    passCount: 0,
+                    failCount: 0,
+                    attempts: 0)
+            };
             _cache.Set(cacheKey, emptyResult, CacheDuration);
             return emptyResult;
         }
@@ -489,13 +531,26 @@ public class DashboardRepo : IDashboardRepo
             else scoreBuckets["85-100%"]++;
         }
 
+        int totalAttempts = examBreakdown.Sum(e => e.TotalStudents);
+        bool superSingleExam = filters?.ExamId.HasValue == true;
+
         var result = new SuperadminDashboardDto {
             TotalExams = exams.Count, TotalStudents = totalStudentsCount, TotalTeachers = totalTeachersCount,
             OverallPassPercentage = (tp + tf) > 0 ? Math.Round((double)tp / (tp + tf) * 100, 2) : 0,
+            OverallFailPercentage = (tp + tf) > 0 ? Math.Round((double)tf / (tp + tf) * 100, 2) : 0,
             TopPerformingStudents = topPerformingStudents, RecentActivity = recentActivity,
             RecentExams = exams.OrderByDescending(e => e.EndDate).Take(10).Select(e => new ExamSelectionDto { ExamId = e.ExamId, Title = e.Title ?? "Untitled Exam" }).ToList(),
             ScoreDistribution = scoreBuckets.Select(b => new ChartDataPointDto { Name = b.Key, Value = b.Value }).ToList(),
-            ExamBreakdown = examBreakdown
+            ExamBreakdown = examBreakdown,
+            StatisticMeta = BuildClassStatisticMeta(
+                singleExam: superSingleExam,
+                dataScope: "in the system",
+                apiTotalField: "totalExams",
+                apiPassField: "overallPassPercentage",
+                examCount: exams.Count,
+                passCount: tp,
+                failCount: tf,
+                attempts: totalAttempts)
         };
 
         _cache.Set(cacheKey, result, CacheDuration);
@@ -702,6 +757,152 @@ public class DashboardRepo : IDashboardRepo
         }
         
         return query;
+    }
+
+    /// <summary>
+    /// Builds the calculation metadata for the shared statistic cards (Teacher/Superadmin/Admin).
+    /// The text is generated from the same constants and values used to compute the statistics,
+    /// so the tooltip always reflects the real backend calculation.
+    /// </summary>
+    /// <param name="singleExam">True when a specific exam is selected (scope is that single exam).</param>
+    /// <param name="dataScope">Description of the exam set, e.g. "created by this teacher" or "in the system".</param>
+    /// <param name="apiTotalField">API field name for the total-exams value.</param>
+    /// <param name="apiPassField">API field name for the aggregate pass percentage.</param>
+    /// <param name="examCount">Number of exams in the current view after filters.</param>
+    /// <param name="passCount">Number of passing student classifications (students whose average score >= threshold).</param>
+    /// <param name="failCount">Number of failing student classifications.</param>
+    /// <param name="attempts">Total exam attempts (sum of totalStudents across the exam breakdown).</param>
+    private List<StatisticMetaDto> BuildClassStatisticMeta(
+        bool singleExam,
+        string dataScope,
+        string apiTotalField,
+        string apiPassField,
+        int examCount,
+        int passCount,
+        int failCount,
+        int attempts)
+    {
+        int classified = passCount + failCount;
+        string passThreshold = PassThreshold.ToString("0.#");
+
+        return new List<StatisticMetaDto>
+        {
+            new StatisticMetaDto
+            {
+                Key = "totalExams",
+                Label = singleExam ? "Total Exams (Selected)" : "Total Exams",
+                Formula = singleExam
+                    ? "1 — the currently selected exam."
+                    : $"Count of ExamDetails rows {dataScope}.",
+                DataSource = $"DB: ExamDetails ({dataScope}, after filters). API: {apiTotalField}.",
+                Includes = $"Exam records {dataScope}.",
+                Conditions = "Grade / class / subject / date-range filters are applied.",
+                Explanation = singleExam
+                    ? "Shows 1 because a specific exam is selected in the filter."
+                    : $"{examCount} exam(s) match the current filters."
+            },
+            new StatisticMetaDto
+            {
+                Key = "passRate",
+                Label = singleExam ? "Average Pass % (Selected Exam)" : "Average Pass %",
+                Formula = singleExam
+                    ? "(PassedStudents ÷ TotalStudents) × 100"
+                    : "(Students whose average score across their exams ≥ threshold ÷ all students who took exams) × 100",
+                DataSource = singleExam
+                    ? "DB: StudentExamAnswers + exam marks. API: examBreakdown[].passPercentage."
+                    : $"DB: StudentExamAnswers grouped by student + exam marks. API: {apiPassField}.",
+                Includes = singleExam
+                    ? "Every student with recorded answers for the selected exam (counted once)."
+                    : "Each student counted once, classified by the mean of their scores across all their exams in the current view.",
+                Conditions = $"A student counts as passed when their score ≥ {passThreshold}%. " +
+                             (singleExam ? "Only the selected exam is considered." : "Only students with at least one completed exam are included."),
+                Explanation = classified > 0
+                    ? $"{passCount} of {classified} student classification(s) are passing."
+                    : "No completed exam attempts in the current view."
+            },
+            new StatisticMetaDto
+            {
+                Key = "failRate",
+                Label = singleExam ? "Average Fail % (Selected Exam)" : "Average Fail %",
+                Formula = "100 − Pass%",
+                DataSource = "Derived as the complement of the pass percentage.",
+                Includes = "Same records as the Pass % card.",
+                Conditions = "Held consistent so Pass % + Fail % always sum to 100%.",
+                Explanation = "Displayed value = 100 − Pass%."
+            },
+            new StatisticMetaDto
+            {
+                Key = "averageScore",
+                Label = singleExam ? "Average Score (Selected Exam)" : "Average Score",
+                Formula = singleExam
+                    ? "(Σ each student's score) ÷ (number of students who took the exam)"
+                    : "Σ(averageScore × totalStudents) ÷ Σ(totalStudents) across the exam breakdown (weighted by students per exam)",
+                DataSource = singleExam
+                    ? "DB: StudentExamAnswers + exam marks. API: examBreakdown[].averageScore."
+                    : "API: examBreakdown[] fields averageScore and totalStudents.",
+                Includes = singleExam
+                    ? "All students with answers for the selected exam; each score = (earned marks ÷ total marks) × 100."
+                    : "Every exam in the view with ≥ 1 answered student; each exam attempt counted once.",
+                Conditions = "Only correct answers (Score = true) contribute earned marks.",
+                Explanation = $"{attempts} student score(s) averaged across {examCount} exam(s)."
+            }
+        };
+    }
+
+    /// <summary>
+    /// Builds the metadata for the Student dashboard statistic cards.
+    /// Text is generated from the same values used to compute the statistics.
+    /// </summary>
+    private List<StatisticMetaDto> BuildStudentStatisticMeta(
+        int examsTaken,
+        int passedExams,
+        int recentExamCount)
+    {
+        string passThreshold = PassThreshold.ToString("0.#");
+
+        return new List<StatisticMetaDto>
+        {
+            new StatisticMetaDto
+            {
+                Key = "totalExams",
+                Label = "Total Exams Taken",
+                Formula = "Count of distinct exams with recorded answers.",
+                DataSource = "DB: StudentExamAnswers grouped by ExamDetailsId. API: totalExamsTaken.",
+                Includes = "Exams this student has answer records for.",
+                Conditions = "Grade / class / date-range filters are applied.",
+                Explanation = $"{examsTaken} exam(s) taken."
+            },
+            new StatisticMetaDto
+            {
+                Key = "passRate",
+                Label = "Pass %",
+                Formula = "(Passed exams ÷ exams taken) × 100",
+                DataSource = "DB: StudentExamAnswers + exam marks. API: passPercentage.",
+                Includes = "Each completed exam attempt for this student.",
+                Conditions = $"An attempt counts as passed when the student's score ≥ {passThreshold}%.",
+                Explanation = $"{passedExams} of {examsTaken} exam(s) passed."
+            },
+            new StatisticMetaDto
+            {
+                Key = "failRate",
+                Label = "Fail %",
+                Formula = "(Failed exams ÷ exams taken) × 100",
+                DataSource = "Derived as the complement of Pass %.",
+                Includes = "Same records as the Pass % card.",
+                Conditions = "Held consistent so Pass % + Fail % always sum to 100%.",
+                Explanation = "Displayed value = 100 − Pass%."
+            },
+            new StatisticMetaDto
+            {
+                Key = "averageScore",
+                Label = "Average Score",
+                Formula = "Mean of each exam's class-average score (Σ averageScore ÷ number of exams).",
+                DataSource = "API: recentExams[].averageScore (each is the exam's overall class average).",
+                Includes = "The student's recent exams.",
+                Conditions = "Based on each exam's overall class average, not the student's own raw score.",
+                Explanation = $"{recentExamCount} exam average(s) combined."
+            }
+        };
     }
 
     public async Task<List<StudentPerformanceDto>> GetStudentsAsync()

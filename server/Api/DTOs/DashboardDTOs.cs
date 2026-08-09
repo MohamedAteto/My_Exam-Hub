@@ -1,5 +1,20 @@
 namespace QuizesApi.DTOs;
 
+// Metadata describing how a dashboard statistic value is calculated.
+// Built on the backend from the same constants/values used to compute the
+// statistic so the UI tooltip always reflects the real calculation.
+public class StatisticMetaDto
+{
+    // Machine-readable key matching a card: totalExams | passRate | failRate | averageScore
+    public string Key { get; set; } = string.Empty;
+    public string Label { get; set; } = string.Empty;
+    public string Formula { get; set; } = string.Empty;
+    public string DataSource { get; set; } = string.Empty;
+    public string Includes { get; set; } = string.Empty;
+    public string Conditions { get; set; } = string.Empty;
+    public string Explanation { get; set; } = string.Empty;
+}
+
 // Student Dashboard Response
 public class StudentDashboardDto
 {
@@ -12,6 +27,7 @@ public class StudentDashboardDto
     public int? StudentRankInLatestExam { get; set; }
     public List<StudentRecentExamDto> RecentExams { get; set; } = new();
     public List<ChartDataPointDto> ScoreDistribution { get; set; } = new();
+    public List<StatisticMetaDto> StatisticMeta { get; set; } = new();
 }
 
 public class ChartDataPointDto
@@ -43,6 +59,7 @@ public class TeacherDashboardDto
     public LeaderboardDto? LatestExamLeaderboard { get; set; }
     public List<ExamSelectionDto> RecentExams { get; set; } = new();
     public List<ChartDataPointDto> ScoreDistribution { get; set; } = new();
+    public List<StatisticMetaDto> StatisticMeta { get; set; } = new();
 }
 
 public class ExamSelectionDto
@@ -65,6 +82,7 @@ public class SuperadminDashboardDto
     public List<ExamSelectionDto> RecentExams { get; set; } = new();
     public List<ChartDataPointDto> ScoreDistribution { get; set; } = new();
     public List<ExamStatsDto> ExamBreakdown { get; set; } = new();
+    public List<StatisticMetaDto> StatisticMeta { get; set; } = new();
 }
 
 // Leaderboard Response
