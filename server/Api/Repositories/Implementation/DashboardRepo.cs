@@ -811,7 +811,7 @@ public class DashboardRepo : IDashboardRepo
                 Label = singleExam ? "Average Pass % (Selected Exam)" : "Average Pass %",
                 Formula = singleExam
                     ? "(PassedStudents ÷ TotalStudents) × 100"
-                    : "(Students whose average score across their exams ≥ threshold ÷ all students who took exams) × 100",
+                    : "(passing students ÷ all students) × 100",
                 DataSource = singleExam
                     ? "DB: StudentExamAnswers + exam marks. API: examBreakdown[].passPercentage."
                     : $"DB: StudentExamAnswers grouped by student + exam marks. API: {apiPassField}.",
@@ -840,7 +840,7 @@ public class DashboardRepo : IDashboardRepo
                 Label = singleExam ? "Average Score (Selected Exam)" : "Average Score",
                 Formula = singleExam
                     ? "(Σ each student's score) ÷ (number of students who took the exam)"
-                    : "Σ(averageScore × totalStudents) ÷ Σ(totalStudents) across the exam breakdown (weighted by students per exam)",
+                    : "Σ(avgScore × students) ÷ Σ(students)",
                 DataSource = singleExam
                     ? "DB: StudentExamAnswers + exam marks. API: examBreakdown[].averageScore."
                     : "API: examBreakdown[] fields averageScore and totalStudents.",
@@ -870,7 +870,7 @@ public class DashboardRepo : IDashboardRepo
             {
                 Key = "totalExams",
                 Label = "Total Exams Taken",
-                Formula = "Count of distinct exams with recorded answers.",
+                Formula = "Count(distinct exams taken)",
                 DataSource = "DB: StudentExamAnswers grouped by ExamDetailsId. API: totalExamsTaken.",
                 Includes = "Exams this student has answer records for.",
                 Conditions = "Grade / class / date-range filters are applied.",
@@ -900,7 +900,7 @@ public class DashboardRepo : IDashboardRepo
             {
                 Key = "averageScore",
                 Label = "Average Score",
-                Formula = "Mean of each exam's class-average score (Σ averageScore ÷ number of exams).",
+                Formula = "Σ(averageScore) ÷ count",
                 DataSource = "API: recentExams[].averageScore (each is the exam's overall class average).",
                 Includes = "The student's recent exams.",
                 Conditions = "Based on each exam's overall class average, not the student's own raw score.",
