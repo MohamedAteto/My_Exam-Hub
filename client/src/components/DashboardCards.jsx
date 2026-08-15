@@ -116,21 +116,13 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
         return val
     }
 
-    // Calculate fail percentage - MUST be 100 - passPercentage for consistency
+        // Calculate fail percentage - MUST be the complement of the pass percentage so the
+    // Pass % + Fail % cards always sum to 100% (matches the backend tooltip contract:
+    // "Displayed value = 100 − Pass%"). A previous branch returned exam.FailedStudents
+    // (a raw count) as a percentage when pass === 0; that was a bug — 100 − pass already
+    // yields the correct fail percentage in that case (e.g. 0% pass => 100% fail).
     const calculateFailPercentage = () => {
         const pass = calculatePassPercentage()
-        if (pass > 0) return 100 - pass
-        if (pass === 0 && data) {
-            // If pass is 0, check if we have explicit fail data for selected exam
-            if (selectedExamId && data.examBreakdown) {
-                const exam = data.examBreakdown.find(e =>
-                    String(e.examId || e.ExamId) === String(selectedExamId)
-                )
-                if (exam && (exam.failPercentage !== undefined || exam.FailedStudents !== undefined)) {
-                    return exam.failPercentage || exam.FailedStudents || 100
-                }
-            }
-        }
         return 100 - pass
     }
 

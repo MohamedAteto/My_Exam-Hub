@@ -30,21 +30,15 @@ export default function DashboardCharts({ dashboardData, userRole, selectedExamI
     
     // If pass and fail are both 0 but we have score distribution data, derive from it
     if ((passPercentage === 0 && failPercentage === 0) || totalPassFail === 0) {
-        // Backend sends: "0-50%", "50-70%", "70-85%", "85-100%"
-        // "Pass" is typically 85-100% bucket
-        const passBucket = dist.find(d => d.Name.includes('85') || d.Name.includes('100'))
+                // Fallback: derive pass/fail from the score distribution. The pass threshold is
+        // 50%, so the "0-50%" bucket is fail and "50-70%", "70-85%", "85-100%" are pass.
         const totalVal = dist.reduce((sum, d) => sum + (d.Value || 0), 0)
-        
-        if (passBucket && totalVal > 0) {
-            displayPass = Math.round((passBucket.Value / totalVal) * 100)
+        if (totalVal > 0) {
+            const passVal = dist
+                .filter(d => d.Name.includes('50-70') || d.Name.includes('70-85') || d.Name.includes('85-100'))
+                .reduce((sum, d) => sum + (d.Value || 0), 0)
+            displayPass = Math.round((passVal / totalVal) * 100)
             displayFail = 100 - displayPass
-        } else if (totalVal > 0) {
-            // If no explicit pass bucket, sum all non-fail buckets or derive from total
-            const failBucket = dist.find(d => d.Name.includes('0-50') || d.Name.includes('50-70') || d.Name.includes('70-85'))
-            if (failBucket) {
-                displayFail = Math.round((failBucket.Value / totalVal) * 100)
-                displayPass = 100 - displayFail
-            }
         }
     } else if (totalPassFail > 0 && totalPassFail !== 100) {
         // Scale to 100%

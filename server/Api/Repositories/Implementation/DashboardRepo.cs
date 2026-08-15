@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using QuizesApi.DTOs;
 using QuizesApi.Models;
@@ -378,6 +378,7 @@ public class DashboardRepo : IDashboardRepo
                 TotalStudents = studentGroups.Count(),
                 PassedStudents = ep, FailedStudents = ef, 
                 PassPercentage = Math.Round((double)ep / studentGroups.Count() * 100, 2),
+                FailPercentage = Math.Round((double)ef / studentGroups.Count() * 100, 2),
                 AverageScore = Math.Round(ets / studentGroups.Count(), 2)
             });
         }
@@ -515,7 +516,9 @@ public class DashboardRepo : IDashboardRepo
                 TotalStudents = group.GroupBy(a => a.AccountId).Count(), 
                 PassedStudents = ep, 
                 FailedStudents = ef, 
-                AverageScore = Math.Round(ets / group.GroupBy(a => a.AccountId).Count(), 2) 
+                AverageScore = Math.Round(ets / group.GroupBy(a => a.AccountId).Count(), 2),
+                PassPercentage = Math.Round((double)ep / group.GroupBy(a => a.AccountId).Count() * 100, 2),
+                FailPercentage = Math.Round((double)ef / group.GroupBy(a => a.AccountId).Count() * 100, 2) 
             });
         }
 
@@ -654,6 +657,7 @@ public class DashboardRepo : IDashboardRepo
             TotalStudents = studentGroups.Count(),
             PassedStudents = passed, FailedStudents = studentGroups.Count() - passed,
             PassPercentage = studentGroups.Any() ? Math.Round((double)passed / studentGroups.Count() * 100, 2) : 0,
+            FailPercentage = studentGroups.Any() ? Math.Round((double)(studentGroups.Count() - passed) / studentGroups.Count() * 100, 2) : 0,
             AverageScore = studentGroups.Any() ? Math.Round(totalScore / studentGroups.Count(), 2) : 0
         };
     }
