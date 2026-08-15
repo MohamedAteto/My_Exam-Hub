@@ -437,15 +437,7 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
                                 <span>Data</span>
                                 {card.meta.dataSource}
                             </div>
-                            <div className="stat-tooltip-row">
-                                <span>Includes</span>
-                                {card.meta.includes}
-                            </div>
-                            <div className="stat-tooltip-row">
-                                <span>Conditions</span>
-                                {card.meta.conditions}
-                            </div>
-                            <div className="stat-tooltip-note">{card.meta.explanation}</div>
+
                         </div>
                     )}
                 </div>
