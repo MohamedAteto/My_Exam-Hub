@@ -2,7 +2,7 @@ import StatsPieChart from './charts/StatsPieChart'
 import StatsLineChart from './charts/StatsLineChart'
 import StatsBarChart from './charts/StatsBarChart'
 
-export default function DashboardCharts({ dashboardData, userRole, selectedExamId = null, filters = {} }) {
+export default function DashboardCharts({ dashboardData, userRole, selectedExamId = null }) {
     const roleNorm = String(userRole || '').toLowerCase()
 
     if (!dashboardData) return null
@@ -22,38 +22,26 @@ export default function DashboardCharts({ dashboardData, userRole, selectedExamI
     // Build normalized score distribution (case-insensitive)
     const dist = (dashboardData.scoreDistribution || [])
         .map(d => ({ Name: d.Name || d.name || '', Value: d.Value !== undefined ? d.Value : d.value }))
-
-    // Ensure pass + fail always equals 100% (mutually exclusive or complementary)
-    const totalPassFail = passPercentage + failPercentage
+    // Pass/fail are complementary in the backend (fail = 100 - pass). Use them directly;
+    // only derive from the score distribution when BOTH are absent.
     let displayPass = passPercentage
     let displayFail = failPercentage
-    
-    // If pass and fail are both 0 but we have score distribution data, derive from it
-    if ((passPercentage === 0 && failPercentage === 0) || totalPassFail === 0) {
-        // Backend sends: "0-50%", "50-70%", "70-85%", "85-100%"
-        // "Pass" is typically 85-100% bucket
-        const passBucket = dist.find(d => d.Name.includes('85') || d.Name.includes('100'))
+    // If both pass and fail are missing, derive them from the score distribution.
+    if (passPercentage === 0 && failPercentage === 0) {
+        // Fallback: derive pass/fail from the score distribution. Pass threshold is
+        // 50%, so "50-70%", "70-85%", "85-100%" are pass; "0-50%" is fail.
         const totalVal = dist.reduce((sum, d) => sum + (d.Value || 0), 0)
-        
-        if (passBucket && totalVal > 0) {
-            displayPass = Math.round((passBucket.Value / totalVal) * 100)
+        if (totalVal > 0) {
+            const passVal = dist
+                .filter(d => d.Name.includes('50-70') || d.Name.includes('70-85') || d.Name.includes('85-100'))
+                .reduce((sum, d) => sum + (d.Value || 0), 0)
+            displayPass = Math.round((passVal / totalVal) * 100)
             displayFail = 100 - displayPass
-        } else if (totalVal > 0) {
-            // If no explicit pass bucket, sum all non-fail buckets or derive from total
-            const failBucket = dist.find(d => d.Name.includes('0-50') || d.Name.includes('50-70') || d.Name.includes('70-85'))
-            if (failBucket) {
-                displayFail = Math.round((failBucket.Value / totalVal) * 100)
-                displayPass = 100 - displayFail
-            }
         }
-    } else if (totalPassFail > 0 && totalPassFail !== 100) {
-        // Scale to 100%
-        displayPass = Math.round((passPercentage / totalPassFail) * 100)
-        displayFail = 100 - displayPass
-    } else if (passPercentage > 0 && failPercentage === 0) {
-        displayFail = 100 - displayPass
-    } else if (failPercentage > 0 && passPercentage === 0) {
-        displayPass = 100 - displayFail
+    } else {
+        // Backend pass% + fail% are complementary; just guard the relationship.
+        if (failPercentage === 0) displayFail = 100 - displayPass
+        if (passPercentage === 0) displayPass = 100 - displayFail
     }
 
     let lineChartData = []
@@ -82,14 +70,7 @@ export default function DashboardCharts({ dashboardData, userRole, selectedExamI
         Name: item.Name,
         Value: item.Value
     }))
-
-    console.log('[DashboardCharts] Dashboard data:', dashboardData)
-    console.log('[DashboardCharts] Selected exam ID:', selectedExamId)
-    console.log('[DashboardCharts] Filters:', filters)
-    console.log('[DashboardCharts] passPercentage:', passPercentage, 'failPercentage:', failPercentage)
-    console.log('[DashboardCharts] Line chart data:', lineChartData)
-    console.log('[DashboardCharts] Bar chart data:', barChartData)
-    console.log('[DashboardCharts] displayPass:', displayPass, 'displayFail:', displayFail)
+    // pass/fail and chart data are derived above from dashboardData (subject-filtered)
 
     return (
         <div style={{

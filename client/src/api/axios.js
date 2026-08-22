@@ -1,12 +1,14 @@
 import axios from 'axios';
 import { storage } from "../utils/storage";
-// Use environment variable in production. Ensure .env.production sets REACT_APP_API_BASE_URL
-// Fallback to relative path /api if not set, or localhost if needed
-// const BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5077';
+
+// Prefer a Vite env var `VITE_API_BASE_URL`; in dev fallback to local backend.
+// In production this should be set to the deployed API (e.g. https://exam.sewedy.com.eg/api)
+const DEFAULT_PROD_BASE = 'https://exam.sewedy.com.eg/api';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL
+  || (import.meta.env.DEV ? 'http://localhost:5051/api' : DEFAULT_PROD_BASE);
 
 const api = axios.create({
-  baseURL: `https://exam.sewedy.com.eg/api`,
-  // baseURL: `http://localhost:5051/api`,
+  baseURL: BASE_URL,
   timeout: 15000,
 });
 

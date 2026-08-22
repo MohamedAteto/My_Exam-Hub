@@ -289,8 +289,9 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                                     style={{
                                         background: isTopThree ? medal.bg : 'var(--bg-surface)',
                                         border: `2px solid ${isCurrentUser ? 'var(--primary)' : medal.border}`,
-                                        borderRadius: '12px',
-                                        padding: '1rem',
+                                        borderRadius: '14px',
+                                        padding: '1.5rem',
+                                        minHeight: '88px',
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '1rem',
@@ -309,14 +310,14 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                                 >
                                     {/* Rank Badge */}
                                     <div style={{
-                                        width: '48px',
-                                        height: '48px',
-                                        borderRadius: '10px',
+                                        width: '64px',
+                                        height: '64px',
+                                        borderRadius: '16px',
                                         background: isTopThree ? 'rgba(255,255,255,0.3)' : 'var(--bg-main)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        fontSize: '1.25rem',
+                                        fontSize: '1.4rem',
                                         fontWeight: '700',
                                         color: isTopThree ? '#fff' : 'var(--text-primary)',
                                         flexShrink: 0
@@ -327,13 +328,12 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                                     {/* Student Info */}
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{
-                                            fontSize: '1rem',
+                                            fontSize: '1.375rem',
                                             fontWeight: '600',
                                             color: isTopThree ? '#fff' : 'var(--text-primary)',
                                             marginBottom: '0.25rem',
                                             overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                            whiteSpace: 'nowrap'
+                                            textOverflow: 'ellipsis'
                                         }}>
                                             {entry.studentName}
                                             {isCurrentUser && (
@@ -360,10 +360,11 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                                     {/* Score */}
                                     <div style={{
                                         textAlign: 'right',
-                                        flexShrink: 0
+                                        flexShrink: 0,
+                                        minWidth: '140px'
                                     }}>
                                         <div style={{
-                                            fontSize: '1.5rem',
+                                            fontSize: '2rem',
                                             fontWeight: '700',
                                             color: isTopThree ? '#fff' : 'var(--primary)',
                                             lineHeight: 1

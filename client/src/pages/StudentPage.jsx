@@ -713,7 +713,6 @@ export default function StudentPage() {
 
       return {
         id: exam.examId,
-        id: exam.examId,
         name: exam.title,
         title: exam.title,
         subject: exam.subjectName || exam.examSubject || 'General',
