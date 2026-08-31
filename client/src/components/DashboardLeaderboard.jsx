@@ -28,30 +28,14 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
     // Smarter loading: only show shimmer on INITIAL load, not grade transitions
     if (loading && (!displayLeaderboard || displayLeaderboard.length === 0)) {
         return (
-            <div style={{
-                background: 'var(--bg-main)',
-                borderRadius: '16px',
-                padding: '1.5rem',
-                boxShadow: 'var(--shadow-sm)'
-            }}>
-                <div style={{
-                    height: '1.5rem',
-                    width: '200px',
-                    background: 'linear-gradient(90deg, var(--bg-surface-hover) 25%, var(--bg-surface) 50%, var(--bg-surface-hover) 75%)',
-                    backgroundSize: '200% 100%',
-                    animation: 'shimmer 2.5s infinite linear',
-                    borderRadius: '4px',
-                    marginBottom: '1.5rem'
-                }}></div>
+            <div className="dash-card" style={{ padding: '1.5rem' }}>
+                <div className="dash-skeleton" style={{ height: 24, width: 200, marginBottom: '1.5rem' }} />
                 {[1, 2, 3, 4, 5].map(i => (
-                    <div key={i} style={{
-                        height: '60px',
-                        background: 'linear-gradient(90deg, var(--bg-surface-hover) 25%, var(--bg-surface) 50%, var(--bg-surface-hover) 75%)',
-                        backgroundSize: '200% 100%',
-                        animation: 'shimmer 2.5s infinite linear',
-                        borderRadius: '8px',
-                        marginBottom: '0.75rem'
-                    }}></div>
+                    <div
+                        key={i}
+                        className="dash-skeleton"
+                        style={{ height: 72, borderRadius: 14, marginBottom: '0.75rem' }}
+                    />
                 ))}
             </div>
         )
@@ -71,15 +55,14 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
     }
 
     return (
-        <div style={{
-            background: 'var(--bg-main)',
-            borderRadius: '16px',
-            padding: '1.5rem',
-            boxShadow: 'var(--shadow-sm)',
-            position: 'relative',
-            transition: 'all 0.3s ease',
-            margin: showSlider ? '0 50px' : '0' // Add margin for arrows
-        }}>
+        <div
+            className="dash-card"
+            style={{
+                padding: '1.5rem',
+                position: 'relative',
+                transition: 'box-shadow 0.3s ease, border-color 0.3s ease',
+                margin: showSlider ? '0 50px' : '0' // Add margin for arrows
+            }}>
             <style>
                 {`
                     @keyframes slideFromRight {

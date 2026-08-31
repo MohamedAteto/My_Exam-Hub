@@ -431,6 +431,7 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                         leaderboard={leaderboardData}
                     />
 
+                    {/* Leaderboard — moved above the charts (all behavior unchanged) */}
                     <DashboardLeaderboard
                         leaderboard={leaderboardData}
                         loading={leaderboardLoading}
@@ -466,6 +467,7 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                         userRole={userRole}
                         selectedExamId={selectedExamId}
                         filters={filters}
+                        loading={loading}
                     />
                 </div>
             </div>

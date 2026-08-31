@@ -452,7 +452,7 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
     return (
         <div style={{
             padding: '2rem',
-            background: '#f9fafb',
+            background: 'var(--bg-surface)',
             minHeight: '100vh',
             animation: 'fadeIn 0.6s ease-out'
         }}>
@@ -507,15 +507,15 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
                 {/* Filters Bar */}
                 <div style={{
                     background: '#ffffff', // Use solid white to avoid backdrop-filter issues
-                    borderRadius: '20px',
+                    borderRadius: '16px',
                     padding: '1.5rem',
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
+                    boxShadow: 'var(--dash-shadow)',
                     marginBottom: '2rem',
                     display: 'flex',
                     flexWrap: 'wrap',
                     gap: '1.25rem',
                     alignItems: 'flex-end',
-                    border: '1px solid #e5e7eb',
+                    border: '1px solid var(--border-color)',
                     position: 'relative',
                     zIndex: 9000 // Very high to beat table
                 }}>
@@ -689,8 +689,8 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
                         onScroll={checkOverflow}
                         style={{
                             background: 'white',
-                            borderRadius: '20px 20px 0 0',
-                            boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
+                            borderRadius: '16px 16px 0 0',
+                            boxShadow: 'var(--dash-shadow)',
                             overflowX: 'auto',
                             overflowY: 'auto',
                             maxHeight: 'calc(100vh - 320px)',
@@ -786,7 +786,7 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
                     <div style={{
                         padding: '1rem 1.5rem',
                         border: '1px solid #e5e7eb',
-                        borderRadius: '0 0 20px 20px',
+                        borderRadius: '0 0 16px 16px',
                         background: '#f9fafb',
                         display: 'flex',
                         justifyContent: 'space-between',

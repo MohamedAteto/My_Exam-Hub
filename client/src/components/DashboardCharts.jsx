@@ -2,10 +2,37 @@ import StatsPieChart from './charts/StatsPieChart'
 import StatsLineChart from './charts/StatsLineChart'
 import StatsBarChart from './charts/StatsBarChart'
 
-export default function DashboardCharts({ dashboardData, userRole, selectedExamId = null }) {
+function ChartSkeleton({ height }) {
+    return (
+        <div className="dash-card chart-card" style={{ minHeight: height }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', marginBottom: '1.5rem' }}>
+                <div className="dash-skeleton" style={{ width: 38, height: 38, borderRadius: 11 }} />
+                <div style={{ flex: 1 }}>
+                    <div className="dash-skeleton" style={{ height: 14, width: '45%', marginBottom: 8 }} />
+                    <div className="dash-skeleton" style={{ height: 10, width: '70%' }} />
+                </div>
+            </div>
+            <div className="dash-skeleton" style={{ flex: 1, minHeight: height - 140, borderRadius: 12 }} />
+        </div>
+    )
+}
+
+export default function DashboardCharts({ dashboardData, userRole, selectedExamId = null, loading = false }) {
     const roleNorm = String(userRole || '').toLowerCase()
 
+    // Initial load: skeleton chart cards (visual only — no API change)
+    if (loading && !dashboardData) {
+        return (
+            <div className="charts-grid">
+                <ChartSkeleton height={420} />
+                <ChartSkeleton height={420} />
+                <ChartSkeleton height={360} />
+            </div>
+        )
+    }
+
     if (!dashboardData) return null
+
 
     // Use data directly from dashboardData (backend now handles filtering by examId)
     // Handle case-insensitive property access for PascalCase backend DTOs
@@ -72,36 +99,29 @@ export default function DashboardCharts({ dashboardData, userRole, selectedExamI
     }))
     // pass/fail and chart data are derived above from dashboardData (subject-filtered)
 
+    // Layout: trend (wide) + donut | distribution (full width) — stacks on ≤1024px
     return (
-        <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
-            gap: '1.5rem',
-            marginTop: '2rem'
-        }}>
-            <div className="animate-card stagger-1">
-                <StatsPieChart
-                    passPercentage={displayPass}
-                    failPercentage={displayFail}
-                    title="Pass vs Fail Overview"
-                />
-            </div>
+        <div className="charts-grid">
+            <StatsLineChart
+                className="chart-card-line"
+                data={lineChartData}
+                title={roleNorm === 'student' ? "My Performance Trend" : "Class Performance (Average Score)"}
+                userRole={roleNorm}
+                selectedExamId={selectedExamId}
+            />
 
-            <div className="animate-card stagger-2">
-                <StatsLineChart
-                    data={lineChartData}
-                    title={roleNorm === 'student' ? "My Performance Trend" : "Class Performance (Average Score)"}
-                    userRole={roleNorm}
-                    selectedExamId={selectedExamId}
-                />
-            </div>
+            <StatsPieChart
+                className="chart-card-pie"
+                passPercentage={displayPass}
+                failPercentage={displayFail}
+                title="Pass vs Fail Overview"
+            />
 
-            <div className="animate-card stagger-3">
-                <StatsBarChart
-                    data={barChartData}
-                    title="Score Distribution"
-                />
-            </div>
+            <StatsBarChart
+                className="chart-card-bar"
+                data={barChartData}
+                title="Score Distribution"
+            />
         </div>
     )
 }

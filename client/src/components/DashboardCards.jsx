@@ -250,34 +250,18 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
         return (
             <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: '1rem',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '1.1rem',
                 marginBottom: '2rem'
             }}>
                 {[1, 2, 3, 4].map(i => (
-                    <div key={i} style={{
-                        background: 'var(--bg-main)',
-                        borderRadius: '12px',
-                        padding: '1rem',
-                        boxShadow: 'var(--shadow-sm)'
-                    }}>
-                        <div style={{
-                            height: '1rem',
-                            width: '60%',
-                            background: 'linear-gradient(90deg, var(--bg-surface-hover) 25%, var(--bg-surface) 50%, var(--bg-surface-hover) 75%)',
-                            backgroundSize: '200% 100%',
-                            animation: 'shimmer 2.5s infinite linear',
-                            borderRadius: '4px',
-                            marginBottom: '1rem'
-                        }}></div>
-                        <div style={{
-                            height: '3rem',
-                            width: '40%',
-                            background: 'linear-gradient(90deg, var(--bg-surface-hover) 25%, var(--bg-surface) 50%, var(--bg-surface-hover) 75%)',
-                            backgroundSize: '200% 100%',
-                            animation: 'shimmer 2.5s infinite linear',
-                            borderRadius: '4px'
-                        }}></div>
+                    <div key={i} className="dash-card" style={{ padding: '1.25rem 1.375rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.1rem' }}>
+                            <div className="dash-skeleton" style={{ height: 11, width: '55%' }} />
+                            <div className="dash-skeleton" style={{ width: 36, height: 36, borderRadius: 10 }} />
+                        </div>
+                        <div className="dash-skeleton" style={{ height: 34, width: '42%', marginBottom: 12 }} />
+                        <div className="dash-skeleton" style={{ height: 9, width: '30%' }} />
                     </div>
                 ))}
             </div>
@@ -348,47 +332,47 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
     return (
         <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '1rem',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: '1.1rem',
             marginBottom: '2rem'
         }}>
             {cards.map((card, index) => (
                 <div
                     key={card.key || index}
-                    className={`stat-card animate-card stagger-${index + 1}`}
+                    className={`stat-card dash-card dash-card--hover animate-card stagger-${index + 1}`}
                     style={{
                         position: 'relative',
                         background: 'var(--bg-main)',
-                        borderRadius: '12px',
-                        padding: '1rem',
-                        boxShadow: 'var(--shadow-sm)',
-                        border: '2px solid transparent',
-                        transition: 'all 0.3s ease',
+                        borderRadius: 'var(--dash-radius)',
+                        padding: '1.25rem 1.375rem',
+                        boxShadow: 'var(--dash-shadow)',
+                        border: '1px solid var(--border-color)',
+                        transition: 'all 0.3s var(--dash-ease)',
                         cursor: 'default'
                     }}
                     onMouseEnter={(e) => {
                         e.currentTarget.style.borderColor = card.color
-                        e.currentTarget.style.transform = 'translateY(-4px)'
-                        e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,.12)'
+                        e.currentTarget.style.transform = 'translateY(-3px)'
+                        e.currentTarget.style.boxShadow = 'var(--dash-shadow-hover)'
                     }}
                     onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'transparent'
+                        e.currentTarget.style.borderColor = 'var(--border-color)'
                         e.currentTarget.style.transform = 'translateY(0)'
-                        e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
+                        e.currentTarget.style.boxShadow = 'var(--dash-shadow)'
                     }}
                 >
                     <div style={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        marginBottom: '0.75rem'
+                        marginBottom: '0.9rem'
                     }}>
                         <div style={{
-                            fontSize: '0.75rem',
-                            fontWeight: '500',
+                            fontSize: '0.7rem',
+                            fontWeight: '700',
                             color: 'var(--text-secondary)',
                             textTransform: 'uppercase',
-                            letterSpacing: '0.5px'
+                            letterSpacing: '0.08em'
                         }}>
                             {card.label}
                         </div>
@@ -404,9 +388,9 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
                                 </button>
                             )}
                             <div style={{
-                                width: '32px',
-                                height: '32px',
-                                borderRadius: '8px',
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '10px',
                                 background: card.bgColor,
                                 display: 'flex',
                                 alignItems: 'center',
@@ -419,10 +403,11 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
                         </div>
                     </div>
                     <div style={{
-                        fontSize: '2rem',
-                        fontWeight: '700',
+                        fontSize: '1.9rem',
+                        fontWeight: '800',
                         color: card.color,
-                        lineHeight: 1
+                        lineHeight: 1,
+                        letterSpacing: '-0.02em'
                     }}>
                         {card.value}{card.suffix || ''}
                     </div>
