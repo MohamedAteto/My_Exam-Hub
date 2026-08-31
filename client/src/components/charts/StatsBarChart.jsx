@@ -1,6 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 
-export default function StatsBarChart({ data, title }) {
+export default function StatsBarChart({ data, title, className = '' }) {
     // Gradient definitions mapping
     const GRADIENTS = [
         { id: 'gradRed', start: '#f87171', end: '#dc2626' },
@@ -12,30 +12,18 @@ export default function StatsBarChart({ data, title }) {
     const hasData = data && data.length > 0
 
     return (
-        <div style={{
-            background: 'var(--bg-main)',
-            borderRadius: '16px',
-            padding: '1.5rem',
-            boxShadow: 'var(--shadow-sm)',
-            height: '100%',
-            minHeight: '400px',
-            display: 'flex',
-            flexDirection: 'column'
-        }}>
-            <h3 style={{
-                fontSize: '1.1rem',
-                fontWeight: '700',
-                color: 'var(--text-primary)',
-                marginBottom: '1rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-            }}>
-                <svg style={{ width: '22px', height: '22px', fill: 'url(#gradBlue)' }} viewBox="0 0 24 24">
-                    <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" />
-                </svg>
-                {title}
-            </h3>
+        <div className={`dash-card chart-card ${className}`.trim()}>
+            <div className="dash-card-header" style={{ marginBottom: '1.25rem' }}>
+                <div className="dash-icon-chip" style={{ background: 'var(--success-light)', color: 'var(--success)' }}>
+                    <svg style={{ width: '20px', height: '20px', fill: 'currentColor' }} viewBox="0 0 24 24">
+                        <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 className="dash-card-title">{title}</h3>
+                    <p className="dash-card-subtitle">Students grouped by score range</p>
+                </div>
+            </div>
 
             {hasData ? (
                 <div style={{ flex: 1, minHeight: 0 }}>

@@ -1,34 +1,24 @@
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts'
 
-export default function StatsLineChart({ data, title, userRole, selectedExamId = null }) {
+export default function StatsLineChart({ data, title, userRole, selectedExamId = null, className = '' }) {
     const hasData = data && data.length > 0
     const isSingleExam = selectedExamId && data && data.length === 1
 
     return (
-        <div style={{
-            background: 'var(--bg-main)',
-            borderRadius: '16px',
-            padding: '1.5rem',
-            boxShadow: 'var(--shadow-sm)',
-            height: '100%',
-            minHeight: '400px',
-            display: 'flex',
-            flexDirection: 'column'
-        }}>
-            <h3 style={{
-                fontSize: '1.1rem',
-                fontWeight: '700',
-                color: 'var(--text-primary)',
-                marginBottom: '1rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-            }}>
-                <svg style={{ width: '22px', height: '22px', fill: 'url(#gradientAreaStudent)' }} viewBox="0 0 24 24">
-                    <path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z" />
-                </svg>
-                {title}
-            </h3>
+        <div className={`dash-card chart-card ${className}`.trim()}>
+            <div className="dash-card-header" style={{ marginBottom: '1.25rem' }}>
+                <div className="dash-icon-chip" style={{ background: 'var(--info-light)', color: 'var(--info)' }}>
+                    <svg style={{ width: '20px', height: '20px', fill: 'currentColor' }} viewBox="0 0 24 24">
+                        <path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 className="dash-card-title">{title}</h3>
+                    <p className="dash-card-subtitle">
+                        {userRole === 'student' ? 'Your scores vs the class average' : 'Average scores across recent exams'}
+                    </p>
+                </div>
+            </div>
 
             {hasData ? (
                 <div style={{ flex: 1, minHeight: 0 }}>

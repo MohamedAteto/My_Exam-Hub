@@ -106,40 +106,42 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
   }
 
   return (
-    <div style={{
-      background: 'var(--bg-main)',
-      borderRadius: '16px',
-      padding: '1.5rem',
-      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
-      marginBottom: '1.5rem',
-      border: '1px solid #f1f3f5'
-    }}>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.75rem',
-        marginBottom: '1.5rem'
-      }}>
-        <svg style={{ width: '24px', height: '24px', fill: 'var(--primary)' }} viewBox="0 0 24 24">
-          <path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z" />
-        </svg>
-        <h3 style={{
-          fontSize: '1.25rem',
-          fontWeight: '600',
-          color: 'var(--text-primary)',
-          margin: 0
-        }}>
-          Filters
-        </h3>
+    <div className="dash-card" style={{ padding: '1.375rem 1.5rem', marginBottom: '1.5rem' }}>
+      <div
+        className="dash-card-header"
+        style={{
+          marginBottom: '1.35rem',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap', // title + button wrap naturally on small screens
+          rowGap: '0.75rem'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+          <div
+            className="dash-icon-chip"
+            style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}
+          >
+            <svg style={{ width: '19px', height: '19px', fill: 'currentColor' }} viewBox="0 0 24 24">
+              <path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="dash-card-title">Filters</h3>
+            <p className="dash-card-subtitle">Refine the dashboard data</p>
+          </div>
+        </div>
+
+        {/* Clear Filters — header row, aligned right (same handler/behavior as before) */}
+        <button type="button" className="filters-clear-btn" onClick={handleClearFilters}>
+          Clear Filters
+        </button>
       </div>
 
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(3, 1fr)', // Enforce a 3-column layout
-        gap: '1rem',
-        marginBottom: '1rem',
-        alignItems: 'center' // Align items to the center of their grid area
-      }}>
+      <div
+        className="filters-grid"
+        style={{ marginBottom: '1rem', alignItems: 'end' }} // was a fixed 3-column layout — now responsive
+      >
         {/* Grade Filter */}
         <div>
           <ModernSelect
@@ -249,69 +251,27 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
             />
           </div>
         )}
-
-        {/* Clear Filters Button */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            alignItems: 'center',
-            gridColumn: hasExamFilter ? 'span 1' : '1 / -1'
-          }}
-        >
-          <button
-            onClick={handleClearFilters}
-            style={{
-              padding: '0.625rem 1.5rem',
-              borderRadius: '8px',
-              border: '1px solid var(--border-color)',
-              background: 'transparent',
-              color: 'var(--text-secondary)',
-              fontSize: '0.875rem',
-              fontWeight: '500',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              height: '48px' // Fixed height
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background = 'var(--bg-surface-hover)'
-              e.target.style.borderColor = 'var(--text-secondary)'
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = 'transparent'
-              e.target.style.borderColor = 'var(--border-color)'
-            }}
-          >
-            Clear Filters
-          </button>
-        </div>
       </div>
 
       {/* Active Filters Summary */}
       {activeFilters.length > 0 && (
-        <div style={{
-          marginTop: '1rem',
-          padding: '0.75rem 1rem',
-          borderRadius: '8px',
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border-color)'
-        }}>
-          <div style={{
-            fontSize: '0.75rem',
-            fontWeight: '500',
-            color: 'var(--text-secondary)',
-            marginBottom: '0.25rem',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px'
-          }}>
+        <div className="filters-active">
+          <div
+            style={{
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              color: 'var(--text-secondary)',
+              marginBottom: '0.5rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em'
+            }}
+          >
             Active Filters
           </div>
-          <div style={{
-            fontSize: '0.875rem',
-            color: 'var(--text-primary)',
-            fontWeight: '500'
-          }}>
-            {activeFilters.join(' • ')}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+            {activeFilters.map((filter, i) => (
+              <span key={`${filter}-${i}`} className="dash-chip">{filter}</span>
+            ))}
           </div>
         </div>
       )}
