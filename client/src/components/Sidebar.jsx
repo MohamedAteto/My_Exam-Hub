@@ -19,10 +19,14 @@ import {
   X,
   PlusSquare,
   ListTodo,
-  Database
+  Database,
+  ChevronsLeft,
+  ChevronsRight
 } from "lucide-react";
 import { isStudent, isTeacher, isSuperAdmin } from "../utils/roleUtils";
 import "./Sidebar.css";
+
+const COLLAPSE_KEY = "sidebar_collapsed";
 
 const Sidebar = ({
   currentSection,
@@ -34,6 +38,18 @@ const Sidebar = ({
 }) => {
   const [isOpen, setIsOpen] = useState(window.innerWidth > 768);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    try { return localStorage.getItem(COLLAPSE_KEY) === "1"; } catch { return false; }
+  });
+
+  // Presentation only: expand/collapse the desktop sidebar
+  const toggleCollapsed = () => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      try { localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   // Close sidebar when clicking on a nav item on mobile
   const handleNavClick = (section) => {
@@ -62,6 +78,7 @@ const Sidebar = ({
   const isStudent = role === 'student';
   const isTeacher = role === 'teacher';
   const isAdmin = role === 'admin' || role === 'superadmin' || role === 'board';
+  const collapsed = windowWidth > 768 && isCollapsed;
 
   return (
     <>
@@ -80,7 +97,7 @@ const Sidebar = ({
         {isOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
 
-      <div className={`sidebar ${isOpen ? 'sidebar-open' : ''}`}>
+      <div className={`sidebar ${isOpen ? 'sidebar-open' : ''} ${collapsed ? 'sidebar-collapsed' : ''}`}>
         <div className="sidebar-header">
           <div className="logo-section">
             <div className="logo-icon-wrapper">
@@ -95,13 +112,26 @@ const Sidebar = ({
               <span className="brand-tagline">Academic Excellence</span>
             </div>
           </div>
+
+          {/* Collapse toggle — top header row, beside the logo/brand (desktop only) */}
+          <button
+            type="button"
+            className="sidebar-collapse-btn"
+            onClick={toggleCollapsed}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? <ChevronsRight size={18} /> : <ChevronsLeft size={18} />}
+          </button>
         </div>
 
         <nav className="sidebar-nav">
+          <div className="nav-section-label">Menu</div>
           {/* Dashboard - Always 'main' for Teacher/Admin, 'dashboard' for Student */}
           <div
             className={`nav-item ${(currentSection === 'main' || currentSection === 'dashboard') ? 'active' : ''}`}
             onClick={() => handleNavClick(isStudent ? 'dashboard' : 'main')}
+            data-label="Dashboard"
           >
             <div className="nav-item-content">
               <BarChart3 size={20} />
@@ -115,6 +145,7 @@ const Sidebar = ({
               <div
                 className={`nav-item ${currentSection === 'available' ? 'active' : ''}`}
                 onClick={() => handleNavClick('available')}
+                data-label="Available Exams"
               >
                 <div className="nav-item-content">
                   <ScrollText size={20} />
@@ -127,6 +158,7 @@ const Sidebar = ({
               <div
                 className={`nav-item ${currentSection === 'completed' ? 'active' : ''}`}
                 onClick={() => handleNavClick('completed')}
+                data-label="Completed Exams"
               >
                 <div className="nav-item-content">
                   <CalendarCheck size={20} />
@@ -139,9 +171,11 @@ const Sidebar = ({
           {/* Teacher Specific */}
           {isTeacher && (
             <>
+              <div className="nav-section-label">Teaching</div>
               <div
                 className={`nav-item ${currentSection === 'my-quizzes' ? 'active' : ''}`}
                 onClick={() => handleNavClick('my-quizzes')}
+                data-label="Manage Exams"
               >
                 <div className="nav-item-content">
                   <ListTodo size={20} />
@@ -151,6 +185,7 @@ const Sidebar = ({
               <div
                 className={`nav-item ${currentSection === 'question-banks' ? 'active' : ''}`}
                 onClick={() => handleNavClick('question-banks')}
+                data-label="Question Banks"
               >
                 <div className="nav-item-content">
                   <Database size={20} />
@@ -160,6 +195,7 @@ const Sidebar = ({
               <div
                 className={`nav-item ${currentSection === 'students' ? 'active' : ''}`}
                 onClick={() => handleNavClick('students')}
+                data-label="Students"
               >
                 <div className="nav-item-content">
                   <Users size={20} />
@@ -172,9 +208,11 @@ const Sidebar = ({
           {/* Admin Specific */}
           {isAdmin && (
             <>
+              <div className="nav-section-label">Administration</div>
               <div
                 className={`nav-item ${currentSection === 'my-quizzes' ? 'active' : ''}`}
                 onClick={() => handleNavClick('my-quizzes')}
+                data-label="All Exams"
               >
                 <div className="nav-item-content">
                   <ListTodo size={20} />
@@ -184,6 +222,7 @@ const Sidebar = ({
               <div
                 className={`nav-item ${currentSection === 'teachers' ? 'active' : ''}`}
                 onClick={() => handleNavClick('teachers')}
+                data-label="Teachers"
               >
                 <div className="nav-item-content">
                   <Shield size={20} />
@@ -193,6 +232,7 @@ const Sidebar = ({
               <div
                 className={`nav-item ${currentSection === 'students' ? 'active' : ''}`}
                 onClick={() => handleNavClick('students')}
+                data-label="Students"
               >
                 <div className="nav-item-content">
                   <Users size={20} />

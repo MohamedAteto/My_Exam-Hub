@@ -16,6 +16,7 @@ import MultiSelectDropdown from '../components/MultiSelectDropdown'
 import ModernSelect from '../components/ModernSelect'
 import ModernDatePicker from '../components/ModernDatePicker'
 import StudentsDataGrid from '../components/Teacher/StudentsDataGrid'
+import TeacherWelcomeCard from '../components/TeacherWelcomeCard'
 
 export default function TeacherPage() {
   const navigate = useNavigate()
@@ -933,7 +934,7 @@ export default function TeacherPage() {
       )
     }
     return questionBanks.map((bank) => (
-      <div key={bank.id} className="question-bank-item" style={{ background: 'linear-gradient(180deg,#ffffff 0%,#f9fafb 100%)', border: '1px solid #e5e7eb', borderRadius: '16px', padding: '1.25rem 1.5rem', marginBottom: '1rem', boxShadow: '0 10px 26px rgba(0,0,0,.06)' }}>
+      <div key={bank.id} className="question-bank-item dash-card" style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '1.25rem 1.5rem', marginBottom: '1rem', boxShadow: 'var(--dash-shadow)' }}>
         <div className="bank-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
           <div style={{ flex: 1 }}>
             <h3 className="bank-title" style={{ fontSize: '1.25rem', fontWeight: 600, color: '#1f2937', margin: '0 0 0.5rem 0' }}>{bank.title}</h3>
@@ -1449,7 +1450,7 @@ export default function TeacherPage() {
                   if (filters.endDate && new Date(quiz.endDate) > new Date(filters.endDate)) return false
                   return true
                 }).map((quiz, index) => (
-                  <div key={quiz.id} className={`quiz-item animate-card stagger-${(index % 5) + 1}`} style={{ background: 'var(--bg-main)', borderRadius: '16px', padding: '1.5rem', boxShadow: 'var(--shadow-md)', borderLeft: '4px solid var(--primary)', transition: 'transform 0.2s ease' }}>
+                  <div key={quiz.id} className={`quiz-item dash-card dash-card--hover animate-card stagger-${(index % 5) + 1}`} style={{ background: 'var(--bg-main)', borderRadius: '16px', padding: '1.5rem', boxShadow: 'var(--dash-shadow)', border: '1px solid var(--border-color)', borderLeft: '4px solid var(--primary)', transition: 'transform 0.2s ease, box-shadow 0.2s ease' }}>
                     <div className="quiz-info">
                       <h3 className="quiz-title" style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>{quiz.title}</h3>
                       <p className="quiz-meta" style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -2934,34 +2935,7 @@ export default function TeacherPage() {
           {/* Welcome Card */}
           {currentSection !== 'profile' && (
             <div style={{ padding: '1.5rem 2rem 0' }}>
-              <div style={{
-                background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
-                padding: '1.5rem 2rem',
-                borderRadius: '16px',
-                color: 'white',
-                boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: '1rem'
-              }}>
-                <div>
-                  <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Hello, {teacherName}!</h2>
-                  <p style={{ margin: '0.25rem 0 0', fontSize: '0.9rem', color: 'rgba(255,255,255,0.9)' }}>
-                    You are logged in as a <span style={{ color: '#ffffff', fontWeight: 700 }}>{userRole || 'Teacher'}</span>
-                  </p>
-                </div>
-                <div style={{
-                  background: 'rgba(255,255,255,0.1)',
-                  padding: '0.75rem',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  textAlign: 'right'
-                }}>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 600, opacity: 0.7 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long' })}</div>
-                  <div style={{ fontSize: '1rem', fontWeight: 700 }}>{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-                </div>
-              </div>
+              <TeacherWelcomeCard teacherName={teacherName} userRole={userRole || 'Teacher'} />
             </div>
           )}
           {/* Debug Indicator - Hidden in production but helps us confirm routing */}
