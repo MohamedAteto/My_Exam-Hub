@@ -1,14 +1,11 @@
 import axios from 'axios';
-import { storage } from "../utils/storage";
-
-// Prefer a Vite env var `VITE_API_BASE_URL`; in dev fallback to local backend.
-// In production this should be set to the deployed API (e.g. https://exam.sewedy.com.eg/api)
-const DEFAULT_PROD_BASE = 'https://exam.sewedy.com.eg/api';
-const BASE_URL = import.meta.env.VITE_API_BASE_URL
-  || (import.meta.env.DEV ? 'http://localhost:5051/api' : DEFAULT_PROD_BASE);
+import { storage, logoutFromCas } from "../utils/storage";
+// Use environment variable in production. Ensure .env.production sets REACT_APP_API_BASE_URL
+// Fallback to relative path /api if not set, or localhost if needed
+// const BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5077';
 
 const api = axios.create({
-  baseURL: BASE_URL,
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://exam.sewedy.com.eg/api',
   timeout: 15000,
 });
 
@@ -27,17 +24,23 @@ api.interceptors.request.use(
   }
 );
 
+let isRedirecting = false;
+
 // Response interceptor for handling errors globally
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     // Handle unauthorized access
     if (error.response?.status === 401) {
-      storage.removeItem('token');
-      storage.removeItem('user');
-      // Optional: Redirect to login if not already there
-      if (!window.location.pathname.includes('/login')) {
-        window.location.href = '/login';
+      const currentToken = storage.getItem('token');
+      logoutFromCas(currentToken);
+      storage.clear();
+
+      if (!isRedirecting && !window.location.pathname.includes('/sso-callback')) {
+        isRedirecting = true;
+        const casUrl = import.meta.env.VITE_CAS_URL || 'https://centerlizedlogin.sewedy.com.eg';
+        const callbackUrl = encodeURIComponent(`${window.location.origin}/sso-callback`);
+        window.location.href = `${casUrl}/login?prompt=login&redirect=${callbackUrl}&businessEntityId=9`;
       }
     }
 

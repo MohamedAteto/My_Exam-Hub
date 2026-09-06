@@ -2,7 +2,6 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import './index.css'
-import './styles/dashboard.css'
 import App from './App.jsx'
 
 import LoginPage from './pages/LoginPage.jsx'
@@ -11,10 +10,14 @@ import TeacherPage from './pages/TeacherPage.jsx'
 import SuperAdminPage from './pages/SuperAdminPage.jsx'
 import StudentDetailsPage from './pages/StudentDetailsPage.jsx'
 import GreetingPage from './pages/GreetingPage.jsx'
+import SsoCallbackPage from './pages/SsoCallbackPage.jsx'
+import ExamSignedOutPage from './pages/ExamSignedOutPage.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 
 const router = createBrowserRouter([
   { path: '/', element: <LoginPage /> },
+  { path: '/sso-callback', element: <SsoCallbackPage /> },
+  { path: '/signed-out', element: <ExamSignedOutPage /> },
   { path: '/greeting', element: <GreetingPage /> },
   {
     path: '/student',

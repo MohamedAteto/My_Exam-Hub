@@ -191,8 +191,8 @@ export default function ModernSelect({
                             <p style={{ margin: 0, fontSize: '0.875rem' }}>{searchTerm ? 'No results found' : 'No options available'}</p>
                         </div>
                     ) : (
-                        filteredOptions.map((option) => {
-                            const optValue = option.value || option.id
+                        filteredOptions.map((option, index) => {
+                            const optValue = option.value ?? option.id ?? index
                             const isSelected = String(optValue) === String(value)
                             return (
                                 <div

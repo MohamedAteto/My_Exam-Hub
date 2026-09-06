@@ -4,9 +4,12 @@ import { storage } from '../utils/storage'
 export default function ProtectedRoute({ children, allowedRoles }) {
     const token = storage.getItem('token')
 
-    // If no token, redirect to login
+    // If no token, redirect directly to CAS Single Sign-On
     if (!token) {
-        return <Navigate to="/" replace />
+        const casUrl = import.meta.env.VITE_CAS_URL || 'https://centerlizedlogin.sewedy.com.eg'
+        const callbackUrl = encodeURIComponent(`${window.location.origin}/sso-callback`)
+        window.location.href = `${casUrl}/login?redirect=${callbackUrl}&businessEntityId=9`
+        return null
     }
 
     // Parse user role from token
@@ -21,8 +24,9 @@ export default function ProtectedRoute({ children, allowedRoles }) {
             userRoles = payload.roles.map(r => String(r).toLowerCase())
         }
         // Check for single role
-        else if (payload.role) {
-            userRoles = [String(payload.role).toLowerCase()]
+        else if (payload.role || payload.Role) {
+            const r = payload.role || payload.Role
+            userRoles = [String(r).toLowerCase()]
         }
         // Check for role in http schema format
         else if (payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role']) {
@@ -68,7 +72,16 @@ export default function ProtectedRoute({ children, allowedRoles }) {
         return children
     } catch (error) {
         console.error('Error parsing token:', error)
-        // Invalid token, redirect to login
+        // Token not a valid JWT — fall back to stored role
+        const storedRole = (storage.getItem('userRole') || '').toLowerCase()
+        if (!storedRole) return <Navigate to="/" replace />
+
+        const hasAccess = allowedRoles.some(role => role.toLowerCase() === storedRole)
+        if (hasAccess) return children
+
+        if (storedRole === 'admin' || storedRole === 'board' || storedRole === 'superadmin') return <Navigate to="/superadmin" replace />
+        if (storedRole === 'teacher') return <Navigate to="/teacher" replace />
+        if (storedRole === 'student') return <Navigate to="/student" replace />
         return <Navigate to="/" replace />
     }
 }

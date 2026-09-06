@@ -2,37 +2,10 @@ import StatsPieChart from './charts/StatsPieChart'
 import StatsLineChart from './charts/StatsLineChart'
 import StatsBarChart from './charts/StatsBarChart'
 
-function ChartSkeleton({ height }) {
-    return (
-        <div className="dash-card chart-card" style={{ minHeight: height }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', marginBottom: '1.5rem' }}>
-                <div className="dash-skeleton" style={{ width: 38, height: 38, borderRadius: 11 }} />
-                <div style={{ flex: 1 }}>
-                    <div className="dash-skeleton" style={{ height: 14, width: '45%', marginBottom: 8 }} />
-                    <div className="dash-skeleton" style={{ height: 10, width: '70%' }} />
-                </div>
-            </div>
-            <div className="dash-skeleton" style={{ flex: 1, minHeight: height - 140, borderRadius: 12 }} />
-        </div>
-    )
-}
-
-export default function DashboardCharts({ dashboardData, userRole, selectedExamId = null, loading = false }) {
+export default function DashboardCharts({ dashboardData, userRole, selectedExamId = null, filters = {} }) {
     const roleNorm = String(userRole || '').toLowerCase()
 
-    // Initial load: skeleton chart cards (visual only — no API change)
-    if (loading && !dashboardData) {
-        return (
-            <div className="charts-grid">
-                <ChartSkeleton height={420} />
-                <ChartSkeleton height={420} />
-                <ChartSkeleton height={360} />
-            </div>
-        )
-    }
-
     if (!dashboardData) return null
-
 
     // Use data directly from dashboardData (backend now handles filtering by examId)
     // Handle case-insensitive property access for PascalCase backend DTOs
@@ -49,26 +22,38 @@ export default function DashboardCharts({ dashboardData, userRole, selectedExamI
     // Build normalized score distribution (case-insensitive)
     const dist = (dashboardData.scoreDistribution || [])
         .map(d => ({ Name: d.Name || d.name || '', Value: d.Value !== undefined ? d.Value : d.value }))
-    // Pass/fail are complementary in the backend (fail = 100 - pass). Use them directly;
-    // only derive from the score distribution when BOTH are absent.
+
+    // Ensure pass + fail always equals 100% (mutually exclusive or complementary)
+    const totalPassFail = passPercentage + failPercentage
     let displayPass = passPercentage
     let displayFail = failPercentage
-    // If both pass and fail are missing, derive them from the score distribution.
-    if (passPercentage === 0 && failPercentage === 0) {
-        // Fallback: derive pass/fail from the score distribution. Pass threshold is
-        // 50%, so "50-70%", "70-85%", "85-100%" are pass; "0-50%" is fail.
+    
+    // If pass and fail are both 0 but we have score distribution data, derive from it
+    if ((passPercentage === 0 && failPercentage === 0) || totalPassFail === 0) {
+        // Backend sends: "0-50%", "50-70%", "70-85%", "85-100%"
+        // "Pass" is typically 85-100% bucket
+        const passBucket = dist.find(d => d.Name.includes('85') || d.Name.includes('100'))
         const totalVal = dist.reduce((sum, d) => sum + (d.Value || 0), 0)
-        if (totalVal > 0) {
-            const passVal = dist
-                .filter(d => d.Name.includes('50-70') || d.Name.includes('70-85') || d.Name.includes('85-100'))
-                .reduce((sum, d) => sum + (d.Value || 0), 0)
-            displayPass = Math.round((passVal / totalVal) * 100)
+        
+        if (passBucket && totalVal > 0) {
+            displayPass = Math.round((passBucket.Value / totalVal) * 100)
             displayFail = 100 - displayPass
+        } else if (totalVal > 0) {
+            // If no explicit pass bucket, sum all non-fail buckets or derive from total
+            const failBucket = dist.find(d => d.Name.includes('0-50') || d.Name.includes('50-70') || d.Name.includes('70-85'))
+            if (failBucket) {
+                displayFail = Math.round((failBucket.Value / totalVal) * 100)
+                displayPass = 100 - displayFail
+            }
         }
-    } else {
-        // Backend pass% + fail% are complementary; just guard the relationship.
-        if (failPercentage === 0) displayFail = 100 - displayPass
-        if (passPercentage === 0) displayPass = 100 - displayFail
+    } else if (totalPassFail > 0 && totalPassFail !== 100) {
+        // Scale to 100%
+        displayPass = Math.round((passPercentage / totalPassFail) * 100)
+        displayFail = 100 - displayPass
+    } else if (passPercentage > 0 && failPercentage === 0) {
+        displayFail = 100 - displayPass
+    } else if (failPercentage > 0 && passPercentage === 0) {
+        displayPass = 100 - displayFail
     }
 
     let lineChartData = []
@@ -97,31 +82,45 @@ export default function DashboardCharts({ dashboardData, userRole, selectedExamI
         Name: item.Name,
         Value: item.Value
     }))
-    // pass/fail and chart data are derived above from dashboardData (subject-filtered)
 
-    // Layout: trend (wide) + donut | distribution (full width) — stacks on ≤1024px
+    console.log('[DashboardCharts] Dashboard data:', dashboardData)
+    console.log('[DashboardCharts] Selected exam ID:', selectedExamId)
+    console.log('[DashboardCharts] Filters:', filters)
+    console.log('[DashboardCharts] passPercentage:', passPercentage, 'failPercentage:', failPercentage)
+    console.log('[DashboardCharts] Line chart data:', lineChartData)
+    console.log('[DashboardCharts] Bar chart data:', barChartData)
+    console.log('[DashboardCharts] displayPass:', displayPass, 'displayFail:', displayFail)
+
     return (
-        <div className="charts-grid">
-            <StatsLineChart
-                className="chart-card-line"
-                data={lineChartData}
-                title={roleNorm === 'student' ? "My Performance Trend" : "Class Performance (Average Score)"}
-                userRole={roleNorm}
-                selectedExamId={selectedExamId}
-            />
+        <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+            gap: '1.5rem',
+            marginTop: '2rem'
+        }}>
+            <div className="animate-card stagger-1">
+                <StatsPieChart
+                    passPercentage={displayPass}
+                    failPercentage={displayFail}
+                    title="Pass vs Fail Overview"
+                />
+            </div>
 
-            <StatsPieChart
-                className="chart-card-pie"
-                passPercentage={displayPass}
-                failPercentage={displayFail}
-                title="Pass vs Fail Overview"
-            />
+            <div className="animate-card stagger-2">
+                <StatsLineChart
+                    data={lineChartData}
+                    title={roleNorm === 'student' ? "My Performance Trend" : "Class Performance (Average Score)"}
+                    userRole={roleNorm}
+                    selectedExamId={selectedExamId}
+                />
+            </div>
 
-            <StatsBarChart
-                className="chart-card-bar"
-                data={barChartData}
-                title="Score Distribution"
-            />
+            <div className="animate-card stagger-3">
+                <StatsBarChart
+                    data={barChartData}
+                    title="Score Distribution"
+                />
+            </div>
         </div>
     )
 }

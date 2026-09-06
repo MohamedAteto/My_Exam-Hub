@@ -60,7 +60,7 @@ export default function SuperAdminPage() {
 
     try {
       const payload = JSON.parse(atob(token.split('.')[1]))
-      const userId = payload.sub || payload.id
+      const userId = payload.AccountId || payload.accountId || payload.sub || payload.id
       if (userId) {
         api.get(`/auth/profile/${userId}`).then(res => {
           if (res.data && (res.data.fullNameEn || res.data.fullNameAr)) {
@@ -157,7 +157,10 @@ export default function SuperAdminPage() {
     showModal('Confirm Logout', 'Are you sure you want to logout?').then((confirmed) => {
       if (confirmed) {
         storage.clear()
-        navigate('/')
+        // Show CAS login again but keep the shared SSO session for Capstone.
+        const casUrl = import.meta.env.VITE_CAS_URL || 'https://centerlizedlogin.sewedy.com.eg'
+        const callbackUrl = encodeURIComponent(`${window.location.origin}/sso-callback`)
+        window.location.href = `${casUrl}/login?prompt=login&logout=true&redirect=${callbackUrl}&businessEntityId=9`
       }
     })
   }

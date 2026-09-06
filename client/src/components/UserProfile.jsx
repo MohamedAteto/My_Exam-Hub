@@ -41,12 +41,12 @@ export default function UserProfile({ userRole, onBack }) {
       const payload = JSON.parse(atob(base64))
       console.log('Decoded Token Payload:', payload)
 
-      const userId = payload.sub || payload.id || payload.nameid || payload.uid || storage.getItem('userId')
+      const userId = payload.AccountId || payload.accountId || payload.sub || payload.id || payload.nameid || payload.uid || storage.getItem('userId')
 
       return {
         id: userId,
-        email: payload.email || payload.name || storage.getItem('userEmail'),
-        roles: payload.roles || payload.role || (storage.getItem('userRole') ? [storage.getItem('userRole')] : [])
+        email: payload.Email || payload.email || payload.name || storage.getItem('userEmail'),
+        roles: payload.Role ? [payload.Role] : (payload.roles || payload.role || (storage.getItem('userRole') ? [storage.getItem('userRole')] : []))
       }
     } catch (error) {
       console.error('Error parsing token:', error)

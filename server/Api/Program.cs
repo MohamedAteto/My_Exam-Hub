@@ -30,7 +30,7 @@ namespace QuizesApi
             // Database context
             // Database context
             builder.Services.AddDbContext<ElsewedySchoolSysDbDevContext>(options =>
-                options.UseSqlServer(builder.Configuration.GetConnectionString("MySqlConnection")));
+                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
                 
             // Add Memory Cache for performance
             builder.Services.AddMemoryCache();
@@ -53,9 +53,30 @@ namespace QuizesApi
                     ValidateAudience = true,
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
-                    ValidIssuer = builder.Configuration["Jwt:Issuer"],
-                    ValidAudience = builder.Configuration["Jwt:Audience"],
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+                    ValidIssuers = new[] { builder.Configuration["Jwt:Issuer"] ?? "CAS.Api", "CAS.Api", "QuizesApi" },
+                    ValidAudiences = new[] { builder.Configuration["Jwt:Audience"] ?? "CAS.Clients", "CAS.Clients", "QuizesApiUsers" },
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "tbV/kbyLRqqoDCKJVwksaKqE07GNPkOcFTX7LN96nkY=")),
+                    RoleClaimType = System.Security.Claims.ClaimTypes.Role,
+                    NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier
+                };
+                options.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = context =>
+                    {
+                        if (context.Principal?.Identity is System.Security.Claims.ClaimsIdentity identity)
+                        {
+                            // Map "Role"/"role" → ClaimTypes.Role (enables [Authorize(Roles=...)])
+                            var roleClaim = identity.FindFirst("Role") ?? identity.FindFirst("role");
+                            if (roleClaim != null && !identity.HasClaim(c => c.Type == System.Security.Claims.ClaimTypes.Role))
+                                identity.AddClaim(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, roleClaim.Value));
+
+                            // Map "AccountId"/"accountId" → ClaimTypes.NameIdentifier (fixes /student/undefined)
+                            var accountIdClaim = identity.FindFirst("AccountId") ?? identity.FindFirst("accountId") ?? identity.FindFirst("sub") ?? identity.FindFirst("nameid");
+                            if (accountIdClaim != null && !identity.HasClaim(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier))
+                                identity.AddClaim(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, accountIdClaim.Value));
+                        }
+                        return Task.CompletedTask;
+                    }
                 };
             });
 
@@ -106,8 +127,16 @@ namespace QuizesApi
             // Seed roles and test accounts
             using (var scope = app.Services.CreateScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<ElsewedySchoolSysDbDevContext>();
-                Models.ElsewedySchoolContextSeed.SeedAsync(db).GetAwaiter().GetResult();
+                try
+                {
+                    var db = scope.ServiceProvider.GetRequiredService<ElsewedySchoolSysDbDevContext>();
+                    Models.ElsewedySchoolContextSeed.SeedAsync(db).GetAwaiter().GetResult();
+                }
+                catch (Exception ex)
+                {
+                    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+                    logger.LogWarning("DB seeding skipped: {Message}", ex.Message);
+                }
             }
 
             app.Run();

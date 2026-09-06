@@ -1,6 +1,6 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts'
 
-export default function StatsPieChart({ passPercentage, failPercentage, title, className = '' }) {
+export default function StatsPieChart({ passPercentage, failPercentage, title }) {
     // Normalize pass/fail so the donut always has both colors and sums to ~100
     const rawPass = Math.max(0, Math.min(100, passPercentage || 0))
     let rawFail = typeof failPercentage === 'number' ? failPercentage : (100 - rawPass)
@@ -21,18 +21,30 @@ export default function StatsPieChart({ passPercentage, failPercentage, title, c
     ]
 
     return (
-        <div className={`dash-card chart-card ${className}`.trim()}>
-            <div className="dash-card-header" style={{ marginBottom: '1.25rem' }}>
-                <div className="dash-icon-chip" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}>
-                    <svg style={{ width: '20px', height: '20px', fill: 'currentColor' }} viewBox="0 0 24 24">
-                        <path d="M11 2v20c-5.07-.5-9-4.79-9-10s3.93-9.5 9-10zm2.03 0v8.99H22c-.47-4.74-4.24-8.52-8.97-8.99zm0 11.01V22c4.74-.47 8.5-4.25 8.97-8.99h-8.97z" />
-                    </svg>
-                </div>
-                <div>
-                    <h3 className="dash-card-title">{title}</h3>
-                    <p className="dash-card-subtitle">Overall pass and fail distribution</p>
-                </div>
-            </div>
+        <div style={{
+            background: 'var(--bg-main)',
+            borderRadius: '16px',
+            padding: '1.5rem',
+            boxShadow: 'var(--shadow-sm)',
+            height: '100%',
+            minHeight: '400px', // Increased height
+            display: 'flex',
+            flexDirection: 'column'
+        }}>
+            <h3 style={{
+                fontSize: '1.1rem',
+                fontWeight: '700',
+                color: 'var(--text-primary)',
+                marginBottom: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+            }}>
+                <svg style={{ width: '22px', height: '22px', fill: 'url(#gradientPass)' }} viewBox="0 0 24 24">
+                    <path d="M11 2v20c-5.07-.5-9-4.79-9-10s3.93-9.5 9-10zm2.03 0v8.99H22c-.47-4.74-4.24-8.52-8.97-8.99zm0 11.01V22c4.74-.47 8.5-4.25 8.97-8.99h-8.97z" />
+                </svg>
+                {title}
+            </h3>
 
             {hasData ? (
                 <div style={{ flex: 1, position: 'relative' }}>
@@ -63,10 +75,10 @@ export default function StatsPieChart({ passPercentage, failPercentage, title, c
                             </Pie>
                             <Tooltip
                                 contentStyle={{
-                                    background: 'var(--bg-main)',
-                                    border: '1px solid var(--border-color)',
+                                    background: 'rgba(255, 255, 255, 0.95)',
+                                    border: 'none',
                                     borderRadius: '12px',
-                                    boxShadow: '0 8px 24px -8px rgba(16, 24, 40, 0.18)',
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                                     fontSize: '0.9rem',
                                     fontWeight: '600',
                                     padding: '12px'
@@ -77,7 +89,7 @@ export default function StatsPieChart({ passPercentage, failPercentage, title, c
                                 verticalAlign="bottom"
                                 height={36}
                                 iconType="circle"
-                                wrapperStyle={{ fontSize: '0.9rem', fontWeight: 500 }}
+                                wrapperStyle={{ fontSize: '0.9rem', fontWeight: '500' }}
                             />
                         </PieChart>
                     </ResponsiveContainer>

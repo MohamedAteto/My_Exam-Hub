@@ -43,7 +43,7 @@ export default function FileUpload({ onQuestionsExtracted, onClose, bankKey }) {
       if (token) {
         try {
           const payload = JSON.parse(atob(token.split('.')[1]))
-          accountId = Number(payload.sub) || 0
+          accountId = Number(payload.AccountId || payload.accountId || payload.sub) || 0
         } catch (e) {
           console.error('Error parsing token', e)
         }

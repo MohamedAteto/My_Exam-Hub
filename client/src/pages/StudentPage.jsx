@@ -124,7 +124,7 @@ export default function StudentPage() {
         if (token) {
           try {
             const payload = JSON.parse(atob(token.split('.')[1]))
-            userId = payload.sub || payload.id
+            userId = payload.AccountId || payload.accountId || payload.sub || payload.id || payload.nameid || payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier']
           } catch (e) {
             console.error('Error parsing token:', e)
           }
@@ -282,8 +282,10 @@ export default function StudentPage() {
         setCurrentExam(null)
         setIsExamActive(false)
         setTimeRemaining(0)
-        // Redirect to login
-        navigate('/')
+        // Show CAS login again but keep the shared SSO session for Capstone.
+        const casUrl = import.meta.env.VITE_CAS_URL || 'https://centerlizedlogin.sewedy.com.eg'
+        const callbackUrl = encodeURIComponent(`${window.location.origin}/sso-callback`)
+        window.location.href = `${casUrl}/login?prompt=login&logout=true&redirect=${callbackUrl}&businessEntityId=9`
       }
     })
   }
@@ -954,7 +956,7 @@ export default function StudentPage() {
                     if (token) {
                       try {
                         const payload = JSON.parse(atob(token.split('.')[1]))
-                        return payload.sub || payload.id
+                        return payload.AccountId || payload.accountId || payload.sub || payload.id || payload.nameid || payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier']
                       } catch (e) {
                         console.error('Error parsing token:', e)
                       }

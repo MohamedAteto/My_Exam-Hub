@@ -89,7 +89,6 @@ public class DashboardController : ControllerBase
         [FromQuery] long? gradeId = null,
         [FromQuery] long? classId = null,
         [FromQuery] long? examId = null,
-        [FromQuery] long? subjectId = null,
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null)
     {
@@ -106,7 +105,6 @@ public class DashboardController : ControllerBase
                 GradeId = gradeId,
                 ClassId = classId,
                 ExamId = examId,
-                SubjectId = subjectId,
                 StartDate = startDate,
                 EndDate = endDate
             };
@@ -149,7 +147,6 @@ public class DashboardController : ControllerBase
         [FromQuery] long? gradeId = null,
         [FromQuery] long? classId = null,
         [FromQuery] long? examId = null,
-        [FromQuery] long? subjectId = null,
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null)
     {
@@ -166,11 +163,10 @@ public class DashboardController : ControllerBase
                 GradeId = gradeId,
                 ClassId = classId,
                 ExamId = examId,
-                SubjectId = subjectId,
                 StartDate = startDate,
                 EndDate = endDate
             };
-            Console.WriteLine($"[FILTER] Teacher: {id}, Grade={gradeId}, Class={classId}, Subject={subjectId}");
+            Console.WriteLine($"[FILTER] Teacher: {id}, Grade={gradeId}, Class={classId}");
             // Optional: Verify the requesting user is the teacher or an admin
             var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
                 ?? User.FindFirst("sub")?.Value 
@@ -208,7 +204,6 @@ public class DashboardController : ControllerBase
         [FromQuery] long? gradeId = null,
         [FromQuery] long? classId = null,
         [FromQuery] long? examId = null,
-        [FromQuery] long? subjectId = null,
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null)
     {
@@ -225,7 +220,6 @@ public class DashboardController : ControllerBase
                 GradeId = gradeId,
                 ClassId = classId,
                 ExamId = examId,
-                SubjectId = subjectId,
                 StartDate = startDate,
                 EndDate = endDate
             };
@@ -301,7 +295,6 @@ public class DashboardController : ControllerBase
         [FromQuery] long? gradeId = null,
         [FromQuery] long? classId = null,
         [FromQuery] long? examId = null,
-        [FromQuery] long? subjectId = null,
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null,
         [FromQuery] string groupBy = "Student")
@@ -313,7 +306,6 @@ public class DashboardController : ControllerBase
                 GradeId = gradeId,
                 ClassId = classId,
                 ExamId = examId,
-                SubjectId = subjectId,
                 StartDate = startDate,
                 EndDate = endDate,
                 GroupBy = groupBy

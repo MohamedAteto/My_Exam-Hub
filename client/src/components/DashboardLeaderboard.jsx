@@ -28,14 +28,30 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
     // Smarter loading: only show shimmer on INITIAL load, not grade transitions
     if (loading && (!displayLeaderboard || displayLeaderboard.length === 0)) {
         return (
-            <div className="dash-card" style={{ padding: '1.5rem' }}>
-                <div className="dash-skeleton" style={{ height: 24, width: 200, marginBottom: '1.5rem' }} />
+            <div style={{
+                background: 'var(--bg-main)',
+                borderRadius: '16px',
+                padding: '1.5rem',
+                boxShadow: 'var(--shadow-sm)'
+            }}>
+                <div style={{
+                    height: '1.5rem',
+                    width: '200px',
+                    background: 'linear-gradient(90deg, var(--bg-surface-hover) 25%, var(--bg-surface) 50%, var(--bg-surface-hover) 75%)',
+                    backgroundSize: '200% 100%',
+                    animation: 'shimmer 2.5s infinite linear',
+                    borderRadius: '4px',
+                    marginBottom: '1.5rem'
+                }}></div>
                 {[1, 2, 3, 4, 5].map(i => (
-                    <div
-                        key={i}
-                        className="dash-skeleton"
-                        style={{ height: 72, borderRadius: 14, marginBottom: '0.75rem' }}
-                    />
+                    <div key={i} style={{
+                        height: '60px',
+                        background: 'linear-gradient(90deg, var(--bg-surface-hover) 25%, var(--bg-surface) 50%, var(--bg-surface-hover) 75%)',
+                        backgroundSize: '200% 100%',
+                        animation: 'shimmer 2.5s infinite linear',
+                        borderRadius: '8px',
+                        marginBottom: '0.75rem'
+                    }}></div>
                 ))}
             </div>
         )
@@ -55,14 +71,15 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
     }
 
     return (
-        <div
-            className="dash-card"
-            style={{
-                padding: '1.5rem',
-                position: 'relative',
-                transition: 'box-shadow 0.3s ease, border-color 0.3s ease',
-                margin: showSlider ? '0 50px' : '0' // Add margin for arrows
-            }}>
+        <div style={{
+            background: 'var(--bg-main)',
+            borderRadius: '16px',
+            padding: '1.5rem',
+            boxShadow: 'var(--shadow-sm)',
+            position: 'relative',
+            transition: 'all 0.3s ease',
+            margin: showSlider ? '0 50px' : '0' // Add margin for arrows
+        }}>
             <style>
                 {`
                     @keyframes slideFromRight {
@@ -272,9 +289,8 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                                     style={{
                                         background: isTopThree ? medal.bg : 'var(--bg-surface)',
                                         border: `2px solid ${isCurrentUser ? 'var(--primary)' : medal.border}`,
-                                        borderRadius: '14px',
-                                        padding: '1.5rem',
-                                        minHeight: '88px',
+                                        borderRadius: '12px',
+                                        padding: '1rem',
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '1rem',
@@ -293,14 +309,14 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                                 >
                                     {/* Rank Badge */}
                                     <div style={{
-                                        width: '64px',
-                                        height: '64px',
-                                        borderRadius: '16px',
+                                        width: '48px',
+                                        height: '48px',
+                                        borderRadius: '10px',
                                         background: isTopThree ? 'rgba(255,255,255,0.3)' : 'var(--bg-main)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        fontSize: '1.4rem',
+                                        fontSize: '1.25rem',
                                         fontWeight: '700',
                                         color: isTopThree ? '#fff' : 'var(--text-primary)',
                                         flexShrink: 0
@@ -311,12 +327,13 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                                     {/* Student Info */}
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{
-                                            fontSize: '1.375rem',
+                                            fontSize: '1rem',
                                             fontWeight: '600',
                                             color: isTopThree ? '#fff' : 'var(--text-primary)',
                                             marginBottom: '0.25rem',
                                             overflow: 'hidden',
-                                            textOverflow: 'ellipsis'
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap'
                                         }}>
                                             {entry.studentName}
                                             {isCurrentUser && (
@@ -343,11 +360,10 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
                                     {/* Score */}
                                     <div style={{
                                         textAlign: 'right',
-                                        flexShrink: 0,
-                                        minWidth: '140px'
+                                        flexShrink: 0
                                     }}>
                                         <div style={{
-                                            fontSize: '2rem',
+                                            fontSize: '1.5rem',
                                             fontWeight: '700',
                                             color: isTopThree ? '#fff' : 'var(--primary)',
                                             lineHeight: 1

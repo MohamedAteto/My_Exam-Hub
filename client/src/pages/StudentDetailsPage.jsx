@@ -62,8 +62,10 @@ export default function StudentDetailsPage() {
         storage.clear()
         // Reset state
         setStudent(null)
-        // Redirect to login
-        navigate('/')
+        // Show CAS login again but keep the shared SSO session for Capstone.
+        const casUrl = import.meta.env.VITE_CAS_URL || 'https://centerlizedlogin.sewedy.com.eg'
+        const callbackUrl = encodeURIComponent(`${window.location.origin}/sso-callback`)
+        window.location.href = `${casUrl}/login?prompt=login&logout=true&redirect=${callbackUrl}&businessEntityId=9`
       }
     })
   }

@@ -1,4 +1,4 @@
-﻿public class RegisterModel
+public class RegisterModel
 {
     public string Email { get; set; }
     public string Password { get; set; }
@@ -11,6 +11,13 @@ public class LoginModel
 {
     public string Email { get; set; }
     public string Password { get; set; }
+    public string? BusinessEntity { get; set; }
+}
+
+public class SsoTokenModel
+{
+    public string Email { get; set; } = string.Empty;
+    public string? BusinessEntity { get; set; }
 }
 
 public class UpdateProfileModel

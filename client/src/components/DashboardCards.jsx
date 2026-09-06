@@ -94,7 +94,7 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
                 String(e.examId || e.ExamId) === String(selectedExamId)
             )
             if (exam) {
-                val = exam.passPercentage ?? exam.PassPercentage ?? 0
+                val = exam.passPercentage || exam.PassPercentage || exam.averageScore || 0
                 return val
             }
         }
@@ -116,13 +116,21 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
         return val
     }
 
-        // Calculate fail percentage - MUST be the complement of the pass percentage so the
-    // Pass % + Fail % cards always sum to 100% (matches the backend tooltip contract:
-    // "Displayed value = 100 − Pass%"). A previous branch returned exam.FailedStudents
-    // (a raw count) as a percentage when pass === 0; that was a bug — 100 − pass already
-    // yields the correct fail percentage in that case (e.g. 0% pass => 100% fail).
+    // Calculate fail percentage - MUST be 100 - passPercentage for consistency
     const calculateFailPercentage = () => {
         const pass = calculatePassPercentage()
+        if (pass > 0) return 100 - pass
+        if (pass === 0 && data) {
+            // If pass is 0, check if we have explicit fail data for selected exam
+            if (selectedExamId && data.examBreakdown) {
+                const exam = data.examBreakdown.find(e =>
+                    String(e.examId || e.ExamId) === String(selectedExamId)
+                )
+                if (exam && (exam.failPercentage !== undefined || exam.FailedStudents !== undefined)) {
+                    return exam.failPercentage || exam.FailedStudents || 100
+                }
+            }
+        }
         return 100 - pass
     }
 
@@ -239,29 +247,38 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
 
     const labels = getRoleSpecificLabels()
 
-    // Lookup calculation metadata returned by the backend.
-    // The backend builds this from the same constants/values used to compute the
-    // statistics, so the tooltip always reflects the real calculation.
-    const metaByKey = (data && Array.isArray(data.statisticMeta))
-        ? Object.fromEntries(data.statisticMeta.map(m => [m.key, m]))
-        : {}
-
     if (loading) {
         return (
             <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                gap: '1.1rem',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '1rem',
                 marginBottom: '2rem'
             }}>
                 {[1, 2, 3, 4].map(i => (
-                    <div key={i} className="dash-card" style={{ padding: '1.25rem 1.375rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.1rem' }}>
-                            <div className="dash-skeleton" style={{ height: 11, width: '55%' }} />
-                            <div className="dash-skeleton" style={{ width: 36, height: 36, borderRadius: 10 }} />
-                        </div>
-                        <div className="dash-skeleton" style={{ height: 34, width: '42%', marginBottom: 12 }} />
-                        <div className="dash-skeleton" style={{ height: 9, width: '30%' }} />
+                    <div key={i} style={{
+                        background: 'var(--bg-main)',
+                        borderRadius: '12px',
+                        padding: '1rem',
+                        boxShadow: 'var(--shadow-sm)'
+                    }}>
+                        <div style={{
+                            height: '1rem',
+                            width: '60%',
+                            background: 'linear-gradient(90deg, var(--bg-surface-hover) 25%, var(--bg-surface) 50%, var(--bg-surface-hover) 75%)',
+                            backgroundSize: '200% 100%',
+                            animation: 'shimmer 2.5s infinite linear',
+                            borderRadius: '4px',
+                            marginBottom: '1rem'
+                        }}></div>
+                        <div style={{
+                            height: '3rem',
+                            width: '40%',
+                            background: 'linear-gradient(90deg, var(--bg-surface-hover) 25%, var(--bg-surface) 50%, var(--bg-surface-hover) 75%)',
+                            backgroundSize: '200% 100%',
+                            animation: 'shimmer 2.5s infinite linear',
+                            borderRadius: '4px'
+                        }}></div>
                     </div>
                 ))}
             </div>
@@ -273,8 +290,6 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
 
     const cards = [
         {
-            key: 'totalExams',
-            meta: metaByKey['totalExams'],
             label: labels.total,
             value: totalExamsValue,
             icon: (
@@ -286,8 +301,6 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
             bgColor: 'rgba(59, 130, 246, 0.1)'
         },
         {
-            key: 'passRate',
-            meta: metaByKey['passRate'],
             label: labels.pass,
             value: Math.ceil(animatedPass), // Round up (ceiling) for pass rate
             suffix: '%',
@@ -300,8 +313,6 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
             bgColor: 'rgba(16, 185, 129, 0.1)'
         },
         {
-            key: 'failRate',
-            meta: metaByKey['failRate'],
             label: labels.fail,
             value: Math.floor(animatedFail), // Round down (floor) for fail rate
             suffix: '%',
@@ -314,8 +325,6 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
             bgColor: 'rgba(239, 68, 68, 0.1)'
         },
         {
-            key: 'averageScore',
-            meta: metaByKey['averageScore'],
             label: labels.average,
             value: Math.round(animatedAverage), // Round to nearest integer for average score
             suffix: '%',
@@ -332,99 +341,71 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
     return (
         <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: '1.1rem',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '1rem',
             marginBottom: '2rem'
         }}>
             {cards.map((card, index) => (
                 <div
-                    key={card.key || index}
-                    className={`stat-card dash-card dash-card--hover animate-card stagger-${index + 1}`}
+                    key={index}
+                    className={`animate-card stagger-${index + 1}`}
                     style={{
-                        position: 'relative',
                         background: 'var(--bg-main)',
-                        borderRadius: 'var(--dash-radius)',
-                        padding: '1.25rem 1.375rem',
-                        boxShadow: 'var(--dash-shadow)',
-                        border: '1px solid var(--border-color)',
-                        transition: 'all 0.3s var(--dash-ease)',
+                        borderRadius: '12px',
+                        padding: '1rem',
+                        boxShadow: 'var(--shadow-sm)',
+                        border: '2px solid transparent',
+                        transition: 'all 0.3s ease',
                         cursor: 'default'
                     }}
                     onMouseEnter={(e) => {
                         e.currentTarget.style.borderColor = card.color
-                        e.currentTarget.style.transform = 'translateY(-3px)'
-                        e.currentTarget.style.boxShadow = 'var(--dash-shadow-hover)'
+                        e.currentTarget.style.transform = 'translateY(-4px)'
+                        e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,.12)'
                     }}
                     onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--border-color)'
+                        e.currentTarget.style.borderColor = 'transparent'
                         e.currentTarget.style.transform = 'translateY(0)'
-                        e.currentTarget.style.boxShadow = 'var(--dash-shadow)'
+                        e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
                     }}
                 >
                     <div style={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        marginBottom: '0.9rem'
+                        marginBottom: '0.75rem'
                     }}>
                         <div style={{
-                            fontSize: '0.7rem',
-                            fontWeight: '700',
+                            fontSize: '0.75rem',
+                            fontWeight: '500',
                             color: 'var(--text-secondary)',
                             textTransform: 'uppercase',
-                            letterSpacing: '0.08em'
+                            letterSpacing: '0.5px'
                         }}>
                             {card.label}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            {card.meta && (
-                                <button
-                                    type="button"
-                                    className="stat-info-btn"
-                                    aria-label={`How ${card.label} is calculated`}
-                                    title="How is this calculated?"
-                                >
-                                    ?
-                                </button>
-                            )}
-                            <div style={{
-                                width: '36px',
-                                height: '36px',
-                                borderRadius: '10px',
-                                background: card.bgColor,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                            }}>
-                                <div style={{ width: '18px', height: '18px', fill: card.color }}>
-                                    {card.icon}
-                                </div>
+                        <div style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            background: card.bgColor,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}>
+                            <div style={{ width: '18px', height: '18px', fill: card.color }}>
+                                {card.icon}
                             </div>
                         </div>
                     </div>
                     <div style={{
-                        fontSize: '1.9rem',
-                        fontWeight: '800',
+                        fontSize: '2rem',
+                        fontWeight: '700',
                         color: card.color,
-                        lineHeight: 1,
-                        letterSpacing: '-0.02em'
+                        lineHeight: 1
                     }}>
                         {card.value}{card.suffix || ''}
                     </div>
-                    {card.meta && (
-                        <div className="stat-tooltip" role="tooltip">
-                            <div className="stat-tooltip-title">{card.meta.label || card.label}</div>
-                            <div className="stat-tooltip-row">
-                                <span>Formula</span>
-                                {card.meta.formula}
-                            </div>
-                            <div className="stat-tooltip-row">
-                                <span>Data</span>
-                                {card.meta.dataSource}
-                            </div>
-
-                        </div>
-                    )}
                 </div>
             ))}
         </div>

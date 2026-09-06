@@ -111,13 +111,24 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
             if (filters.endDate) queryParams.append('endDate', filters.endDate)
             if (selectedExamId) queryParams.append('examId', selectedExamId)
 
+            let resolvedUserId = userId
+            if (!resolvedUserId || resolvedUserId === 'undefined') {
+                const token = localStorage.getItem('token') || sessionStorage.getItem('token')
+                if (token) {
+                    try {
+                        const payload = JSON.parse(atob(token.split('.')[1]))
+                        resolvedUserId = payload.AccountId || payload.accountId || payload.sub || payload.id || payload.nameid || payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier']
+                    } catch (e) {}
+                }
+            }
+
             let endpoint = ''
             switch (roleNorm) {
                 case 'student':
-                    endpoint = `/dashboard/student/${userId}`
+                    endpoint = `/dashboard/student/${resolvedUserId}`
                     break
                 case 'teacher':
-                    endpoint = `/dashboard/teacher/${userId}`
+                    endpoint = `/dashboard/teacher/${resolvedUserId}`
                     break
                 case 'superadmin':
                 case 'admin':
@@ -157,6 +168,8 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                 if (selectedExamId && !currentStillExists) {
                     setSelectedExamId(recent[0].examId)
                 }
+            } else {
+                setSelectedExamId(null)
             }
 
             setDashboardData(transformedData)
@@ -431,7 +444,6 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                         leaderboard={leaderboardData}
                     />
 
-                    {/* Leaderboard — moved above the charts (all behavior unchanged) */}
                     <DashboardLeaderboard
                         leaderboard={leaderboardData}
                         loading={leaderboardLoading}
@@ -467,7 +479,6 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
                         userRole={userRole}
                         selectedExamId={selectedExamId}
                         filters={filters}
-                        loading={loading}
                     />
                 </div>
             </div>

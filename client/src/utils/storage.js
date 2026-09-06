@@ -52,9 +52,10 @@ export const storage = {
         localStorage.removeItem('token');
         localStorage.removeItem('userRole');
         localStorage.removeItem('userName');
-        sessionStorage.removeItem('token');
-        sessionStorage.removeItem('userRole');
-        sessionStorage.removeItem('userName');
+        localStorage.removeItem('cas_sso_token');
+        localStorage.removeItem('cas_jwt_token');
+        localStorage.removeItem('cas_user_info');
+        sessionStorage.clear();
     },
 
     /**
@@ -64,5 +65,23 @@ export const storage = {
         return !!this.getItem('token');
     }
 };
+
+export async function logoutFromCas(token) {
+    const t = token || storage.getItem('token') || storage.getItem('cas_sso_token');
+    if (t) {
+        try {
+            const casApiUrl = import.meta.env.VITE_CAS_API_URL || 'https://centerlizedlogin.sewedy.com.eg';
+            await fetch(`${casApiUrl}/api/Auth/logout?revokeSso=true`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${t}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+        } catch (e) {
+            console.warn('[CAS] Logout request failed:', e);
+        }
+    }
+}
 
 export default storage;

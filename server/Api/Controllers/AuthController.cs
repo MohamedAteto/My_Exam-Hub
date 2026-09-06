@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using QuizesApi.Models;
@@ -209,12 +209,22 @@ public class AuthController : ControllerBase
                 return Unauthorized(new { message = "Invalid credentials" });
             }
 
+            var targetEntity = string.IsNullOrWhiteSpace(model.BusinessEntity) ? BusinessEntity : model.BusinessEntity;
+
             var roles = await _db.AccountRoles
-                .Where(ar => ar.AccountId == account.Id && ar.BusinessEntityName == BusinessEntity)
+                .Where(ar => ar.AccountId == account.Id && ar.BusinessEntityName == targetEntity)
                 .Join(_db.Roles, ar => ar.RoleId, r => r.Id, (ar, r) => r.RoleName)
                 .ToListAsync();
 
-            _logger.LogInformation("Roles found: {RolesCount}", roles.Count);
+            if (!roles.Any())
+            {
+                roles = await _db.AccountRoles
+                    .Where(ar => ar.AccountId == account.Id)
+                    .Join(_db.Roles, ar => ar.RoleId, r => r.Id, (ar, r) => r.RoleName)
+                    .ToListAsync();
+            }
+
+            _logger.LogInformation("Roles found for entity {Entity}: {RolesCount}", targetEntity, roles.Count);
 
             _logger.LogInformation("Generating JWT token...");
             var token = GenerateJwtToken(account, roles);
@@ -234,6 +244,70 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "An error occurred during login for {Email}", model.Email);
+            return StatusCode(500, new { message = "An internal error occurred", error = ex.Message });
+        }
+    }
+
+    [HttpPost("sso-token")]
+    public async Task<IActionResult> GetSsoToken([FromBody] SsoTokenModel model)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(model.Email))
+                return BadRequest(new { message = "Email is required" });
+
+            var entity = string.IsNullOrWhiteSpace(model.BusinessEntity) ? BusinessEntity : model.BusinessEntity;
+            _logger.LogInformation("SSO token requested for email: {Email}, Entity: {Entity}", model.Email, entity);
+
+            var account = await _db.Accounts.FirstOrDefaultAsync(a => a.Email == model.Email && a.IsActive);
+            if (account == null)
+            {
+                var loginEntry = await _db.Logins.Include(l => l.Account).FirstOrDefaultAsync(l => l.Email == model.Email);
+                if (loginEntry?.Account != null && loginEntry.Account.IsActive)
+                {
+                    account = loginEntry.Account;
+                }
+            }
+
+            if (account == null)
+            {
+                return NotFound(new { message = "Account not found in system" });
+            }
+
+            var roles = await _db.AccountRoles
+                .Where(ar => ar.AccountId == account.Id && ar.BusinessEntityName == entity)
+                .Join(_db.Roles, ar => ar.RoleId, r => r.Id, (ar, r) => r.RoleName)
+                .ToListAsync();
+
+            if (!roles.Any())
+            {
+                roles = await _db.AccountRoles
+                    .Where(ar => ar.AccountId == account.Id)
+                    .Join(_db.Roles, ar => ar.RoleId, r => r.Id, (ar, r) => r.RoleName)
+                    .ToListAsync();
+
+                if (!roles.Any())
+                {
+                    roles = new System.Collections.Generic.List<string> { "Student" };
+                }
+            }
+
+            var token = GenerateJwtToken(account, roles);
+
+            return Ok(new
+            {
+                token,
+                roles,
+                accountId = account.Id,
+                email = account.Email,
+                fullNameEn = account.FullNameEn,
+                fullNameAr = account.FullNameAr,
+                role = roles.FirstOrDefault()
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating SSO token for {Email}", model.Email);
             return StatusCode(500, new { message = "An internal error occurred", error = ex.Message });
         }
     }
