@@ -8,6 +8,7 @@ import UnifiedDashboard from '../components/UnifiedDashboard'
 import { Shield, Users, ListTodo, Database, Mail, FileText } from 'lucide-react'
 import api from '../api/axios.js'
 import { storage } from '../utils/storage'
+import { parseToken } from '../utils/token'
 import StudentsDataGrid from '../components/Teacher/StudentsDataGrid.jsx'
 import DashboardFilters from '../components/DashboardFilters'
 import { Calendar, Clock, BookOpen, GraduationCap } from 'lucide-react'
@@ -59,8 +60,8 @@ export default function SuperAdminPage() {
     }
 
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]))
-      const userId = payload.AccountId || payload.accountId || payload.sub || payload.id
+      const payload = parseToken(token)
+      const userId = payload?.AccountId || payload?.accountId || payload?.sub || payload?.id
       if (userId) {
         api.get(`/auth/profile/${userId}`).then(res => {
           if (res.data && (res.data.fullNameEn || res.data.fullNameAr)) {

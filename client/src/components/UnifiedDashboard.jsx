@@ -8,6 +8,7 @@ import StatsLineChart from './charts/StatsLineChart'
 import StatsBarChart from './charts/StatsBarChart'
 import DashboardCharts from './DashboardCharts'
 import LoadingSpinner from './LoadingSpinner'
+import { parseToken, getUserIdFromToken } from '../utils/token'
 
 export default function UnifiedDashboard({ userRole, userId, allExams = [], grades = [], classes = [], subjects = [], onSeeAllScores }) {
     console.log('[UnifiedDashboard] Grades received:', grades)
@@ -85,6 +86,13 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
     }
 
     const fetchDashboardData = async () => {
+        // Race-condition guard: teacher/admin dashboards depend on the grades lookup data
+        // for the grade slider. On first mount `grades` is still empty, so defer the fetch
+        // until it arrives — the effect re-fires because `grades` is in its dependency array.
+        if ((!grades || grades.length === 0) && (roleNorm === 'teacher' || roleNorm === 'admin' || roleNorm === 'superadmin')) {
+            console.log('[UnifiedDashboard] Deferring fetch until grades lookup data loads')
+            return
+        }
         try {
             setLoading(!dashboardData)
             setError(null)
@@ -115,11 +123,20 @@ export default function UnifiedDashboard({ userRole, userId, allExams = [], grad
             if (!resolvedUserId || resolvedUserId === 'undefined') {
                 const token = localStorage.getItem('token') || sessionStorage.getItem('token')
                 if (token) {
-                    try {
-                        const payload = JSON.parse(atob(token.split('.')[1]))
-                        resolvedUserId = payload.AccountId || payload.accountId || payload.sub || payload.id || payload.nameid || payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier']
-                    } catch (e) {}
+                    resolvedUserId = getUserIdFromToken(token)
+                    if (!resolvedUserId) {
+                        // Fall back to the long-form nameidentifier claim used by some identity providers
+                        const payload = parseToken(token)
+                        resolvedUserId = payload?.['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] || null
+                    }
                 }
+            }
+
+            // Null-guard: student/teacher endpoints embed the user ID — never build requests
+            // like /dashboard/teacher/null. SuperAdmin-style roles use an ID-less endpoint.
+            if (!resolvedUserId && (roleNorm === 'student' || roleNorm === 'teacher')) {
+                setError('Unable to resolve user ID. Please log in again.')
+                return
             }
 
             let endpoint = ''

@@ -1,0 +1,1 @@
+Dev server runs on port 5177 (`vite dev`); a separate Express proxy script `setupproxy.js` must be running to forward `/api` requests to backend at `http://127.0.0.1:5077`. Configure `VITE_API_BASE_URL` and `VITE_CAS_URL` via `.env.development` / `.env.production`. A unit test for token utilities lives at `token.util.test.mjs`.

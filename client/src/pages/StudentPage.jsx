@@ -10,6 +10,7 @@ import ErrorBoundary from '../components/ErrorBoundary'
 import UnifiedDashboard from '../components/UnifiedDashboard'
 import api from '../api/axios'
 import { storage } from '../utils/storage'
+import { parseToken } from '../utils/token'
 
 export default function StudentPage() {
   const navigate = useNavigate()
@@ -122,11 +123,9 @@ export default function StudentPage() {
         const token = storage.getItem('token')
         let userId = null
         if (token) {
-          try {
-            const payload = JSON.parse(atob(token.split('.')[1]))
+          const payload = parseToken(token)
+          if (payload) {
             userId = payload.AccountId || payload.accountId || payload.sub || payload.id || payload.nameid || payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier']
-          } catch (e) {
-            console.error('Error parsing token:', e)
           }
         }
 
@@ -300,8 +299,8 @@ export default function StudentPage() {
       navigate('/')
     } else {
       try {
-        const payload = JSON.parse(atob(token.split('.')[1] || ''))
-        const userId = payload.sub || payload.id
+        const payload = parseToken(token)
+        const userId = payload?.sub || payload?.id
         if (userId) {
           api.get(`/auth/profile/${userId}`).then(res => {
             if (res.data && (res.data.fullNameEn || res.data.fullNameAr)) {
@@ -371,11 +370,9 @@ export default function StudentPage() {
       const token = storage.getItem('token')
       let userId = null
       if (token) {
-        try {
-          const payload = JSON.parse(atob(token.split('.')[1]))
+        const payload = parseToken(token)
+        if (payload) {
           userId = payload.sub || payload.id
-        } catch (e) {
-          console.error('Error parsing token:', e)
         }
       }
 
@@ -468,11 +465,9 @@ export default function StudentPage() {
       const token = storage.getItem('token')
       let userId = null
       if (token) {
-        try {
-          const payload = JSON.parse(atob(token.split('.')[1]))
+        const payload = parseToken(token)
+        if (payload) {
           userId = payload.sub || payload.id
-        } catch (e) {
-          console.error('Error parsing token:', e)
         }
       }
 
@@ -609,11 +604,9 @@ export default function StudentPage() {
       const token = storage.getItem('token')
       let userId = null
       if (token) {
-        try {
-          const payload = JSON.parse(atob(token.split('.')[1]))
+        const payload = parseToken(token)
+        if (payload) {
           userId = payload.sub || payload.id
-        } catch (e) {
-          console.error('Error parsing token:', e)
         }
       }
 
@@ -954,11 +947,9 @@ export default function StudentPage() {
                   userId={(() => {
                     const token = storage.getItem('token')
                     if (token) {
-                      try {
-                        const payload = JSON.parse(atob(token.split('.')[1]))
+                      const payload = parseToken(token)
+                      if (payload) {
                         return payload.AccountId || payload.accountId || payload.sub || payload.id || payload.nameid || payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier']
-                      } catch (e) {
-                        console.error('Error parsing token:', e)
                       }
                     }
                     return null

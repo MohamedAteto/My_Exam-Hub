@@ -148,7 +148,7 @@ namespace QuizesApi.Controllers
 
             await PopulateExamQuestions(new List<ExamDetail> { exam });
 
-            var questionIds = exam.ExamQuestionBanks
+            var questionIds = (exam.ExamQuestionBanks ?? Enumerable.Empty<ExamQuestionBank>())
                 .Where(eq => eq.QuestionId.HasValue)
                 .Select(eq => eq.QuestionId.Value)
                 .ToList();
@@ -226,16 +226,31 @@ namespace QuizesApi.Controllers
 
             await PopulateExamQuestions(new List<ExamDetail> { exam });
 
+            var questionIds = (exam.ExamQuestionBanks ?? Enumerable.Empty<ExamQuestionBank>())
+                .Where(eq => eq.QuestionId.HasValue)
+                .Select(eq => eq.QuestionId.Value)
+                .ToList();
+            
             var existingAnswers = await _context.StudentExamAnswers
                 .Where(sea => sea.AccountId == accountId && sea.ExamDetailsId == dto.ExamId)
                 .ToListAsync();
 
-            if (existingAnswers.Any()) return BadRequest(new { message = "You have already submitted answers for this exam." });
-
-            var questionIds = exam.ExamQuestionBanks
-                .Where(eq => eq.QuestionId.HasValue)
-                .Select(eq => eq.QuestionId.Value)
-                .ToList();
+            // Check for complete submission
+            if (existingAnswers.Any())
+            {
+                var expectedCount = questionIds.Count;
+                if (existingAnswers.Count >= expectedCount)
+                {
+                    return BadRequest(new { message = "You have already submitted answers for this exam." });
+                }
+                else
+                {
+                    // Allow resubmission if incomplete (e.g., network failure during first submit)
+                    Console.WriteLine($"[WARNING] Student {accountId} resubmitting incomplete exam {dto.ExamId}. Had {existingAnswers.Count}/{expectedCount} answers.");
+                    _context.StudentExamAnswers.RemoveRange(existingAnswers);
+                    await _context.SaveChangesAsync();
+                }
+            }
             
             if (dto.Answers == null || dto.Answers.Count == 0) return BadRequest(new { message = "No answers submitted." });
             
@@ -257,41 +272,49 @@ namespace QuizesApi.Controllers
             
             foreach (var answerDto in dto.Answers)
             {
-                var question = exam.ExamQuestionBanks
+                var question = (exam.ExamQuestionBanks ?? Enumerable.Empty<ExamQuestionBank>())
                     .FirstOrDefault(eq => eq.QuestionId.HasValue && eq.QuestionId.Value == answerDto.QuestionId)?.Question;
 
                 if (question == null) continue;
                 
                 string chosenAnswer = answerDto.Answer?.ToString()?.Trim() ?? string.Empty;
                 bool isCorrect = false;
-                string correctAnswer = question.CorrectAnswer?.Trim() ?? string.Empty;
+                string correctAnswer = (question.CorrectAnswer ?? string.Empty).Trim();
                 
                 if (!string.IsNullOrEmpty(chosenAnswer))
                 {
-                    if (question.OptionC != null && question.OptionD != null)
+                    // Normalize for comparison
+                    string normalizedChosen = chosenAnswer.ToUpperInvariant();
+                    string normalizedCorrect = correctAnswer.ToUpperInvariant();
+                    
+                    // Check if MCQ (has options C and D filled)
+                    if (!string.IsNullOrEmpty(question.OptionC) && !string.IsNullOrEmpty(question.OptionD))
                     {
-                        if (correctAnswer.Length == 1 && char.IsLetter(correctAnswer[0]))
+                        // Build option list and normalize
+                        var options = new[] { 
+                            question.OptionA?.Trim(), 
+                            question.OptionB?.Trim(), 
+                            question.OptionC?.Trim(), 
+                            question.OptionD?.Trim() 
+                        }.Where(o => !string.IsNullOrEmpty(o)).ToList();
+                        
+                        // Match by direct value comparison
+                        isCorrect = options.Any(o => 
+                            string.Equals(o, chosenAnswer, StringComparison.OrdinalIgnoreCase));
+                        
+                        // If no match, try matching against correct answer index logic
+                        if (!isCorrect && correctAnswer.Length == 1 && char.IsLetter(correctAnswer[0]))
                         {
                             int correctIndex = char.ToUpper(correctAnswer[0]) - 'A';
-                            var optionsList = new List<string>();
-                            if (question.OptionA != null) optionsList.Add(question.OptionA);
-                            if (question.OptionB != null) optionsList.Add(question.OptionB);
-                            if (question.OptionC != null) optionsList.Add(question.OptionC);
-                            if (question.OptionD != null) optionsList.Add(question.OptionD);
-                            
-                            if (correctIndex >= 0 && correctIndex < optionsList.Count)
+                            if (correctIndex >= 0 && correctIndex < options.Count)
                             {
-                                isCorrect = chosenAnswer.Equals(optionsList[correctIndex].Trim(), StringComparison.OrdinalIgnoreCase);
+                                isCorrect = string.Equals(options[correctIndex], chosenAnswer, StringComparison.OrdinalIgnoreCase);
                             }
                         }
-                        else
-                        {
-                            isCorrect = chosenAnswer.Equals(correctAnswer, StringComparison.OrdinalIgnoreCase);
-                        }
                     }
-                    else
+                    else // True/False or Fill-in-blank
                     {
-                         isCorrect = chosenAnswer.Equals(correctAnswer, StringComparison.OrdinalIgnoreCase);
+                        isCorrect = string.Equals(normalizedChosen, normalizedCorrect, StringComparison.OrdinalIgnoreCase);
                     }
                 }
 
@@ -306,15 +329,19 @@ namespace QuizesApi.Controllers
                 });
             }
 
+            // Use transaction to ensure all-or-nothing save
+            using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
                 await _context.StudentExamAnswers.AddRangeAsync(studentAnswers);
                 await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
             }
             catch (Exception ex)
             {
+                await transaction.RollbackAsync();
                 Console.WriteLine($"Error saving answers: {ex}");
-                return StatusCode(500, new { message = "Error saving answers", details = ex.Message, inner = ex.InnerException?.Message });
+                return StatusCode(500, new { message = "Error saving answers. Transaction rolled back.", details = ex.Message, inner = ex.InnerException?.Message });
             }
 
             var totalMarks = exam.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0);

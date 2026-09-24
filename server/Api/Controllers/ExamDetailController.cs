@@ -164,6 +164,25 @@ namespace QuizesApi.Controllers
                     return BadRequest(new { message = "At least one class must be selected." });
                 }
 
+                // Validate question IDs exist
+                if (dto.QuestionIds != null && dto.QuestionIds.Any())
+                {
+                    var existingQuestionIds = await _context.QuestionBanks
+                        .Where(q => dto.QuestionIds.Contains(q.QuestionId))
+                        .Select(q => q.QuestionId)
+                        .ToListAsync();
+                        
+                    var missingIds = dto.QuestionIds.Except(existingQuestionIds).ToList();
+                    if (missingIds.Any())
+                    {
+                        return BadRequest(new { message = $"The following question IDs do not exist: {string.Join(", ", missingIds)}" });
+                    }
+                }
+                else
+                {
+                    return BadRequest(new { message = "At least one question must be selected for the exam." });
+                }
+
                 Console.WriteLine($"[DIAG] Creating exam for classes: {string.Join(", ", classIdsToProcess)}");
 
                 // Create SINGLE exam linked to multiple classes
@@ -263,9 +282,13 @@ namespace QuizesApi.Controllers
                 GradeId = e.GradeId,
                 SubjectId = e.SubjectId,
                 ClassId = e.ClassId,
-                StartDate = DateTime.SpecifyKind(e.StartDate.GetValueOrDefault(), DateTimeKind.Utc),
-                EndDate = DateTime.SpecifyKind(e.EndDate.GetValueOrDefault(), DateTimeKind.Utc),
-                Questions = e.ExamQuestionBanks
+                StartDate = e.StartDate.HasValue 
+                    ? DateTime.SpecifyKind(e.StartDate.Value, DateTimeKind.Utc) 
+                    : DateTime.UtcNow,
+                EndDate = e.EndDate.HasValue 
+                    ? DateTime.SpecifyKind(e.EndDate.Value, DateTimeKind.Utc) 
+                    : DateTime.UtcNow.AddDays(7),
+                Questions = (e.ExamQuestionBanks ?? Enumerable.Empty<ExamQuestionBank>())
                     .Where(eq => eq.Question != null)
                     .Select(eq => new QuestionBankReadDto
                     {
@@ -284,7 +307,8 @@ namespace QuizesApi.Controllers
                         QuestionSubject = eq.Question.QuestionSubject,
                         Mark = eq.Question.Mark ?? 0
                     }).ToList(),
-                TotalMarks = e.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0)
+                TotalMarks = (e.ExamQuestionBanks ?? Enumerable.Empty<ExamQuestionBank>())
+                    .Sum(eq => eq.Question?.Mark ?? 0)
             };
         }
 

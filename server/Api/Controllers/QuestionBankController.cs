@@ -145,32 +145,27 @@ namespace QuizesApi.Controllers
             [HttpPost("upload")]
         public async Task<ActionResult<QuestionUploadResultDto>> Upload(IFormFile file, [FromQuery] long? gradeId, [FromQuery] long? classId)
         {
+            // Validate file presence and size
             if (file == null || file.Length == 0)
                 return BadRequest(new { message = "File is empty or not provided." });
+
+            // Enforce 10MB file size limit
+            const long maxFileSize = 10 * 1024 * 1024; // 10MB in bytes
+            if (file.Length > maxFileSize)
+                return BadRequest(new { message = $"File size exceeds maximum limit of {maxFileSize / (1024 * 1024)}MB. Current size: {file.Length / (1024 * 1024)}MB." });
 
             if (!Path.GetExtension(file.FileName).Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
                 return BadRequest(new { message = "Invalid file format. Please upload an .xlsx file." });
 
+            // Authenticate user - REQUIRED for data integrity
             var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
                 ?? User.FindFirst("sub")?.Value 
                 ?? User.FindFirst("id")?.Value;
             
             long accountId = 0;
-            if (string.IsNullOrEmpty(accountIdClaim) || !long.TryParse(accountIdClaim, out accountId))
+            if (string.IsNullOrEmpty(accountIdClaim) || !long.TryParse(accountIdClaim, out accountId) || accountId <= 0)
             {
-                 // Fallback or error? For now, try asking user to re-login if claim missing, usually means unauth
-                 // But endpoint might allow anonymous? Assuming Auth is needed.
-            }
-             
-            // Warning: If accountId is 0, database insert will fail if Foreign Key requires valid AccountID.
-            // But we will proceed and let DB error if 0 is invalid, or better, return Unauthorized here if strictly needed.
-            if (accountId <= 0) 
-            {
-                // Try to be lenient or fail? User request said "Cannot insert NULL". 
-                // Setting it to something is better than null, but 0 might violate FK.
-                // Assuming valid token is present.
-                // If Debugging, maybe hardcode valid ID? No.
-                // We will rely on correct parsing.
+                return Unauthorized(new { message = "Authentication required. Please log in again." });
             }
 
             var result = new QuestionUploadResultDto();
@@ -182,11 +177,18 @@ namespace QuizesApi.Controllers
                 await file.CopyToAsync(stream);
                 using var workbook = new XLWorkbook(stream);
                 var worksheet = workbook.Worksheets.First();
+                
                 // Check if empty
                 if (worksheet.RowsUsed().Count() == 0)
                      return BadRequest(new { message = "Excel file is empty." });
 
                 var rows = worksheet.RangeUsed().RowsUsed().Skip(1); // Skip header
+                var rowCount = rows.Count();
+
+                // Enforce maximum row limit to prevent memory issues
+                const int maxRows = 1000;
+                if (rowCount > maxRows)
+                    return BadRequest(new { message = $"Maximum {maxRows} questions allowed per upload. File contains {rowCount} rows." });
 
                 foreach (var row in rows)
                 {
@@ -334,44 +336,162 @@ namespace QuizesApi.Controllers
                 using var workbook = new XLWorkbook();
                 var worksheet = workbook.Worksheets.Add("Questions Template");
 
-                // Headers
-                worksheet.Cell(1, 1).Value = "Question Type";
-                worksheet.Cell(1, 2).Value = "Question Text";
-                worksheet.Cell(1, 3).Value = "Correct Answer";
-                worksheet.Cell(1, 4).Value = "Marks";
-                worksheet.Cell(1, 5).Value = "Option A";
-                worksheet.Cell(1, 6).Value = "Option B";
-                worksheet.Cell(1, 7).Value = "Option C";
-                worksheet.Cell(1, 8).Value = "Option D";
+                // Title Section
+                worksheet.Cell(1, 1).Value = "EXAM QUESTIONS TEMPLATE";
+                worksheet.Range("A1:H1").Merge();
+                var titleCell = worksheet.Cell(1, 1);
+                titleCell.Style.Font.Bold = true;
+                titleCell.Style.Font.FontSize = 16;
+                titleCell.Style.Font.FontColor = XLColor.White;
+                titleCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#DC2626");
+                titleCell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                titleCell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+                worksheet.Row(1).Height = 35;
+
+                // Instructions Section
+                worksheet.Cell(2, 1).Value = "INSTRUCTIONS:";
+                worksheet.Cell(2, 1).Style.Font.Bold = true;
+                worksheet.Cell(2, 1).Style.Font.FontSize = 11;
+                worksheet.Cell(2, 1).Style.Font.FontColor = XLColor.FromHtml("#1F2937");
+                
+                worksheet.Cell(3, 1).Value = "• For MCQ: Fill all 4 options (A-D), Correct Answer should match one of the option values";
+                worksheet.Cell(4, 1).Value = "• For True/False: Leave options blank, Correct Answer should be 'True' or 'False'";
+                worksheet.Cell(5, 1).Value = "• For Fill Blank: Leave options blank, Correct Answer is the expected fill-in text";
+                worksheet.Cell(6, 1).Value = "• Question Type column is for reference only (not processed by system)";
+                worksheet.Cell(7, 1).Value = "• Marks default to 1 if left empty. Delete sample rows before uploading your data.";
+                
+                foreach (var row in Enumerable.Range(3, 5))
+                {
+                    worksheet.Cell(row, 1).Style.Font.FontSize = 10;
+                    worksheet.Cell(row, 1).Style.Font.FontColor = XLColor.FromHtml("#6B7280");
+                    worksheet.Range($"A{row}:H{row}").Merge();
+                    worksheet.Row(row).Height = 18;
+                }
+
+                // Headers Row
+                int headerRow = 9;
+                worksheet.Cell(headerRow, 1).Value = "Question Type";
+                worksheet.Cell(headerRow, 2).Value = "Question Text *";
+                worksheet.Cell(headerRow, 3).Value = "Correct Answer *";
+                worksheet.Cell(headerRow, 4).Value = "Marks";
+                worksheet.Cell(headerRow, 5).Value = "Option A";
+                worksheet.Cell(headerRow, 6).Value = "Option B";
+                worksheet.Cell(headerRow, 7).Value = "Option C";
+                worksheet.Cell(headerRow, 8).Value = "Option D";
 
                 // Styling headers
-                var headerRange = worksheet.Range("A1:H1");
+                var headerRange = worksheet.Range($"A{headerRow}:H{headerRow}");
                 headerRange.Style.Font.Bold = true;
-                headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+                headerRange.Style.Font.FontSize = 11;
+                headerRange.Style.Font.FontColor = XLColor.White;
+                headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#374151");
+                headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                headerRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+                headerRange.Style.Border.OutsideBorder = XLBorderStyleValues.Medium;
+                headerRange.Style.Border.OutsideBorderColor = XLColor.FromHtml("#1F2937");
+                worksheet.Row(headerRow).Height = 25;
 
                 // Sample Data - MCQ
-                worksheet.Cell(2, 1).Value = "MCQ";
-                worksheet.Cell(2, 2).Value = "What is the capital of France?";
-                worksheet.Cell(2, 3).Value = "Paris";
-                worksheet.Cell(2, 4).Value = 1;
-                worksheet.Cell(2, 5).Value = "London";
-                worksheet.Cell(2, 6).Value = "Paris";
-                worksheet.Cell(2, 7).Value = "Berlin";
-                worksheet.Cell(2, 8).Value = "Madrid";
+                int dataRow = headerRow + 1;
+                worksheet.Cell(dataRow, 1).Value = "MCQ";
+                worksheet.Cell(dataRow, 2).Value = "What is the capital of France?";
+                worksheet.Cell(dataRow, 3).Value = "Paris";
+                worksheet.Cell(dataRow, 4).Value = 1;
+                worksheet.Cell(dataRow, 5).Value = "London";
+                worksheet.Cell(dataRow, 6).Value = "Paris";
+                worksheet.Cell(dataRow, 7).Value = "Berlin";
+                worksheet.Cell(dataRow, 8).Value = "Madrid";
+                
+                // Style MCQ row
+                var mcqRange = worksheet.Range($"A{dataRow}:H{dataRow}");
+                mcqRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#F3F4F6");
+                mcqRange.Style.Border.BottomBorder = XLBorderStyleValues.Thin;
+                mcqRange.Style.Border.BottomBorderColor = XLColor.FromHtml("#D1D5DB");
+                worksheet.Row(dataRow).Height = 20;
 
                 // Sample Data - True/False
-                worksheet.Cell(3, 1).Value = "True/False";
-                worksheet.Cell(3, 2).Value = "The earth is flat.";
-                worksheet.Cell(3, 3).Value = "False";
-                worksheet.Cell(3, 4).Value = 1;
+                dataRow++;
+                worksheet.Cell(dataRow, 1).Value = "True/False";
+                worksheet.Cell(dataRow, 2).Value = "The earth is flat.";
+                worksheet.Cell(dataRow, 3).Value = "False";
+                worksheet.Cell(dataRow, 4).Value = 1;
+                worksheet.Cell(dataRow, 5).Value = "";
+                worksheet.Cell(dataRow, 6).Value = "";
+                worksheet.Cell(dataRow, 7).Value = "";
+                worksheet.Cell(dataRow, 8).Value = "";
+                
+                // Style TF row
+                var tfRange = worksheet.Range($"A{dataRow}:H{dataRow}");
+                tfRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#FEF3C7");
+                tfRange.Style.Border.BottomBorder = XLBorderStyleValues.Thin;
+                tfRange.Style.Border.BottomBorderColor = XLColor.FromHtml("#D1D5DB");
+                worksheet.Row(dataRow).Height = 20;
 
                 // Sample Data - Fill Blank
-                worksheet.Cell(4, 1).Value = "Fill Blank";
-                worksheet.Cell(4, 2).Value = "H2O is the chemical formula for ____.";
-                worksheet.Cell(4, 3).Value = "Water";
-                worksheet.Cell(4, 4).Value = 1;
+                dataRow++;
+                worksheet.Cell(dataRow, 1).Value = "Fill Blank";
+                worksheet.Cell(dataRow, 2).Value = "H2O is the chemical formula for ____.";
+                worksheet.Cell(dataRow, 3).Value = "Water";
+                worksheet.Cell(dataRow, 4).Value = 1;
+                worksheet.Cell(dataRow, 5).Value = "";
+                worksheet.Cell(dataRow, 6).Value = "";
+                worksheet.Cell(dataRow, 7).Value = "";
+                worksheet.Cell(dataRow, 8).Value = "";
+                
+                // Style Fill row
+                var fillRange = worksheet.Range($"A{dataRow}:H{dataRow}");
+                fillRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#DBEAFE");
+                fillRange.Style.Border.BottomBorder = XLBorderStyleValues.Thin;
+                fillRange.Style.Border.BottomBorderColor = XLColor.FromHtml("#D1D5DB");
+                worksheet.Row(dataRow).Height = 20;
 
-                // worksheet.Columns().AdjustToContents();
+                // Add more example rows for clarity
+                dataRow++;
+                worksheet.Cell(dataRow, 1).Value = "MCQ";
+                worksheet.Cell(dataRow, 2).Value = "Which programming language is known for web development?";
+                worksheet.Cell(dataRow, 3).Value = "JavaScript";
+                worksheet.Cell(dataRow, 4).Value = 2;
+                worksheet.Cell(dataRow, 5).Value = "Python";
+                worksheet.Cell(dataRow, 6).Value = "JavaScript";
+                worksheet.Cell(dataRow, 7).Value = "Java";
+                worksheet.Cell(dataRow, 8).Value = "C++";
+                var mcq2Range = worksheet.Range($"A{dataRow}:H{dataRow}");
+                mcq2Range.Style.Fill.BackgroundColor = XLColor.FromHtml("#F3F4F6");
+                mcq2Range.Style.Border.BottomBorder = XLBorderStyleValues.Thin;
+                mcq2Range.Style.Border.BottomBorderColor = XLColor.FromHtml("#D1D5DB");
+                worksheet.Row(dataRow).Height = 20;
+
+                // Column widths
+                worksheet.Column(1).Width = 14;
+                worksheet.Column(2).Width = 50;
+                worksheet.Column(3).Width = 20;
+                worksheet.Column(4).Width = 8;
+                worksheet.Column(5).Width = 18;
+                worksheet.Column(6).Width = 18;
+                worksheet.Column(7).Width = 18;
+                worksheet.Column(8).Width = 18;
+
+                // Freeze header row
+                worksheet.SheetView.FreezeRows(headerRow);
+
+                // Add notes section at bottom
+                int notesRow = dataRow + 3;
+                worksheet.Cell(notesRow, 1).Value = "NOTES:";
+                worksheet.Cell(notesRow, 1).Style.Font.Bold = true;
+                worksheet.Cell(notesRow, 1).Style.Font.FontColor = XLColor.FromHtml("#DC2626");
+                
+                notesRow++;
+                worksheet.Cell(notesRow, 1).Value = "✓ Upload supports .xlsx format only";
+                worksheet.Cell(notesRow + 1, 1).Value = "✓ Required fields marked with * must not be empty";
+                worksheet.Cell(notesRow + 2, 1).Value = "✓ For best results, keep questions concise and clear";
+                worksheet.Cell(notesRow + 3, 1).Value = "✓ Maximum file size: 10MB";
+                
+                foreach (var row in Enumerable.Range(notesRow, 4))
+                {
+                    worksheet.Range($"A{row}:H{row}").Merge();
+                    worksheet.Cell(row, 1).Style.Font.FontSize = 9;
+                    worksheet.Cell(row, 1).Style.Font.FontColor = XLColor.FromHtml("#6B7280");
+                }
 
                 using var stream = new MemoryStream();
                 workbook.SaveAs(stream);

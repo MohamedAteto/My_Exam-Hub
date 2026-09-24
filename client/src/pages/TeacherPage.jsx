@@ -12,6 +12,7 @@ import UnifiedDashboard from '../components/UnifiedDashboard'
 import DashboardFilters from '../components/DashboardFilters'
 import api from '../api/axios.js'
 import { storage } from '../utils/storage'
+import { parseToken, getUserIdFromToken } from '../utils/token'
 import MultiSelectDropdown from '../components/MultiSelectDropdown'
 import ModernSelect from '../components/ModernSelect'
 import ModernDatePicker from '../components/ModernDatePicker'
@@ -264,8 +265,7 @@ export default function TeacherPage() {
     } else {
       // Fetch user profile if logged in
       try {
-        const payload = JSON.parse(atob(token.split('.')[1]))
-        const userId = payload.AccountId || payload.accountId || payload.sub || payload.id
+        const userId = getUserIdFromToken(token)
         if (userId) {
           api.get(`/auth/profile/${userId}`).then(res => {
             if (res.data && (res.data.fullNameEn || res.data.fullNameAr)) {
@@ -821,7 +821,7 @@ export default function TeacherPage() {
       startDate,
       endDate: datetime,
       questionIds: currentQuizQuestions.map(q => q.id).filter(Boolean),
-      createdBy: (() => { try { const t = storage.getItem('token'); if (!t) return 0; const payload = JSON.parse(atob(t.split('.')[1] || '')); return Number(payload.sub) || 0; } catch { return 0; } })()
+      createdBy: (() => { const t = storage.getItem('token'); const payload = parseToken(t); return Number(payload?.sub) || 0; })()
     }
 
     try {
@@ -1107,14 +1107,10 @@ export default function TeacherPage() {
 
         // Extract accountId from token once
         let accountId = 0;
-        try {
-          const token = storage.getItem('token');
-          if (token) {
-            const payload = JSON.parse(atob(token.split('.')[1] || ''));
-            accountId = Number(payload.sub) || 0;
-          }
-        } catch (e) {
-          console.error('Error extracting accountId from token:', e);
+        const token = storage.getItem('token');
+        const payload = parseToken(token);
+        if (payload) {
+          accountId = Number(payload.sub) || 0;
         }
 
         if (accountId <= 0) {
@@ -1158,14 +1154,10 @@ export default function TeacherPage() {
         // For a new bank, create all questions
         // Extract accountId from token once
         let accountId = 0;
-        try {
-          const token = storage.getItem('token');
-          if (token) {
-            const payload = JSON.parse(atob(token.split('.')[1] || ''));
-            accountId = Number(payload.sub) || 0;
-          }
-        } catch (e) {
-          console.error('Error extracting accountId from token:', e);
+        const token = storage.getItem('token');
+        const payload = parseToken(token);
+        if (payload) {
+          accountId = Number(payload.sub) || 0;
         }
 
         if (accountId <= 0) {
@@ -1385,15 +1377,7 @@ export default function TeacherPage() {
             userRole="Teacher"
             userId={(() => {
               const token = storage.getItem('token')
-              if (token) {
-                try {
-                  const payload = JSON.parse(atob(token.split('.')[1]))
-                  return payload.sub || payload.id
-                } catch (e) {
-                  console.error('Error parsing token:', e)
-                }
-              }
-              return null
+              return token ? getUserIdFromToken(token) : null
             })()}
             allExams={quizzes}
             grades={dbGrades}

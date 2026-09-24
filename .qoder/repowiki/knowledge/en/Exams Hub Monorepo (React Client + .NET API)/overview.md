@@ -1,0 +1,1 @@
+Monorepo pairing a React/Vite client with an ASP.NET Core API server to deliver a CAS-authenticated exam management application for students, teachers, and administrators.

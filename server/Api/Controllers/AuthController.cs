@@ -188,18 +188,35 @@ public class AuthController : ControllerBase
                 }
             }
 
-            // 3. Fallback to Plaintext (for testing/legacy data like 'Z4E1O5X6S')
-            if (!isValidPassword)
+            // 3. SECURITY RISK: Plaintext password check should be REMOVED in production
+            // This fallback is only for legacy data migration and should be disabled
+            if (!isValidPassword && _config.GetValue<bool>("Security:AllowPlaintextPasswordFallback", false))
             {
-                 // Robust comparison: Trim whitespace and ignore case
-                 var inputClean = model.Password?.Trim();
-                 var storedClean = storedHash?.Trim();
+                // Robust comparison: Trim whitespace and ignore case
+                var inputClean = model.Password?.Trim();
+                var storedClean = storedHash?.Trim();
 
-                 if (string.Equals(inputClean, storedClean, StringComparison.OrdinalIgnoreCase))
-                 {
-                     isValidPassword = true;
-                     _logger.LogWarning("User {Email} logged in with plaintext password (trimmed/case-insensitive).", model.Email);
-                 }
+                if (string.Equals(inputClean, storedClean, StringComparison.OrdinalIgnoreCase))
+                {
+                    isValidPassword = true;
+                    _logger.LogWarning("SECURITY WARNING: User {Email} logged in with plaintext password. This account should be migrated to BCrypt immediately.", model.Email);
+                    
+                    // Auto-migrate to BCrypt for next login
+                    try
+                    {
+                        account.PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.Password);
+                        if (loginEntry != null)
+                        {
+                            loginEntry.PasswordHash = account.PasswordHash;
+                        }
+                        await _db.SaveChangesAsync();
+                        _logger.LogInformation("Auto-migrated plaintext password to BCrypt for user {Email}", model.Email);
+                    }
+                    catch (Exception migrationEx)
+                    {
+                        _logger.LogError(migrationEx, "Failed to auto-migrate password for {Email}", model.Email);
+                    }
+                }
             }
 
             if (!isValidPassword)

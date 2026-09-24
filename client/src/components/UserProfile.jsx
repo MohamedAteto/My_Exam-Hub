@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import api from '../api/axios'
 import { storage } from '../utils/storage'
+import { parseToken } from '../utils/token'
 
 export default function UserProfile({ userRole, onBack }) {
   console.log('🚀 UserProfile component executing', { userRole, onBack });
@@ -26,19 +27,11 @@ export default function UserProfile({ userRole, onBack }) {
         return null
       }
 
-      const parts = token.split('.')
-      if (parts.length < 2) {
-        console.error('Invalid token format')
-        return null
+      // Decode via the shared utility (handles URL-safe base64 and padding)
+      const payload = parseToken(token)
+      if (!payload) {
+        throw new Error('Invalid token format')
       }
-
-      // Handle URL-safe base64 and potential padding issues
-      let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
-      while (base64.length % 4) {
-        base64 += '='
-      }
-
-      const payload = JSON.parse(atob(base64))
       console.log('Decoded Token Payload:', payload)
 
       const userId = payload.AccountId || payload.accountId || payload.sub || payload.id || payload.nameid || payload.uid || storage.getItem('userId')

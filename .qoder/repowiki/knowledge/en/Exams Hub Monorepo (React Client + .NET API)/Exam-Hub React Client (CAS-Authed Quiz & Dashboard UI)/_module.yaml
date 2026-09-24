@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: client
+title: Exam-Hub React Client (CAS-Authed Quiz & Dashboard UI)
+scope:
+    - client/
+source_files: []
+depends_on: []
+related_to: []

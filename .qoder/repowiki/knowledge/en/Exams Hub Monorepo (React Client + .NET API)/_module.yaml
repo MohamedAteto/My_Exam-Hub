@@ -1,0 +1,10 @@
+schema_version: 1
+module_path: ""
+title: Exams Hub Monorepo (React Client + .NET API)
+scope:
+    - README.md
+    - package-lock.json
+    - Exams publish.rar
+source_files: []
+depends_on: []
+related_to: []
