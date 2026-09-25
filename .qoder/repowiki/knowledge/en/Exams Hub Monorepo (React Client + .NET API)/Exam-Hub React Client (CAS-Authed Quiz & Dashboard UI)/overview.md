@@ -1,1 +1,0 @@
-React + Vite single-page client that authenticates via CAS SSO and renders role-gated student, teacher, and super-admin dashboards with quiz taking, charts, and file upload features.

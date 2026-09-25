@@ -1,1 +1,0 @@
-React + Vite on the frontend and ASP.NET Core 9 + Entity Framework Core on the backend, communicating over HTTP REST; both sides are managed under a single Git monorepo.

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -11,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class AuthController : ControllerBase
 {
     private readonly ElsewedySchoolSysDbDevContext _db;
@@ -26,9 +28,13 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
+    [AllowAnonymous]
     public async Task<IActionResult> Register(RegisterModel model)
     {
-        _logger.LogInformation("Register attempt for email: {Email}, with requested role: {Role}", model.Email, model.Role);
+        _logger.LogInformation("Registration attempt for email: {Email}", model.Email);
+
+        if (!string.IsNullOrWhiteSpace(model.Role) && !model.Role.Trim().Equals("Student", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { message = "Public registration is available for student accounts only" });
 
         if (string.IsNullOrWhiteSpace(model.Email) || string.IsNullOrWhiteSpace(model.Password))
             return BadRequest(new { message = "Email and password are required" });
@@ -42,13 +48,7 @@ public class AuthController : ControllerBase
             return Conflict(new { message = "Email already exists" });
 
         // Resolve role (default Student)
-        var roleName = string.IsNullOrWhiteSpace(model.Role) ? "Student" : model.Role.Trim();
-        
-        // Map "Admin" to "Board" for the Exams entity if requested
-        if (roleName.Equals("Admin", StringComparison.OrdinalIgnoreCase) || roleName.Equals("Superadmin", StringComparison.OrdinalIgnoreCase))
-        {
-            roleName = "Board";
-        }
+        const string roleName = "Student";
 
         var role = await _db.Roles.FirstOrDefaultAsync(r => r.RoleName == roleName && r.BusinessEntity == BusinessEntity);
         if (role == null) 
@@ -116,12 +116,13 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
+    [AllowAnonymous]
     public async Task<IActionResult> Login(LoginModel model)
     {
         try
-        {
-            if (string.IsNullOrWhiteSpace(model.Email) || string.IsNullOrWhiteSpace(model.Password))
-                return BadRequest(new { message = "Email and password are required" });
+            {
+                if (string.IsNullOrWhiteSpace(model.Email) || string.IsNullOrWhiteSpace(model.Password))
+                    return BadRequest(new { message = "Email and password are required" });
 
             _logger.LogInformation("Login attempt for email: {Email}", model.Email);
 
@@ -184,7 +185,7 @@ public class AuthController : ControllerBase
                 }
                 else 
                 {
-                     _logger.LogWarning("Hash Mismatch! Stored: {StoredHash}, Computed: {ComputedHash}", storedHash, legacyHash);
+                    _logger.LogWarning("Password verification failed for account {AccountId}", account.Id);
                 }
             }
 
@@ -222,7 +223,7 @@ public class AuthController : ControllerBase
             if (!isValidPassword)
             {
                 // Re-compute for logging if needed, or just log the mismatch
-                _logger.LogWarning("Login failed: Password mismatch for email: {Email}. Stored: {StoredHash}", model.Email, storedHash);
+                _logger.LogWarning("Login failed: Password mismatch for email: {Email}", model.Email);
                 return Unauthorized(new { message = "Invalid credentials" });
             }
 
@@ -261,25 +262,62 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "An error occurred during login for {Email}", model.Email);
-            return StatusCode(500, new { message = "An internal error occurred", error = ex.Message });
+            return StatusCode(500, new { message = "An internal error occurred" });
         }
     }
 
     [HttpPost("sso-token")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetSsoToken([FromBody] SsoTokenModel model)
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(model.Email))
-                return BadRequest(new { message = "Email is required" });
+            if (string.IsNullOrWhiteSpace(model.Email) || string.IsNullOrWhiteSpace(model.SsoToken))
+                return Unauthorized(new { message = "A valid SSO token and email are required" });
+
+            var key = _config["Jwt:Key"];
+            if (string.IsNullOrWhiteSpace(key))
+                return StatusCode(500, new { message = "Authentication is not configured" });
+
+            ClaimsPrincipal ssoPrincipal;
+            try
+            {
+                ssoPrincipal = new JwtSecurityTokenHandler().ValidateToken(
+                    model.SsoToken,
+                    new TokenValidationParameters
+                    {
+                        ValidateIssuer = true,
+                        ValidIssuers = new[] { _config["Jwt:Issuer"] ?? "CAS.Api", "CAS.Api", "QuizesApi" },
+                        ValidateAudience = true,
+                        ValidAudiences = new[] { _config["Jwt:Audience"] ?? "CAS.Clients", "CAS.Clients", "QuizesApiUsers" },
+                        ValidateLifetime = true,
+                        ClockSkew = TimeSpan.FromSeconds(30),
+                        ValidateIssuerSigningKey = true,
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key))
+                    },
+                    out _);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Rejected invalid SSO token");
+                return Unauthorized(new { message = "The SSO token is invalid or expired" });
+            }
+
+            var tokenEmail = ssoPrincipal.FindFirst(ClaimTypes.Email)?.Value
+                ?? ssoPrincipal.FindFirst(JwtRegisteredClaimNames.Email)?.Value
+                ?? ssoPrincipal.FindFirst("Email")?.Value
+                ?? ssoPrincipal.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress")?.Value;
+            if (string.IsNullOrWhiteSpace(tokenEmail) ||
+                !string.Equals(tokenEmail, model.Email, StringComparison.OrdinalIgnoreCase))
+                return Unauthorized(new { message = "The SSO token does not match the supplied email" });
 
             var entity = string.IsNullOrWhiteSpace(model.BusinessEntity) ? BusinessEntity : model.BusinessEntity;
-            _logger.LogInformation("SSO token requested for email: {Email}, Entity: {Entity}", model.Email, entity);
+            _logger.LogInformation("SSO token requested for entity {Entity}", entity);
 
-            var account = await _db.Accounts.FirstOrDefaultAsync(a => a.Email == model.Email && a.IsActive);
+            var account = await _db.Accounts.FirstOrDefaultAsync(a => a.Email == tokenEmail && a.IsActive);
             if (account == null)
             {
-                var loginEntry = await _db.Logins.Include(l => l.Account).FirstOrDefaultAsync(l => l.Email == model.Email);
+                var loginEntry = await _db.Logins.Include(l => l.Account).FirstOrDefaultAsync(l => l.Email == tokenEmail);
                 if (loginEntry?.Account != null && loginEntry.Account.IsActive)
                 {
                     account = loginEntry.Account;
@@ -288,7 +326,7 @@ public class AuthController : ControllerBase
 
             if (account == null)
             {
-                return NotFound(new { message = "Account not found in system" });
+                return Unauthorized(new { message = "Account is not enabled for this application" });
             }
 
             var roles = await _db.AccountRoles
@@ -325,7 +363,7 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error generating SSO token for {Email}", model.Email);
-            return StatusCode(500, new { message = "An internal error occurred", error = ex.Message });
+            return StatusCode(500, new { message = "An internal error occurred" });
         }
     }
 
@@ -334,6 +372,8 @@ public class AuthController : ControllerBase
     {
         try
         {
+            if (!CanManageProfile(id)) return Forbid();
+
             var account = await _db.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id);
             if (account == null)
                 return NotFound(new { message = "User not found" });
@@ -352,7 +392,8 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = "Error retrieving profile", error = ex.Message });
+            _logger.LogError(ex, "Error retrieving profile for account {AccountId}", id);
+            return StatusCode(500, new { message = "Error retrieving profile" });
         }
     }
 
@@ -361,6 +402,8 @@ public class AuthController : ControllerBase
     {
         try
         {
+            if (!CanManageProfile(id)) return Forbid();
+
             var account = await _db.Accounts.FirstOrDefaultAsync(a => a.Id == id);
             if (account == null)
                 return NotFound(new { message = "User not found" });
@@ -391,8 +434,19 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = "Error updating profile", error = ex.Message });
+            _logger.LogError(ex, "Error updating profile for account {AccountId}", id);
+            return StatusCode(500, new { message = "Error updating profile" });
         }
+    }
+
+    private bool CanManageProfile(long accountId)
+    {
+        if (User.IsInRole("Admin") || User.IsInRole("Superadmin") || User.IsInRole("Board")) return true;
+
+        var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value
+            ?? User.FindFirst("id")?.Value;
+        return long.TryParse(accountIdClaim, out var requesterId) && requesterId == accountId;
     }
 
     private string GenerateJwtToken(Account account, System.Collections.Generic.IEnumerable<string> roles)

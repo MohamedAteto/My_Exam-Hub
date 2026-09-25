@@ -1,1 +1,0 @@
-ASP.NET Core 9 web API exposing exam, question-bank, dashboard and authentication endpoints backed by Entity Framework over SQL Server.

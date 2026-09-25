@@ -1,138 +1,15 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
+import { getDashboardKpis } from '../utils/dashboardMetrics'
 
 export default function DashboardCards({ data, loading, userRole, selectedExamId = null, leaderboard = null }) {
     const [animatedTotal, setAnimatedTotal] = useState(0)
     const [animatedPass, setAnimatedPass] = useState(0)
     const [animatedFail, setAnimatedFail] = useState(0)
     const [animatedAverage, setAnimatedAverage] = useState(0)
-
-    const calculateFromLeaderboard = () => {
-        if (!selectedExamId || !leaderboard || !Array.isArray(leaderboard) || leaderboard.length === 0) {
-            return { avgScore: 0, passPercentage: 0, failPercentage: 0 }
-        }
-
-        let totalScore = 0
-        let passCount = 0
-
-        leaderboard.forEach(entry => {
-            const score = typeof entry.score === 'number' ? entry.score : 0
-            totalScore += score
-            if (score >= 50) passCount += 1
-        })
-
-        const count = leaderboard.length
-        if (count === 0) return { avgScore: 0, passPercentage: 0, failPercentage: 0 }
-
-        const avgScore = totalScore / count
-        const passPercentage = (passCount / count) * 100
-        const failPercentage = 100 - passPercentage
-
-        return { avgScore, passPercentage, failPercentage }
-    }
-
-    // Calculate average score based on selected exam or overall
-    const calculateAverageScore = () => {
-        if (!data) return 0
-
-        // If an exam is selected, get its average score
-        if (selectedExamId && data.examBreakdown) {
-            const exam = data.examBreakdown.find(e =>
-                String(e.examId) === String(selectedExamId)
-            )
-            if (exam && exam.averageScore) {
-                return exam.averageScore
-            }
-        }
-
-        // Fallback: derive from leaderboard when breakdown has no stats
-        if (selectedExamId && (!data.examBreakdown || data.examBreakdown.length === 0)) {
-            const fromLb = calculateFromLeaderboard()
-            if (fromLb.avgScore > 0) return fromLb.avgScore
-        }
-
-        // Otherwise calculate overall average (weighted by number of students per exam when available)
-        if (data.examBreakdown && data.examBreakdown.length > 0) {
-            let weightedSum = 0
-            let totalStudents = 0
-
-            data.examBreakdown.forEach(exam => {
-                const avg = exam.averageScore || 0
-                const students = exam.totalStudents || 0
-                if (students > 0) {
-                    weightedSum += avg * students
-                    totalStudents += students
-                }
-            })
-
-            if (totalStudents > 0) {
-                return weightedSum / totalStudents
-            }
-
-            // Fallback to simple average if no student counts are available
-            const total = data.examBreakdown.reduce((sum, exam) => sum + (exam.averageScore || 0), 0)
-            return total / data.examBreakdown.length
-        }
-
-        // For students, calculate from recent exams
-        if (data.recentExams && data.recentExams.length > 0) {
-            const total = data.recentExams.reduce((sum, exam) => sum + (exam.averageScore || 0), 0)
-            return total / data.recentExams.length
-        }
-
-        return data.averageScore || 0
-    }
-
-    // Calculate pass percentage based on selected exam or overall
-    const calculatePassPercentage = () => {
-        if (!data) return 0
-
-        let val = 0
-
-        // Check for selected specific exam first
-        if (selectedExamId && data.examBreakdown) {
-            const exam = data.examBreakdown.find(e =>
-                String(e.examId || e.ExamId) === String(selectedExamId)
-            )
-            if (exam) {
-                val = exam.passPercentage || exam.PassPercentage || exam.averageScore || 0
-                return val
-            }
-        }
-
-        // Fallback: check for top-level aggregate values (case-insensitive)
-        val = data.passPercentage || data.PassPercentage || data.averagePassPercentage || data.AveragePassPercentage || 0
-
-        // If still 0, derive from score distribution if available
-        if (val === 0 && data.scoreDistribution) {
-            const dist = data.scoreDistribution
-            const passBucket = dist.find(d => (d.Name || d.name || '').includes('85-100'))
-            if (passBucket) {
-                const passVal = passBucket.Value || passBucket.value || 0
-                const totalVal = dist.reduce((sum, d) => sum + (d.Value || d.value || 0), 0)
-                if (totalVal > 0) val = (passVal / totalVal) * 100
-            }
-        }
-
-        return val
-    }
-
-    // Calculate fail percentage - MUST be 100 - passPercentage for consistency
-    const calculateFailPercentage = () => {
-        const pass = calculatePassPercentage()
-        if (pass > 0) return 100 - pass
-        if (pass === 0 && data) {
-            // If pass is 0, check if we have explicit fail data for selected exam
-            if (selectedExamId && data.examBreakdown) {
-                const exam = data.examBreakdown.find(e =>
-                    String(e.examId || e.ExamId) === String(selectedExamId)
-                )
-                if (exam && (exam.failPercentage !== undefined || exam.FailedStudents !== undefined)) {
-                    return exam.failPercentage || exam.FailedStudents || 100
-                }
-            }
-        }
-        return 100 - pass
-    }
+    const metrics = useMemo(
+        () => getDashboardKpis(data, selectedExamId, userRole, leaderboard),
+        [data, selectedExamId, userRole, leaderboard]
+    )
 
     // Refs to track current animated values for smooth transitions
     const currentValues = useRef({
@@ -153,28 +30,28 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
 
             const cleanupTotal = animateValue(
                 currentValues.current.total,
-                data.totalExams || 0,
+                metrics.totalExams,
                 600,
                 createSetter('total', setAnimatedTotal)
             )
 
             const cleanupPass = animateValue(
                 currentValues.current.pass,
-                calculatePassPercentage(),
+                metrics.passPercentage,
                 600,
                 createSetter('pass', setAnimatedPass)
             )
 
             const cleanupFail = animateValue(
                 currentValues.current.fail,
-                calculateFailPercentage(),
+                metrics.failPercentage,
                 600,
                 createSetter('fail', setAnimatedFail)
             )
 
             const cleanupAvg = animateValue(
                 currentValues.current.average,
-                calculateAverageScore(),
+                metrics.averageScore,
                 600,
                 createSetter('average', setAnimatedAverage)
             )
@@ -186,7 +63,7 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
                 cleanupAvg()
             }
         }
-    }, [data, loading, selectedExamId])
+    }, [data, loading, metrics])
 
     const animateValue = (start, end, duration, setter) => {
         if (start === end) {
@@ -222,7 +99,7 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
         switch (userRole) {
             case 'Teacher':
                 return {
-                    total: 'Total Exams Created',
+                    total: 'Total Exams',
                     pass: 'Average Pass %',
                     fail: 'Average Fail %',
                     average: 'Average Score'
@@ -286,7 +163,7 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
     }
 
     // Calculate total exams value - if an exam is selected, show 1, otherwise show the total
-    const totalExamsValue = selectedExamId ? 1 : Math.round(animatedTotal)
+    const totalExamsValue = Math.round(animatedTotal)
 
     const cards = [
         {
@@ -302,7 +179,7 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
         },
         {
             label: labels.pass,
-            value: Math.ceil(animatedPass), // Round up (ceiling) for pass rate
+            value: metrics.hasResults ? Math.round(animatedPass) : 0,
             suffix: '%',
             icon: (
                 <svg viewBox="0 0 24 24">
@@ -314,7 +191,7 @@ export default function DashboardCards({ data, loading, userRole, selectedExamId
         },
         {
             label: labels.fail,
-            value: Math.floor(animatedFail), // Round down (floor) for fail rate
+            value: metrics.hasResults ? 100 - Math.round(animatedPass) : 0,
             suffix: '%',
             icon: (
                 <svg viewBox="0 0 24 24">

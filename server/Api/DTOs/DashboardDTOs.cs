@@ -5,7 +5,10 @@ public class StudentDashboardDto
 {
     public long StudentId { get; set; }
     public string StudentName { get; set; } = string.Empty;
+    public long? GradeId { get; set; }
+    public long? ClassId { get; set; }
     public int TotalExamsTaken { get; set; }
+    public double AverageScore { get; set; }
     public double PassPercentage { get; set; }
     public double FailPercentage { get; set; }
     public LeaderboardDto? LatestExamLeaderboard { get; set; }
@@ -25,6 +28,9 @@ public class StudentRecentExamDto
     public long ExamId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string? SubjectName { get; set; }
+    public long? GradeId { get; set; }
+    public long? SubjectId { get; set; }
+    public List<long> ClassIds { get; set; } = new();
     public double? StudentScore { get; set; }
     public double? AverageScore { get; set; }
     public DateTime Date { get; set; }
@@ -36,6 +42,7 @@ public class TeacherDashboardDto
     public long TeacherId { get; set; }
     public string TeacherName { get; set; } = string.Empty;
     public int TotalExamsCreated { get; set; }
+    public double AverageScore { get; set; }
     public double AveragePassPercentage { get; set; }
     public double AverageFailPercentage { get; set; }
     public int TotalStudentsWhoTookExams { get; set; }
@@ -57,6 +64,7 @@ public class SuperadminDashboardDto
     public int TotalExams { get; set; }
     public int TotalStudents { get; set; }
     public int TotalTeachers { get; set; }
+    public double AverageScore { get; set; }
     public double OverallPassPercentage { get; set; }
     public double OverallFailPercentage { get; set; }
     public List<LeaderboardEntryDto> TopPerformingStudents { get; set; } = new();
@@ -85,8 +93,8 @@ public class LeaderboardEntryDto
     public string StudentName { get; set; } = string.Empty;
     public double Score { get; set; }
     public int Rank { get; set; }
-    public int TotalMarks { get; set; }
-    public int EarnedMarks { get; set; }
+    public decimal TotalMarks { get; set; }
+    public decimal EarnedMarks { get; set; }
 }
 
 // Exam Statistics
@@ -95,6 +103,7 @@ public class ExamStatsDto
     public long ExamId { get; set; }
     public string ExamTitle { get; set; } = string.Empty;
     public string? SubjectName { get; set; }
+    public DateTime? ExamDate { get; set; }
     public int TotalStudents { get; set; }
     public int PassedStudents { get; set; }
     public int FailedStudents { get; set; }
@@ -122,6 +131,8 @@ public class StudentPerformanceDto
     public string Initials { get; set; } = string.Empty;
     public string Grade { get; set; } = string.Empty;
     public string Class { get; set; } = string.Empty;
+    public long? GradeId { get; set; }
+    public long? ClassId { get; set; }
     public Dictionary<string, double> QuizScores { get; set; } = new();
 }
 

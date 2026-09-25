@@ -3,12 +3,13 @@
  */
 
 import { parseToken } from './token';
+import { storage } from './storage';
 
 /**
  * Get current user's roles from token
  */
 export function getUserRoles() {
-  const token = localStorage.getItem('token');
+  const token = storage.getItem('token');
   if (!token) return [];
   
   const payload = parseToken(token);
@@ -85,7 +86,7 @@ export function getDefaultRouteForRole(role) {
  * Check if user is authenticated
  */
 export function isAuthenticated() {
-  const token = localStorage.getItem('token');
+  const token = storage.getItem('token');
   if (!token) return false;
   
   const payload = parseToken(token);
@@ -96,7 +97,7 @@ export function isAuthenticated() {
  * Get user ID from current token
  */
 export function getCurrentUserId() {
-  const token = localStorage.getItem('token');
+  const token = storage.getItem('token');
   if (!token) return null;
   
   const payload = parseToken(token);
@@ -109,7 +110,7 @@ export function getCurrentUserId() {
  * Check if token is about to expire (within 5 minutes)
  */
 export function isTokenExpiringSoon() {
-  const token = localStorage.getItem('token');
+  const token = storage.getItem('token');
   if (!token) return false;
   
   try {

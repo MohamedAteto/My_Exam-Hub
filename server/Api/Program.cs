@@ -15,6 +15,15 @@ namespace QuizesApi
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+            var jwtKey = builder.Configuration["Jwt:Key"] ?? Environment.GetEnvironmentVariable("JWT_KEY");
+            var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "CAS.Api";
+            var jwtAudience = builder.Configuration["Jwt:Audience"] ?? Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "CAS.Clients";
+
+            if (string.IsNullOrWhiteSpace(jwtKey))
+                throw new InvalidOperationException("Jwt:Key must be supplied through secure configuration.");
+            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+            if (string.IsNullOrWhiteSpace(connectionString))
+                throw new InvalidOperationException("ConnectionStrings:DefaultConnection must be supplied through secure configuration.");
 
             // Add services to the container BEFORE building the app
             builder.Services.AddControllers()
@@ -30,7 +39,15 @@ namespace QuizesApi
             // Database context
             // Database context
             builder.Services.AddDbContext<ElsewedySchoolSysDbDevContext>(options =>
-                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+                options.UseSqlServer(
+                    connectionString,
+                    sqlOptions =>
+                    {
+                        if (builder.Environment.IsDevelopment())
+                        {
+                            sqlOptions.CommandTimeout(0);
+                        }
+                    }));
                 
             // Add Memory Cache for performance
             builder.Services.AddMemoryCache();
@@ -53,9 +70,9 @@ namespace QuizesApi
                     ValidateAudience = true,
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
-                    ValidIssuers = new[] { builder.Configuration["Jwt:Issuer"] ?? "CAS.Api", "CAS.Api", "QuizesApi" },
-                    ValidAudiences = new[] { builder.Configuration["Jwt:Audience"] ?? "CAS.Clients", "CAS.Clients", "QuizesApiUsers" },
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "tbV/kbyLRqqoDCKJVwksaKqE07GNPkOcFTX7LN96nkY=")),
+                    ValidIssuers = new[] { jwtIssuer, "CAS.Api", "QuizesApi" },
+                    ValidAudiences = new[] { jwtAudience, "CAS.Clients", "QuizesApiUsers" },
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
                     RoleClaimType = System.Security.Claims.ClaimTypes.Role,
                     NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier
                 };
@@ -124,9 +141,9 @@ namespace QuizesApi
 
             app.MapControllers();
 
-            // Seed roles and test accounts
-            using (var scope = app.Services.CreateScope())
+            if (app.Environment.IsDevelopment())
             {
+                using var scope = app.Services.CreateScope();
                 try
                 {
                     var db = scope.ServiceProvider.GetRequiredService<ElsewedySchoolSysDbDevContext>();

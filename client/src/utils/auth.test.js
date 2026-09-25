@@ -12,9 +12,17 @@ function makeToken(payload, expiresIn = 3600) {
 describe('Auth Utilities', () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
   });
 
   describe('getUserRoles', () => {
+    it('should extract role from a session-stored token', () => {
+      const token = makeToken({ role: 'teacher' });
+      sessionStorage.setItem('token', token);
+
+      expect(getUserRoles()).toEqual(['teacher']);
+    });
+
     it('should extract single role as array', () => {
       const token = makeToken({ role: 'teacher' });
       localStorage.setItem('token', token);
@@ -85,11 +93,11 @@ describe('Auth Utilities', () => {
   });
 
   describe('getPrimaryRole', () => {
-    it('should return first role when multiple roles', () => {
+    it('should return the highest-priority role when multiple roles exist', () => {
       const token = makeToken({ role: ['teacher', 'admin'] });
       localStorage.setItem('token', token);
       
-      expect(getPrimaryRole()).toBe('teacher');
+      expect(getPrimaryRole()).toBe('admin');
     });
 
     it('should return single role', () => {
@@ -112,6 +120,13 @@ describe('Auth Utilities', () => {
   });
 
   describe('isAuthenticated', () => {
+    it('should recognize a valid session-stored token', () => {
+      const token = makeToken({ AccountId: 1 });
+      sessionStorage.setItem('token', token);
+
+      expect(isAuthenticated()).toBe(true);
+    });
+
     it('should return true when valid token exists', () => {
       const token = makeToken({ AccountId: 1 });
       localStorage.setItem('token', token);

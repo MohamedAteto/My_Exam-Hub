@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react'
+import { formatRichText } from '../utils/sanitize'
 
 const RichTextEditor = ({ value = '', onChange, placeholder = "Enter your question here...", autoFocus = false }) => {
   const [showMathSymbols, setShowMathSymbols] = useState(false)
@@ -153,30 +154,6 @@ const RichTextEditor = ({ value = '', onChange, placeholder = "Enter your questi
     event.target.value = ''
   }
 
-  const renderPreview = () => {
-    if (!value) return null
-
-    let html = value
-
-    // Convert markdown-like formatting to HTML
-    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>')
-    html = html.replace(/__(.*?)__/g, '<u>$1</u>')
-    html = html.replace(/\^(.*?)\^/g, '<sup>$1</sup>')
-    html = html.replace(/~(.*?)~/g, '<sub>$1</sub>')
-    html = html.replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" style="max-width: 100%; height: auto; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />')
-
-    return (
-      <div className="rich-text-preview">
-        <h4>Preview:</h4>
-        <div
-          className="preview-content"
-          dangerouslySetInnerHTML={{ __html: html }}
-        />
-      </div>
-    )
-  }
-
   return (
     <div className="rich-text-editor-container" style={{
       width: '100%',
@@ -279,7 +256,7 @@ const RichTextEditor = ({ value = '', onChange, placeholder = "Enter your questi
         />
 
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
-          {['B', 'I', 'U'].map((label, idx) => (
+          {['B', 'I', 'U'].map((label) => (
             <button
               key={label}
               type="button"
@@ -411,13 +388,7 @@ const RichTextEditor = ({ value = '', onChange, placeholder = "Enter your questi
           <div
             style={{ fontSize: '1.1rem', color: '#334155', lineHeight: '1.6' }}
             dangerouslySetInnerHTML={{
-              __html: value
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                .replace(/__(.*?)__/g, '<u>$1</u>')
-                .replace(/\^(.*?)\^/g, '<sup>$1</sup>')
-                .replace(/~(.*?)~/g, '<sub>$1</sub>')
-                .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" style="max-width: 100%; height: auto; margin: 10px 0; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);" />')
+              __html: formatRichText(value)
             }}
           />
         </div>

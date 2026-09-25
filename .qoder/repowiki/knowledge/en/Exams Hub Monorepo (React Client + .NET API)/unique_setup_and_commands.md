@@ -1,1 +1,0 @@
-Start the backend with `cd server/api && dotnet restore && dotnet run` (listens on port 5000/7000), then start the frontend with `cd client && npm install && npm run dev` (Vite dev server at localhost:5173).

@@ -38,7 +38,7 @@ export default function StatsBarChart({ data, title }) {
             </h3>
 
             {hasData ? (
-                <div style={{ flex: 1, minHeight: 0 }}>
+                <div style={{ flex: 1, minHeight: 280, minWidth: 0 }}>
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                             <defs>

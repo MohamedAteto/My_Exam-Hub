@@ -13,12 +13,7 @@ export default function DashboardLeaderboard({ leaderboard, loading, examTitle, 
 
     useEffect(() => {
         if (showSlider && sliderGrade !== prevGrade) {
-            const grades = ['Junior', 'Wheeler', 'Senior']
-            const prevIdx = grades.indexOf(prevGrade)
-            const currIdx = grades.indexOf(sliderGrade)
-            const direction = (currIdx > prevIdx || (prevIdx === 2 && currIdx === 0)) ? 'slide-left' : 'slide-right'
-
-            setAnimationClass(direction)
+            setAnimationClass('slide-left')
             setPrevGrade(sliderGrade)
             const timer = setTimeout(() => setAnimationClass(''), 800)
             return () => clearTimeout(timer)

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
+import { formatRichText } from '../utils/sanitize'
 
 export default function QuizInterface({
   currentQuiz,
@@ -10,20 +11,9 @@ export default function QuizInterface({
 }) {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
 
-  if (!currentQuiz) return null
-
   // Helper function to render rich text (markdown-like to HTML)
   const renderRichText = (text) => {
-    if (!text) return { __html: '' }
-    let html = text
-    // Convert markdown-like formatting to HTML
-    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>')
-    html = html.replace(/__(.*?)__/g, '<u>$1</u>')
-    html = html.replace(/\^(.*?)\^/g, '<sup>$1</sup>')
-    html = html.replace(/~(.*?)~/g, '<sub>$1</sub>')
-    html = html.replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" style="max-width: 100%; height: auto; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />')
-    return { __html: html }
+    return { __html: formatRichText(text) }
   }
 
   // Helper function to create question HTML
@@ -127,6 +117,8 @@ export default function QuizInterface({
       setShowSuccessMessage(false)
     }
   }, [currentQuiz, isReviewMode, timeRemaining])
+
+  if (!currentQuiz) return null
 
   return (
     <div id="quiz-view" className={`quiz-interface ${currentQuiz ? 'active' : ''}`}>

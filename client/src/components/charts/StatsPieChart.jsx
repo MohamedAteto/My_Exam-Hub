@@ -47,7 +47,7 @@ export default function StatsPieChart({ passPercentage, failPercentage, title })
             </h3>
 
             {hasData ? (
-                <div style={{ flex: 1, position: 'relative' }}>
+                <div style={{ flex: 1, minHeight: 280, position: 'relative' }}>
                     <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                             <defs>

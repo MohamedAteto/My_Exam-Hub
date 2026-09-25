@@ -1,4 +1,5 @@
 ﻿using System;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using QuizesApi.Models;
 using QuizesApi.Repositories.Interfaces;
@@ -9,13 +10,16 @@ namespace QuizesApi.Controllers
 {
         [ApiController]
         [Route("api/[controller]")]
+        [Authorize(Roles = "Teacher,Admin,Superadmin,Board")]
         public class QuestionBankController : ControllerBase
         {
             private readonly IQuestionBankRepo _repo;
+            private readonly ILogger<QuestionBankController> _logger;
 
-            public QuestionBankController(IQuestionBankRepo repo)
+            public QuestionBankController(IQuestionBankRepo repo, ILogger<QuestionBankController> logger)
             {
                 _repo = repo;
+                _logger = logger;
             }
 
             [HttpGet]
@@ -137,8 +141,8 @@ namespace QuizesApi.Controllers
                 }
                 catch (Exception ex)
                 {
-                    var innerMessage = ex.InnerException?.Message ?? "No inner details";
-                    return StatusCode(500, new { message = $"Error creating question: {ex.Message} | Inner: {innerMessage}" });
+                    _logger.LogError(ex, "Failed to create question");
+                    return StatusCode(500, new { message = "Unable to create the question" });
                 }
             }
 
@@ -267,8 +271,8 @@ namespace QuizesApi.Controllers
             }
             catch (Exception ex)
             {
-                var innerMessage = ex.InnerException?.Message ?? "No inner details";
-                return StatusCode(500, new { message = $"Error processing file: {ex.Message} | Inner: {innerMessage}" });
+                _logger.LogError(ex, "Failed to import question file");
+                return StatusCode(500, new { message = "Unable to process the question file" });
             }
         }
             [HttpPut("{id}")]
@@ -315,8 +319,8 @@ namespace QuizesApi.Controllers
                 }
                 catch (Exception ex)
                 {
-                    var innerMessage = ex.InnerException?.Message ?? "No inner details";
-                    return StatusCode(500, new { message = $"Error updating question: {ex.Message} | Inner: {innerMessage}" });
+                    _logger.LogError(ex, "Failed to update question {QuestionId}", id);
+                    return StatusCode(500, new { message = "Unable to update the question" });
                 }
             }
 
@@ -501,7 +505,8 @@ namespace QuizesApi.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = $"Error generating template: {ex.Message}" });
+                _logger.LogError(ex, "Failed to generate question template");
+                return StatusCode(500, new { message = "Unable to generate the question template" });
             }
         }
     }

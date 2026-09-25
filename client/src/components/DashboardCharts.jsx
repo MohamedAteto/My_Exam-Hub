@@ -1,6 +1,7 @@
 import StatsPieChart from './charts/StatsPieChart'
 import StatsLineChart from './charts/StatsLineChart'
 import StatsBarChart from './charts/StatsBarChart'
+import { getDashboardTrendData, normalizePassFailPercentages } from '../utils/dashboardMetrics'
 
 export default function DashboardCharts({ dashboardData, userRole, selectedExamId = null, filters = {} }) {
     const roleNorm = String(userRole || '').toLowerCase()
@@ -23,62 +24,14 @@ export default function DashboardCharts({ dashboardData, userRole, selectedExamI
     const dist = (dashboardData.scoreDistribution || [])
         .map(d => ({ Name: d.Name || d.name || '', Value: d.Value !== undefined ? d.Value : d.value }))
 
-    // Ensure pass + fail always equals 100% (mutually exclusive or complementary)
-    const totalPassFail = passPercentage + failPercentage
-    let displayPass = passPercentage
-    let displayFail = failPercentage
-    
-    // If pass and fail are both 0 but we have score distribution data, derive from it
-    if ((passPercentage === 0 && failPercentage === 0) || totalPassFail === 0) {
-        // Backend sends: "0-50%", "50-70%", "70-85%", "85-100%"
-        // "Pass" is typically 85-100% bucket
-        const passBucket = dist.find(d => d.Name.includes('85') || d.Name.includes('100'))
-        const totalVal = dist.reduce((sum, d) => sum + (d.Value || 0), 0)
-        
-        if (passBucket && totalVal > 0) {
-            displayPass = Math.round((passBucket.Value / totalVal) * 100)
-            displayFail = 100 - displayPass
-        } else if (totalVal > 0) {
-            // If no explicit pass bucket, sum all non-fail buckets or derive from total
-            const failBucket = dist.find(d => d.Name.includes('0-50') || d.Name.includes('50-70') || d.Name.includes('70-85'))
-            if (failBucket) {
-                displayFail = Math.round((failBucket.Value / totalVal) * 100)
-                displayPass = 100 - displayFail
-            }
-        }
-    } else if (totalPassFail > 0 && totalPassFail !== 100) {
-        // Scale to 100%
-        displayPass = Math.round((passPercentage / totalPassFail) * 100)
-        displayFail = 100 - displayPass
-    } else if (passPercentage > 0 && failPercentage === 0) {
-        displayFail = 100 - displayPass
-    } else if (failPercentage > 0 && passPercentage === 0) {
-        displayPass = 100 - displayFail
-    }
+    const { passPercentage: displayPass, failPercentage: displayFail } =
+        normalizePassFailPercentages(passPercentage, failPercentage, dist)
 
-    let lineChartData = []
-    if (roleNorm === 'student') {
-        const recent = dashboardData.recentExams || []
-        lineChartData = recent
-            .map(exam => ({
-                Title: exam.title || exam.Title || 'Exam',
-                StudentScore: exam.studentScore || exam.StudentScore || 0,
-                AverageScore: exam.averageScore || exam.AverageScore || 0
-            }))
-            .slice(-20)
-    } else {
-        // For teachers/admins: limit to latest 20 exams (approximate by taking last 20 entries)
-        const breakdown = dashboardData.examBreakdown || []
-        lineChartData = breakdown
-            .map(exam => ({
-                Title: exam.examTitle || exam.title || exam.Title || 'Exam',
-                AverageScore: exam.averageScore || exam.AverageScore || 0
-            }))
-            .slice(-20)
-    }
+    const lineChartData = getDashboardTrendData(dashboardData, roleNorm, selectedExamId)
 
     // Prepare bar chart data (score distribution) - normalize field names
-    const barChartData = dist.map(item => ({
+    const hasDistributionResults = dist.some(item => Number(item.Value) > 0)
+    const barChartData = (hasDistributionResults ? dist : []).map(item => ({
         Name: item.Name,
         Value: item.Value
     }))
@@ -118,7 +71,7 @@ export default function DashboardCharts({ dashboardData, userRole, selectedExamI
             <div className="animate-card stagger-3">
                 <StatsBarChart
                     data={barChartData}
-                    title="Score Distribution"
+                    title="Score Distribution (Exam Results)"
                 />
             </div>
         </div>

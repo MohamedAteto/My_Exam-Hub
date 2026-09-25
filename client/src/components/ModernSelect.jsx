@@ -38,7 +38,7 @@ export default function ModernSelect({
         if (isOpen) {
             document.addEventListener('mousedown', handleClickOutside)
             if (searchable && searchInputRef.current) {
-                setTimeout(() => searchInputRef.current.focus(), 50)
+                setTimeout(() => searchInputRef.current?.focus(), 50)
             }
         } else {
             setSearchTerm('')

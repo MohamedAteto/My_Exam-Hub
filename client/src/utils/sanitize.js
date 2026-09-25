@@ -1,3 +1,5 @@
+import DOMPurify from 'dompurify';
+
 /**
  * HTML Sanitization Utilities
  * 
@@ -14,35 +16,22 @@
  * WARNING: This is NOT a complete XSS solution. Use DOMPurify in production.
  */
 export function sanitizeHTML(html) {
-  if (!html) return '';
-  
-  // Create a temporary div to parse HTML
-  const temp = document.createElement('div');
-  temp.innerHTML = html; // Parse HTML
-  
-  // Remove script tags
-  const scripts = temp.querySelectorAll('script');
-  scripts.forEach(script => script.remove());
-  
-  // Remove dangerous attributes
-  const allElements = temp.getElementsByTagName('*');
-  for (let i = 0; i < allElements.length; i++) {
-    const element = allElements[i];
-    
-    // Remove event handler attributes
-    const attrs = Array.from(element.attributes);
-    for (const attr of attrs) {
-      if (attr.name.startsWith('on') || attr.value.includes('javascript:')) {
-        element.removeAttribute(attr.name);
-      }
-      // Remove href with javascript:
-      if (attr.name === 'href' && attr.value.includes('javascript:')) {
-        element.removeAttribute('href');
-      }
-    }
-  }
-  
-  return temp.innerHTML;
+  if (typeof html !== 'string' || html.length === 0) return '';
+  return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
+}
+
+export function formatRichText(text) {
+  if (typeof text !== 'string' || text.length === 0) return '';
+
+  const html = text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/__(.*?)__/g, '<u>$1</u>')
+    .replace(/\^(.*?)\^/g, '<sup>$1</sup>')
+    .replace(/~(.*?)~/g, '<sub>$1</sub>')
+    .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" />');
+
+  return sanitizeHTML(html);
 }
 
 /**
@@ -71,7 +60,7 @@ export function sanitizeInput(input) {
   if (!input) return '';
   return String(input)
     .trim()
-    .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
+    .replace(/\p{Cc}/gu, '')
     .slice(0, 10000); // Limit length
 }
 

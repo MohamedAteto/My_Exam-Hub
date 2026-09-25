@@ -1,0 +1,23 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run API dev server",
+			"type": "shell",
+			"command": "dotnet run --project server/Api/QuizesApi.csproj --urls http://localhost:5500",
+			"args": [],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Check API health and auth response",
+			"type": "shell",
+			"command": "curl.exe -s -D - -o NUL http://localhost:5500/api/dashboard/lookup-data",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		}
+	]
+}

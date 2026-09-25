@@ -5456,23 +5456,23 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\Zspark1\\.nuget\\packages\\": {},
+    "C:\\Users\\Hatem\\.nuget\\packages\\": {},
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\Projects\\Exam-Hub\\server\\Api\\QuizesApi.csproj",
+      "projectUniqueName": "E:\\Code-hub\\El-Sewedy IATS Projects\\Exam-Hub\\server\\Api\\QuizesApi.csproj",
       "projectName": "QuizesApi",
-      "projectPath": "D:\\Projects\\Exam-Hub\\server\\Api\\QuizesApi.csproj",
-      "packagesPath": "C:\\Users\\Zspark1\\.nuget\\packages\\",
-      "outputPath": "D:\\Projects\\Exam-Hub\\server\\Api\\obj\\",
+      "projectPath": "E:\\Code-hub\\El-Sewedy IATS Projects\\Exam-Hub\\server\\Api\\QuizesApi.csproj",
+      "packagesPath": "C:\\Users\\Hatem\\.nuget\\packages\\",
+      "outputPath": "E:\\Code-hub\\El-Sewedy IATS Projects\\Exam-Hub\\server\\Api\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
       ],
       "configFilePaths": [
-        "C:\\Users\\Zspark1\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\Hatem\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],

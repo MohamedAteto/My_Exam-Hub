@@ -1,2 +1,0 @@
-- Each side maintains its own package manager configuration (`package.json` for the client, `.csproj`/solution for the server) and is installed/run independently from the repo root.
-- Authentication flows through CAS SSO on the client side and is propagated to the server via token-based requests to protected API endpoints.

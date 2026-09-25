@@ -1,8 +1,0 @@
-schema_version: 1
-module_path: server
-title: Exam-Hub ASP.NET Core API Server
-scope:
-    - server/
-source_files: []
-depends_on: []
-related_to: []

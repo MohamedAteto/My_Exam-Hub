@@ -17,6 +17,7 @@ public class LoginModel
 public class SsoTokenModel
 {
     public string Email { get; set; } = string.Empty;
+    public string SsoToken { get; set; } = string.Empty;
     public string? BusinessEntity { get; set; }
 }
 

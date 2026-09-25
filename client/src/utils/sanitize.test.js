@@ -30,6 +30,15 @@ describe('Sanitize Utilities', () => {
       expect(output).toContain('Click me');
     });
 
+    it('should remove SVG payloads and image event handlers', () => {
+      const output = sanitizeHtml('<svg onload="alert(1)"><script>alert(2)</script></svg><img src="x" onerror="alert(3)">');
+
+      expect(output).not.toContain('<svg');
+      expect(output).not.toContain('<script');
+      expect(output).not.toContain('onerror');
+      expect(output).toContain('<img');
+    });
+
     it('should remove javascript: URLs', () => {
       const input = '<a href="javascript:alert(1)">Link</a>';
       const output = sanitizeHtml(input);

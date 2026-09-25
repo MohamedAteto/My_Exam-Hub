@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QuizesApi.Models;
@@ -10,15 +11,21 @@ namespace QuizesApi.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class ExamDetailController : ControllerBase
     {
         private readonly IExamRepo _repo;
         private readonly ElsewedySchoolSysDbDevContext _context;
+        private readonly ILogger<ExamDetailController> _logger;
 
-        public ExamDetailController(IExamRepo repo, ElsewedySchoolSysDbDevContext context)
+        public ExamDetailController(
+            IExamRepo repo,
+            ElsewedySchoolSysDbDevContext context,
+            ILogger<ExamDetailController> logger)
         {
             _repo = repo;
             _context = context;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -36,15 +43,11 @@ namespace QuizesApi.Controllers
 
             var exams = await _repo.GetAllAsync();
 
-            if (accountId.HasValue)
+            if (User.IsInRole("Student"))
             {
-                var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
-                bool isTeacher = roles.Contains("Teacher");
-                bool isAdmin = roles.Contains("Superadmin") || roles.Contains("Admin") || roles.Contains("Board");
+                if (!accountId.HasValue) return Forbid();
 
-                // Teachers can now see ALL exams. No longer restricted to CreatedBy_AccId.
-
-                var studentExtension = await _context.StudentExtensions
+                var studentExtension = await _context.StudentExtensions.AsNoTracking()
                     .FirstOrDefaultAsync(se => se.AccountId == accountId.Value);
                 
                 // If account is found in StudentExtensions, strictly filter by class
@@ -57,15 +60,12 @@ namespace QuizesApi.Controllers
                         exams = exams.Where(e => !string.IsNullOrEmpty(e.ClassId) && 
                             e.ClassId.Split(',', StringSplitOptions.RemoveEmptyEntries).Contains(filterClassId));
                     }
-                    else
-                    {
-                        // Registered student with no class assigned should see no exams
-                        exams = Enumerable.Empty<ExamDetail>();
-                    }
+                    else exams = Enumerable.Empty<ExamDetail>();
                 }
+                else exams = Enumerable.Empty<ExamDetail>();
             }
 
-            return Ok(exams.Select(MapToDto));
+            return Ok(exams.Select(exam => MapToDto(exam, !User.IsInRole("Student"))));
         }
 
         [HttpGet("{id}")]
@@ -84,33 +84,25 @@ namespace QuizesApi.Controllers
                 accountId = tokenAccountId;
             }
 
-            if (accountId.HasValue)
+            if (User.IsInRole("Student"))
             {
-                var studentExtension = await _context.StudentExtensions
-                    .FirstOrDefaultAsync(se => se.AccountId == accountId.Value);
-                
-                if (studentExtension != null && studentExtension.ClassId.HasValue)
-                {
-                    var studentClassId = studentExtension.ClassId.Value.ToString();
-                    
-                    // Access check using multi-class ID string
-                    bool hasAccess = string.IsNullOrEmpty(exam.ClassId) || 
-                                     exam.ClassId.Split(',', StringSplitOptions.RemoveEmptyEntries).Contains(studentClassId);
-                                     
-                    if (!hasAccess)
-                    {
-                        return StatusCode(403, new { message = "You do not have access to this quiz. It is not assigned to your class." });
-                    }
-                }
+                if (!accountId.HasValue) return Forbid();
+                var studentClassId = await _context.StudentExtensions.AsNoTracking()
+                    .Where(se => se.AccountId == accountId.Value)
+                    .Select(se => se.ClassId)
+                    .FirstOrDefaultAsync();
+                if (!studentClassId.HasValue || string.IsNullOrWhiteSpace(exam.ClassId) ||
+                    !exam.ClassId.Split(',', StringSplitOptions.RemoveEmptyEntries).Contains(studentClassId.Value.ToString()))
+                    return Forbid();
             }
 
-            return Ok(MapToDto(exam));
+            return Ok(MapToDto(exam, !User.IsInRole("Student")));
         }
 
     [HttpPost]
+    [Authorize(Roles = "Teacher,Admin,Superadmin,Board")]
     public async Task<ActionResult<ExamReadDto>> Create(ExamCreateDto dto)  
     {
-        Console.WriteLine($"[DIAG] Create Exam called. Title={dto.Title}, GradeId={dto.GradeId}, ClassIds={dto.ClassIds?.Count}");
         try 
         {
                 var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
@@ -122,16 +114,9 @@ namespace QuizesApi.Controllers
                 {
                     accountId = tokenAccountId;
                 }
-                else if (dto.CreatedBy_AccID > 0)
-                {
-                    accountId = dto.CreatedBy_AccID;
-                }
-
                 if (accountId <= 0)
                 {
-                    if (dto.CreatedBy.HasValue) accountId = dto.CreatedBy.Value;
-                    if (accountId <= 0)
-                        return BadRequest(new { message = "Unable to determine account ID. Please log in again." });
+                    return Unauthorized(new { message = "Unable to determine account ID. Please log in again." });
                 }
 
                 var accountExists = await _context.Accounts.AnyAsync(a => a.Id == accountId);
@@ -183,8 +168,6 @@ namespace QuizesApi.Controllers
                     return BadRequest(new { message = "At least one question must be selected for the exam." });
                 }
 
-                Console.WriteLine($"[DIAG] Creating exam for classes: {string.Join(", ", classIdsToProcess)}");
-
                 // Create SINGLE exam linked to multiple classes
                 var newExam = new ExamDetail
                 {
@@ -210,13 +193,13 @@ namespace QuizesApi.Controllers
             }
             catch (Exception ex)
             {
-                var innerMessage = ex.InnerException?.Message ?? "No inner details";
-                Console.WriteLine($"[ERROR] Quiz Creation failed: {ex.Message} | Inner: {innerMessage} | Stack: {ex.StackTrace}");
-                return StatusCode(500, new { message = $"Error creating exam: {ex.Message} | Inner: {innerMessage}" });
+                _logger.LogError(ex, "Failed to create exam");
+                return StatusCode(500, new { message = "Unable to create the exam" });
             }
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Teacher,Admin,Superadmin,Board")]
         public async Task<ActionResult<ExamReadDto>> Update(long id, ExamUpdateDto dto)
         {
             try
@@ -255,15 +238,13 @@ namespace QuizesApi.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ERROR] Update Quiz Failed: {ex.Message} \nStack: {ex.StackTrace}");
-                if (ex.InnerException != null)
-                     Console.WriteLine($"[Inner] {ex.InnerException.Message}");
-                
-                return StatusCode(500, new { message = $"Failed to save exam: {ex.Message} {(ex.InnerException != null ? " | " + ex.InnerException.Message : "")}" });
+                _logger.LogError(ex, "Failed to update exam {ExamId}", id);
+                return StatusCode(500, new { message = "Unable to save the exam" });
             }
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Teacher,Admin,Superadmin,Board")]
         public async Task<ActionResult> Delete(long id)
         {
             await _repo.DeleteAsync(id);
@@ -271,7 +252,7 @@ namespace QuizesApi.Controllers
             return NoContent();
         }
 
-        private ExamReadDto MapToDto(ExamDetail e)
+        private ExamReadDto MapToDto(ExamDetail e, bool includeCorrectAnswers = true)
         {
             return new ExamReadDto
             {
@@ -303,7 +284,7 @@ namespace QuizesApi.Controllers
                         OptionG = eq.Question.OptionG,
                         OptionH = eq.Question.OptionH,
                         UsedOptions = eq.Question.UsedOptions ?? 4,
-                        CorrectAnswer = eq.Question.CorrectAnswer,
+                        CorrectAnswer = includeCorrectAnswers ? eq.Question.CorrectAnswer : null,
                         QuestionSubject = eq.Question.QuestionSubject,
                         Mark = eq.Question.Mark ?? 0
                     }).ToList(),

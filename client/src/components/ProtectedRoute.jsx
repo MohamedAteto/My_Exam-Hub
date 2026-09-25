@@ -1,16 +1,40 @@
+import { useEffect, useRef } from 'react'
 import { Navigate } from 'react-router-dom'
 import { storage } from '../utils/storage'
 import { getUserRoles, getDefaultRouteForRole, isAuthenticated } from '../utils/auth'
 import { parseToken } from '../utils/token'
 
 export default function ProtectedRoute({ children, allowedRoles }) {
-    // Check authentication
-    if (!isAuthenticated()) {
-        // Redirect to CAS Single Sign-On
-        const casUrl = import.meta.env.VITE_CAS_URL || 'https://centerlizedlogin.sewedy.com.eg'
-        const callbackUrl = encodeURIComponent(`${window.location.origin}/sso-callback`)
-        window.location.href = `${casUrl}/login?redirect=${callbackUrl}&businessEntityId=9`
-        return null
+    const authenticated = isAuthenticated()
+    const redirectStarted = useRef(false)
+    const casUrl = import.meta.env.VITE_CAS_URL || 'https://centerlizedlogin.sewedy.com.eg'
+    const callbackUrl = encodeURIComponent(`${window.location.origin}/sso-callback`)
+    const loginUrl = `${casUrl}/login?redirect=${callbackUrl}&businessEntityId=9`
+
+    useEffect(() => {
+        if (authenticated || redirectStarted.current) return
+        redirectStarted.current = true
+        window.location.href = loginUrl
+    }, [authenticated, loginUrl])
+
+    if (!authenticated) {
+        return (
+            <main role="status" style={{
+                minHeight: '100vh',
+                display: 'grid',
+                placeContent: 'center',
+                gap: '0.75rem',
+                padding: '2rem',
+                textAlign: 'center',
+                color: '#111827',
+                background: '#f9fafb'
+            }}>
+                <p style={{ margin: 0 }}>Redirecting to secure sign-in...</p>
+                <a href={loginUrl} style={{ color: '#b91c1c', textDecoration: 'underline' }}>
+                    Continue to sign in
+                </a>
+            </main>
+        )
     }
 
     const token = storage.getItem('token')
@@ -30,8 +54,10 @@ export default function ProtectedRoute({ children, allowedRoles }) {
     }
 
     // Check if user has any of the allowed roles
-    const normalizedAllowed = allowedRoles.map(r => r.toLowerCase())
-    const hasAccess = userRoles.some(role => normalizedAllowed.includes(role))
+    const normalizedAllowed = (allowedRoles || []).map(role => role.toLowerCase())
+    const hasAccess = normalizedAllowed.length === 0 || userRoles.some(
+        role => normalizedAllowed.includes(String(role).toLowerCase())
+    )
 
     if (!hasAccess) {
         // Redirect to appropriate page based on user's actual role

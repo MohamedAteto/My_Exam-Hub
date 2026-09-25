@@ -14,43 +14,42 @@ public class DashboardController : ControllerBase
 {
     private readonly IDashboardRepo _dashboardRepo;
     private readonly ElsewedySchoolSysDbDevContext _context;
+    private readonly ILogger<DashboardController> _logger;
 
-    public DashboardController(IDashboardRepo dashboardRepo, ElsewedySchoolSysDbDevContext context)
+    public DashboardController(
+        IDashboardRepo dashboardRepo,
+        ElsewedySchoolSysDbDevContext context,
+        ILogger<DashboardController> logger)
     {
         _dashboardRepo = dashboardRepo;
         _context = context;
+        _logger = logger;
     }
 
     [HttpGet("lookup-data")]
     [Authorize]
     public async Task<ActionResult> GetLookupData()
     {
-        var grades = await _context.Grades
+        var gradeRecords = await _context.Grades.AsNoTracking()
+            .Where(g => AcademicLookup.SupportedGradeNames.Contains(g.GradeName.ToLower()))
+            .OrderBy(g => g.Id)
+            .ToListAsync();
+        var gradePrefixes = gradeRecords.ToDictionary(g => g.Id, g => AcademicLookup.GetClassPrefix(g.GradeName));
+        var gradeIds = gradeRecords.Select(g => g.Id).ToList();
+        var classRecords = await _context.TblClasses.AsNoTracking()
+            .Where(c => gradeIds.Contains(c.GradeId))
+            .OrderBy(c => c.Id)
+            .ToListAsync();
+        var grades = gradeRecords
             .Select(g => new { id = g.Id, gradeName = g.GradeName })
-            .ToListAsync();
-        
-        var classes = await _context.TblClasses
+            .ToList();
+        var classes = classRecords
+            .Where(c => gradePrefixes.TryGetValue(c.GradeId, out var prefix) &&
+                        AcademicLookup.IsSupportedClassName(c.ClassName, prefix))
             .Select(c => new { id = c.Id, className = c.ClassName, gradeId = c.GradeId })
-            .ToListAsync();
+            .ToList();
         
-        if (classes.Any()) {
-            var s = classes[0];
-            Console.WriteLine($"[DIAG] Sample Class: ID={s.id}, Name={s.className}, GradeId={s.gradeId}");
-        } else {
-            Console.WriteLine("[DIAG] No classes found in Tbl_Class");
-        }
-
         var exams = await _context.ExamDetails.ToListAsync();
-
-        var classMap = classes
-            .Where(c => !string.IsNullOrEmpty(c.className))
-            .GroupBy(c => c.className)
-            .ToDictionary(g => g.Key, g => g.First().id);
-
-        var gradeMap = grades
-            .Where(g => !string.IsNullOrEmpty(g.gradeName))
-            .GroupBy(g => g.gradeName)
-            .ToDictionary(g => g.Key, g => g.First().id);
 
         var mappedExams = exams.Select(e => {
             return new {
@@ -66,8 +65,6 @@ public class DashboardController : ControllerBase
                     : new List<long>()
             };
         });
-
-        Console.WriteLine("[DIAG] Exams mapped: " + mappedExams.Count());
 
         var subjects = await _context.Statuses
             .Where(s => s.BusinessEntity == "Exams")
@@ -88,6 +85,7 @@ public class DashboardController : ControllerBase
         long id,
         [FromQuery] long? gradeId = null,
         [FromQuery] long? classId = null,
+        [FromQuery] long? subjectId = null,
         [FromQuery] long? examId = null,
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null)
@@ -104,6 +102,7 @@ public class DashboardController : ControllerBase
             {
                 GradeId = gradeId,
                 ClassId = classId,
+                SubjectId = subjectId,
                 ExamId = examId,
                 StartDate = startDate,
                 EndDate = endDate
@@ -131,7 +130,8 @@ public class DashboardController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = "Error retrieving student dashboard", error = ex.Message });
+            _logger.LogError(ex, "Failed to retrieve student dashboard for account {AccountId}", id);
+            return StatusCode(500, new { message = "Unable to load the student dashboard" });
         }
     }
 
@@ -146,6 +146,7 @@ public class DashboardController : ControllerBase
         long id,
         [FromQuery] long? gradeId = null,
         [FromQuery] long? classId = null,
+        [FromQuery] long? subjectId = null,
         [FromQuery] long? examId = null,
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null)
@@ -162,11 +163,11 @@ public class DashboardController : ControllerBase
             {
                 GradeId = gradeId,
                 ClassId = classId,
+                SubjectId = subjectId,
                 ExamId = examId,
                 StartDate = startDate,
                 EndDate = endDate
             };
-            Console.WriteLine($"[FILTER] Teacher: {id}, Grade={gradeId}, Class={classId}");
             // Optional: Verify the requesting user is the teacher or an admin
             var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
                 ?? User.FindFirst("sub")?.Value 
@@ -190,7 +191,8 @@ public class DashboardController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = "Error retrieving teacher dashboard", error = ex.Message });
+            _logger.LogError(ex, "Failed to retrieve teacher dashboard for account {AccountId}", id);
+            return StatusCode(500, new { message = "Unable to load the teacher dashboard" });
         }
     }
 
@@ -203,6 +205,7 @@ public class DashboardController : ControllerBase
     public async Task<ActionResult<SuperadminDashboardDto>> GetSuperadminDashboard(
         [FromQuery] long? gradeId = null,
         [FromQuery] long? classId = null,
+        [FromQuery] long? subjectId = null,
         [FromQuery] long? examId = null,
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null)
@@ -219,6 +222,7 @@ public class DashboardController : ControllerBase
             {
                 GradeId = gradeId,
                 ClassId = classId,
+                SubjectId = subjectId,
                 ExamId = examId,
                 StartDate = startDate,
                 EndDate = endDate
@@ -229,7 +233,8 @@ public class DashboardController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = "Error retrieving superadmin dashboard", error = ex.Message });
+            _logger.LogError(ex, "Failed to retrieve the system dashboard");
+            return StatusCode(500, new { message = "Unable to load the system dashboard" });
         }
     }
 
@@ -248,6 +253,7 @@ public class DashboardController : ControllerBase
         long examId,
         [FromQuery] long? gradeId = null,
         [FromQuery] long? classId = null,
+        [FromQuery] long? subjectId = null,
         [FromQuery] long? examIdParam = null,
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null,
@@ -265,6 +271,7 @@ public class DashboardController : ControllerBase
             {
                 GradeId = gradeId,
                 ClassId = classId,
+                SubjectId = subjectId,
                 ExamId = examIdParam ?? examId,
                 StartDate = startDate,
                 EndDate = endDate,
@@ -280,7 +287,8 @@ public class DashboardController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = "Error retrieving leaderboard", error = ex.Message });
+            _logger.LogError(ex, "Failed to retrieve leaderboard for exam {ExamId}", examId);
+            return StatusCode(500, new { message = "Unable to load the leaderboard" });
         }
     }
 
@@ -301,6 +309,11 @@ public class DashboardController : ControllerBase
     {
         try
         {
+            if (startDate.HasValue && endDate.HasValue && startDate.Value > endDate.Value)
+            {
+                return BadRequest(new { message = "Start date must be before or equal to end date" });
+            }
+
             var filters = new LeaderboardFilterDto
             {
                 GradeId = gradeId,
@@ -315,7 +328,8 @@ public class DashboardController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = "Error retrieving combined leaderboard", error = ex.Message });
+            _logger.LogError(ex, "Failed to retrieve combined leaderboard");
+            return StatusCode(500, new { message = "Unable to load the leaderboard" });
         }
     }
 
@@ -339,7 +353,8 @@ public class DashboardController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = "Error retrieving exam statistics", error = ex.Message });
+            _logger.LogError(ex, "Failed to retrieve statistics for exam {ExamId}", examId);
+            return StatusCode(500, new { message = "Unable to load exam statistics" });
         }
     }
 
@@ -354,12 +369,13 @@ public class DashboardController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = "Error retrieving teachers", error = ex.Message });
+            _logger.LogError(ex, "Failed to retrieve teachers");
+            return StatusCode(500, new { message = "Unable to load teachers" });
         }
     }
 
     [HttpGet("students")]
-    [Authorize]
+    [Authorize(Roles = "Teacher,Admin,Superadmin,Board")]
     public async Task<ActionResult<List<StudentPerformanceDto>>> GetStudents()
     {
         try
@@ -369,7 +385,8 @@ public class DashboardController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = "Error retrieving students", error = ex.Message });
+            _logger.LogError(ex, "Failed to retrieve students");
+            return StatusCode(500, new { message = "Unable to load students" });
         }
     }
 }

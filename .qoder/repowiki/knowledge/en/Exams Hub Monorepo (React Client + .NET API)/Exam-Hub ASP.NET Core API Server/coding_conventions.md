@@ -1,5 +1,0 @@
-- Controllers are declared as top-level classes with `[ApiController]` and route template `api/[controller]`, taking dependencies through constructor injection.
-- Repository implementations expose async CRUD methods (`GetAllAsync`, `GetByIdAsync`, `AddAsync`, `UpdateAsync`, `DeleteAsync`, `SaveChangesAsync`) defined in an `Interfaces/` folder and registered as `AddScoped` in `Program.cs`.
-- Password storage uses BCrypt.Net-Next, with login falling back to SHA256 and then plaintext comparison for legacy accounts.
-- JWT tokens are issued with HS256 signing using `Jwt:Key` from configuration, embedding `sub`, `email`, and `Role` claims, and validated via `TokenValidationParameters` with multiple accepted issuers/audiences.
-- Authorization is enforced through named policies (`StudentOnly`, `TeacherOnly`, `SuperadminOnly`, `TeacherOrAdmin`) configured in `Program.cs` rather than per-endpoint attribute checks.

@@ -1,1 +1,0 @@
-React 19 + ReactDOM, Vite 7 build tool, react-router-dom v7 (browser router), axios for HTTP, Recharts for dashboard charts, framer-motion for animations, lucide-react icons, xlsx + file-saver for CSV/Excel export, http-proxy-middleware dev proxy, ESLint v9 with React Hooks plugin.

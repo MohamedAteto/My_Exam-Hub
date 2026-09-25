@@ -13,7 +13,7 @@ public class QuestionBankReadDto
     public string? OptionG { get; set; }
     public string? OptionH { get; set; }
     public int UsedOptions { get; set; }
-    public string CorrectAnswer { get; set; } = string.Empty;
+    public string? CorrectAnswer { get; set; }
     public string QuestionSubject { get; set; } = string.Empty;
     public decimal Mark { get; set; }
     public string? BankTitle { get; set; }

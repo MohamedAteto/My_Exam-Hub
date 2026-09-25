@@ -31,7 +31,7 @@ export default function StatsLineChart({ data, title, userRole, selectedExamId =
             </h3>
 
             {hasData ? (
-                <div style={{ flex: 1, minHeight: 0 }}>
+                <div style={{ flex: 1, minHeight: 280, minWidth: 0 }}>
                     <ResponsiveContainer width="100%" height="100%">
                         {isSingleExam ? (
                             // Show as bar chart for single exam selection

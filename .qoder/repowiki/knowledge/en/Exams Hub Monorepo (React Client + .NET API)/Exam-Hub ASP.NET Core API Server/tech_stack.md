@@ -1,1 +1,0 @@
-ASP.NET Core 9 (`Microsoft.AspNetCore.*` 9.0.x), EF Core 9 with SQL Server provider, Swashbuckle/OpenAPI, AutoMapper, BCrypt.Net-Next for password hashing, System.IdentityModel.Tokens.Jwt for HS256 tokens.

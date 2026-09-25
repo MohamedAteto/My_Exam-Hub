@@ -13,6 +13,7 @@ import DashboardFilters from '../components/DashboardFilters'
 import api from '../api/axios.js'
 import { storage } from '../utils/storage'
 import { parseToken, getUserIdFromToken } from '../utils/token'
+import { formatRichText } from '../utils/sanitize'
 import MultiSelectDropdown from '../components/MultiSelectDropdown'
 import ModernSelect from '../components/ModernSelect'
 import ModernDatePicker from '../components/ModernDatePicker'
@@ -100,7 +101,6 @@ export default function TeacherPage() {
         // Simple Session Cache
         const cachedStudents = sessionStorage.getItem('teacher_students_cache')
         const cachedQuizzes = sessionStorage.getItem('teacher_quizzes_cache')
-        const cachedLookup = sessionStorage.getItem('teacher_lookup_cache')
 
         if (cachedStudents) {
           setStudents(JSON.parse(cachedStudents))
@@ -108,13 +108,6 @@ export default function TeacherPage() {
         if (cachedQuizzes) {
           setQuizzes(JSON.parse(cachedQuizzes))
         }
-        if (cachedLookup) {
-          const lookup = JSON.parse(cachedLookup)
-          setDbGrades(lookup.grades || [])
-          setDbClasses(lookup.classes || [])
-          setDbSubjects(lookup.subjects || [])
-        }
-
         const results = await Promise.allSettled([
           api.get("/examdetail"),    // quizzes [0]
           api.get("/questionbank"),  // question banks [1]
@@ -142,7 +135,6 @@ export default function TeacherPage() {
           setDbGrades(lookupRes.data.grades || [])
           setDbClasses(lookupRes.data.classes || [])
           setDbSubjects(lookupRes.data.subjects || [])
-          sessionStorage.setItem('teacher_lookup_cache', JSON.stringify(lookupRes.data))
         } else {
           console.warn('⚠️ No lookup data received');
         }
@@ -592,19 +584,7 @@ export default function TeacherPage() {
   }
 
   function renderRichText(text) {
-    if (!text) return ''
-
-    let html = text
-
-    // Convert markdown-like formatting to HTML
-    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>')
-    html = html.replace(/__(.*?)__/g, '<u>$1</u>')
-    html = html.replace(/\^(.*?)\^/g, '<sup>$1</sup>')
-    html = html.replace(/~(.*?)~/g, '<sub>$1</sub>')
-    html = html.replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" style="max-width: 100%; height: auto; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />')
-
-    return html
+    return formatRichText(text)
   }
 
   function openQuestionBankSelector() {
@@ -1276,15 +1256,8 @@ export default function TeacherPage() {
 
   function getGrades() {
     const grades = [...new Set(students.map(s => s.grade))].filter(g => g && g !== 'N/A')
-    const order = ['Junior', 'Wheeler', 'Senior']
-    return grades.sort((a, b) => {
-      const idxA = order.indexOf(a)
-      const idxB = order.indexOf(b)
-      if (idxA !== -1 && idxB !== -1) return idxA - idxB
-      if (idxA !== -1) return -1
-      if (idxB !== -1) return 1
-      return a.localeCompare(b)
-    })
+    const gradeOrder = new Map(dbGrades.map((grade, index) => [grade.gradeName, index]))
+    return grades.sort((a, b) => (gradeOrder.get(a) ?? Number.MAX_SAFE_INTEGER) - (gradeOrder.get(b) ?? Number.MAX_SAFE_INTEGER) || a.localeCompare(b))
   }
 
   function getClassesForGrade(grade) {
@@ -2689,6 +2662,8 @@ export default function TeacherPage() {
           <StudentsDataGrid
             students={students}
             allExams={quizzes}
+            grades={dbGrades}
+            classes={dbClasses}
             initialExamId={studentFilterExamId}
             initialGrade={studentFilterGrade}
             onStudentClick={showStudentDetail}

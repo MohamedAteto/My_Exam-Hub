@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "overrides": {
+    "uuid": "^11.1.1"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -15,14 +18,16 @@
   },
   "dependencies": {
     "axios": "^1.12.2",
+    "dompurify": "^3.4.16",
+    "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
     "framer-motion": "^12.38.0",
+    "html-to-image": "^1.11.13",
     "lucide-react": "^0.562.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.8.0",
-    "recharts": "^3.6.0",
-    "xlsx": "^0.18.5"
+    "recharts": "^3.6.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",

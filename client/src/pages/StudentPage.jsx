@@ -10,15 +10,14 @@ import ErrorBoundary from '../components/ErrorBoundary'
 import UnifiedDashboard from '../components/UnifiedDashboard'
 import api from '../api/axios'
 import { storage } from '../utils/storage'
-import { parseToken } from '../utils/token'
+import { parseToken, getUserIdFromToken } from '../utils/token'
+import { getExamTimeRemainingSeconds } from '../utils/examTimer'
 
 export default function StudentPage() {
   const navigate = useNavigate()
 
   // State management
   const [currentSection, setCurrentSection] = useState('dashboard')
-  const [currentSubject, setCurrentSubject] = useState(null)
-  const [currentQuiz, setCurrentQuiz] = useState(null)
   const [currentExam, setCurrentExam] = useState(null)
   const [isExamActive, setIsExamActive] = useState(false)
   const [isReviewMode, setIsReviewMode] = useState(false)
@@ -28,7 +27,6 @@ export default function StudentPage() {
   const [studentName, setStudentName] = useState('Student')
   const [userRole, setUserRole] = useState(null)
   const [completedSearchTerm, setCompletedSearchTerm] = useState('')
-  const quizTimerRef = useRef(null)
 
   // Real data from backend
   const [exams, setExams] = useState({ available: [], upcoming: [] })
@@ -36,50 +34,6 @@ export default function StudentPage() {
   const [dbGrades, setDbGrades] = useState([])
   const [dbClasses, setDbClasses] = useState([])
   const [dbSubjects, setDbSubjects] = useState([])
-
-  // Subject metadata (icons + descriptions) used by DashboardView rendering
-  const subjectInfo = useMemo(() => ({
-    History: {
-      icon: '<path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>',
-      description: 'Learn about past events and civilizations',
-    },
-    Geography: {
-      icon: '<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>',
-      description: 'Explore the world and its features',
-    },
-    Science: {
-      icon: '<path d="M13 11.33L18 18H6l5-6.67V6h2v5.33M15.96 19H8.04c-.53 0-.96-.43-.96-.96 0-.23.08-.44.23-.59L12 13l4.73 4.45c.15.15.23.36.23.59 0 .53-.43.96-.96.96z"/>',
-      description: 'Discover how the world works',
-    },
-    Mathematics: {
-      icon: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM8 8h8v2H8V8zm0 4h8v2H8v-2z"/>',
-      description: 'Numbers, patterns, and problem solving',
-    },
-    Arabic: {
-      icon: '<path d="M12 2L2 7l10 5 10-5-10-5zm0 7.09L4.26 7 12 3.91 19.74 7 12 9.09zM2 17l10 5 10-5"/>',
-      description: 'Language, poetry, and grammar',
-    },
-    Literature: {
-      icon: '<path d="M18 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12v-2H6V4h12v16h2V4a2 2 0 0 0-2-2z"/>',
-      description: 'Books, authors, and stories',
-    },
-    Physics: {
-      icon: '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>',
-      description: 'Physics and mechanics',
-    },
-    Chemistry: {
-      icon: '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>',
-      description: 'Chemistry and reactions',
-    },
-    Biology: {
-      icon: '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>',
-      description: 'Biology and life sciences',
-    },
-    English: {
-      icon: '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>',
-      description: 'English language and literature',
-    },
-  }), [])
 
   // Modal state
   const [isModalActive, setIsModalActive] = useState(false)
@@ -372,7 +326,7 @@ export default function StudentPage() {
       if (token) {
         const payload = parseToken(token)
         if (payload) {
-          userId = payload.sub || payload.id
+          userId = getUserIdFromToken(token)
         }
       }
 
@@ -439,11 +393,7 @@ export default function StudentPage() {
       setIsExamActive(true)
       setCurrentSection('quiz')
 
-      // Calculate time remaining
-      const now = new Date()
-      const endDate = new Date(examData.endDate)
-      const timeRemainingMs = endDate.getTime() - now.getTime()
-      setTimeRemaining(Math.max(0, Math.floor(timeRemainingMs / 1000)))
+      setTimeRemaining(getExamTimeRemainingSeconds(randomizedExam.duration, examData.endDate))
 
     } catch (err) {
       console.error('Error starting exam:', err)
@@ -451,10 +401,6 @@ export default function StudentPage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  function autoSubmitExam() {
-    submitExam(true)
   }
 
   const submitExam = useCallback(async (autoSubmit = false) => {
@@ -467,7 +413,7 @@ export default function StudentPage() {
       if (token) {
         const payload = parseToken(token)
         if (payload) {
-          userId = payload.sub || payload.id
+          userId = getUserIdFromToken(token)
         }
       }
 
@@ -587,16 +533,6 @@ export default function StudentPage() {
     setCurrentSection(section)
   }
 
-  function showSubject(subject) {
-    setCurrentSubject(subject)
-    setCurrentSection('available')
-  }
-
-  function backToSubjects() {
-    setCurrentSubject(null)
-    setCurrentSection('available')
-  }
-
   async function reviewExam(exam) {
     try {
       setLoading(true)
@@ -606,7 +542,7 @@ export default function StudentPage() {
       if (token) {
         const payload = parseToken(token)
         if (payload) {
-          userId = payload.sub || payload.id
+          userId = getUserIdFromToken(token)
         }
       }
 

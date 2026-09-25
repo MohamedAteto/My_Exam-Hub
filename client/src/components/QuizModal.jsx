@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { sanitizeHTML } from '../utils/sanitize'
 
 export default function QuizModal({ title = '', message = '', onConfirm, onCancel, isActive }) {
   const [modalTitle, setModalTitle] = useState('')
@@ -6,7 +7,7 @@ export default function QuizModal({ title = '', message = '', onConfirm, onCance
 
   useEffect(() => {
     setModalTitle(title)
-    setModalMessage(message.replace(/\n/g, '<br>'))
+    setModalMessage(sanitizeHTML(message.replace(/\n/g, '<br>')))
   }, [title, message])
 
   return (

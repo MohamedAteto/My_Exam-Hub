@@ -1,6 +1,0 @@
-- Environment-driven configuration is accessed exclusively through `import.meta.env.*` (e.g. `VITE_API_BASE_URL`, `VITE_CAS_URL`) rather than hard-coded URLs.
-- Authentication state is read from `src/utils/storage.js` via `storage.getItem('token')` and persisted through its `setItem`/`clear` helpers instead of direct `localStorage` calls.
-- Route protection is enforced declaratively by wrapping route elements with `<ProtectedRoute allowedRoles={[...]}>` and letting the component handle redirects based on parsed JWT roles.
-- API calls go through the shared `src/api/axios.js` instance so that Bearer token injection and global 401 handling (CAS logout + redirect) apply uniformly across all pages.
-- Role checks use lowercase-normalized strings from either JWT payload claims (`roles`, `role`, Microsoft claim URI) or the stored `userRole` fallback, ensuring consistent case-insensitive comparisons.
-- Presentational components are kept as pure function components receiving data and callbacks via props (e.g. `DashboardView`, chart components), keeping business logic in page-level components.

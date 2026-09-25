@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QuizesApi.Models;
@@ -10,13 +11,69 @@ namespace QuizesApi.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class StudentExamAnswerController : ControllerBase
     {
         private readonly ElsewedySchoolSysDbDevContext _context;
+        private readonly ILogger<StudentExamAnswerController> _logger;
 
-        public StudentExamAnswerController(ElsewedySchoolSysDbDevContext context)
+        public StudentExamAnswerController(
+            ElsewedySchoolSysDbDevContext context,
+            ILogger<StudentExamAnswerController> logger)
         {
             _context = context;
+            _logger = logger;
+        }
+
+        private long? GetCurrentAccountId()
+        {
+            var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? User.FindFirst("sub")?.Value
+                ?? User.FindFirst("id")?.Value;
+            return long.TryParse(claim, out var accountId) ? accountId : null;
+        }
+
+        private bool CanAccessStudent(long accountId) =>
+            User.IsInRole("Teacher") || User.IsInRole("Admin") || User.IsInRole("Superadmin") ||
+            User.IsInRole("Board") || GetCurrentAccountId() == accountId;
+
+        private static bool IsCorrectAnswer(QuestionBank question, string chosenAnswer)
+        {
+            var correctAnswer = question.CorrectAnswer?.Trim() ?? string.Empty;
+            if (chosenAnswer.Length == 0 || correctAnswer.Length == 0) return false;
+
+            var options = new[]
+            {
+                question.OptionA, question.OptionB, question.OptionC, question.OptionD,
+                question.OptionE, question.OptionF, question.OptionG, question.OptionH
+            }
+            .Where(option => !string.IsNullOrWhiteSpace(option))
+            .Select(option => option!.Trim())
+            .ToArray();
+
+            if (options.Length < 2)
+            {
+                return string.Equals(chosenAnswer, correctAnswer, StringComparison.OrdinalIgnoreCase);
+            }
+
+            var correctIndex = ResolveOptionIndex(correctAnswer, options);
+            var chosenIndex = ResolveOptionIndex(chosenAnswer, options);
+            if (correctIndex >= 0 && chosenIndex >= 0) return chosenIndex == correctIndex;
+
+            return string.Equals(chosenAnswer, correctAnswer, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static int ResolveOptionIndex(string answer, string[] options)
+        {
+            var normalizedAnswer = answer.Trim();
+            if (normalizedAnswer.Length == 1)
+            {
+                var letterIndex = char.ToUpperInvariant(normalizedAnswer[0]) - 'A';
+                if (letterIndex >= 0 && letterIndex < options.Length) return letterIndex;
+            }
+
+            return Array.FindIndex(options, option =>
+                string.Equals(option, normalizedAnswer, StringComparison.OrdinalIgnoreCase));
         }
 
         private async Task PopulateExamQuestions(List<ExamDetail> exams)
@@ -45,6 +102,8 @@ namespace QuizesApi.Controllers
         [HttpGet("student/{accountId}/exams")]
         public async Task<ActionResult> GetStudentExams(long accountId)
         {
+            if (!CanAccessStudent(accountId)) return Forbid();
+
             var studentAnswers = await _context.StudentExamAnswers
                 .Where(sea => sea.AccountId == accountId)
                 .ToListAsync();
@@ -128,6 +187,8 @@ namespace QuizesApi.Controllers
         [HttpGet("student/{accountId}/exam/{examId}")]
         public async Task<ActionResult> GetStudentExamAnswers(long accountId, long examId)
         {
+            if (!CanAccessStudent(accountId)) return Forbid();
+
             var exam = await _context.ExamDetails.Include(e => e.Subject).FirstOrDefaultAsync(e => e.ExamId == examId);
             if (exam == null) return NotFound();
 
@@ -197,28 +258,17 @@ namespace QuizesApi.Controllers
         }
 
         [HttpPost("submit")]
+        [Authorize(Roles = "Student")]
         public async Task<ActionResult> SubmitStudentAnswers([FromBody] StudentAnswerSubmitDto dto)
         {
             if (dto == null) return BadRequest(new { message = "Request body is required." });
 
-            var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
-                ?? User.FindFirst("sub")?.Value 
-                ?? User.FindFirst("id")?.Value;
-            
-            long accountId = 0;
-            if (!string.IsNullOrEmpty(accountIdClaim) && long.TryParse(accountIdClaim, out long tokenAccountId))
-            {
-                accountId = tokenAccountId;
-            }
-            else if (dto.AccountId > 0)
-            {
-                accountId = dto.AccountId;
-            }
-
-            if (accountId <= 0) return BadRequest(new { message = "Unable to determine account ID. Please log in again." });
+            var accountId = GetCurrentAccountId();
+            if (!accountId.HasValue) return Unauthorized(new { message = "Unable to determine account ID. Please log in again." });
+            if (dto.AccountId > 0 && dto.AccountId != accountId.Value) return Forbid();
             if (dto.ExamId <= 0) return BadRequest(new { message = "Invalid exam ID." });
 
-            var accountExists = await _context.Accounts.AnyAsync(a => a.Id == accountId);
+            var accountExists = await _context.Accounts.AnyAsync(a => a.Id == accountId.Value);
             if (!accountExists) return BadRequest(new { message = $"Account with ID {accountId} does not exist." });
 
             var exam = await _context.ExamDetails.FirstOrDefaultAsync(e => e.ExamId == dto.ExamId);
@@ -232,7 +282,7 @@ namespace QuizesApi.Controllers
                 .ToList();
             
             var existingAnswers = await _context.StudentExamAnswers
-                .Where(sea => sea.AccountId == accountId && sea.ExamDetailsId == dto.ExamId)
+                .Where(sea => sea.AccountId == accountId.Value && sea.ExamDetailsId == dto.ExamId)
                 .ToListAsync();
 
             // Check for complete submission
@@ -246,7 +296,12 @@ namespace QuizesApi.Controllers
                 else
                 {
                     // Allow resubmission if incomplete (e.g., network failure during first submit)
-                    Console.WriteLine($"[WARNING] Student {accountId} resubmitting incomplete exam {dto.ExamId}. Had {existingAnswers.Count}/{expectedCount} answers.");
+                    _logger.LogWarning(
+                        "Student {AccountId} resubmitting incomplete exam {ExamId} with {ExistingCount} of {ExpectedCount} answers",
+                        accountId.Value,
+                        dto.ExamId,
+                        existingAnswers.Count,
+                        expectedCount);
                     _context.StudentExamAnswers.RemoveRange(existingAnswers);
                     await _context.SaveChangesAsync();
                 }
@@ -255,6 +310,8 @@ namespace QuizesApi.Controllers
             if (dto.Answers == null || dto.Answers.Count == 0) return BadRequest(new { message = "No answers submitted." });
             
             var submittedQuestionIds = dto.Answers.Select(a => a.QuestionId).ToList();
+            if (submittedQuestionIds.Count != submittedQuestionIds.Distinct().Count())
+                return BadRequest(new { message = "Each question can only be answered once." });
             if (submittedQuestionIds.Any(qid => !questionIds.Contains(qid)))
             {
                 return BadRequest(new { message = $"Invalid answers. IDs valid: {string.Join(", ", questionIds)}" });
@@ -278,49 +335,11 @@ namespace QuizesApi.Controllers
                 if (question == null) continue;
                 
                 string chosenAnswer = answerDto.Answer?.ToString()?.Trim() ?? string.Empty;
-                bool isCorrect = false;
-                string correctAnswer = (question.CorrectAnswer ?? string.Empty).Trim();
-                
-                if (!string.IsNullOrEmpty(chosenAnswer))
-                {
-                    // Normalize for comparison
-                    string normalizedChosen = chosenAnswer.ToUpperInvariant();
-                    string normalizedCorrect = correctAnswer.ToUpperInvariant();
-                    
-                    // Check if MCQ (has options C and D filled)
-                    if (!string.IsNullOrEmpty(question.OptionC) && !string.IsNullOrEmpty(question.OptionD))
-                    {
-                        // Build option list and normalize
-                        var options = new[] { 
-                            question.OptionA?.Trim(), 
-                            question.OptionB?.Trim(), 
-                            question.OptionC?.Trim(), 
-                            question.OptionD?.Trim() 
-                        }.Where(o => !string.IsNullOrEmpty(o)).ToList();
-                        
-                        // Match by direct value comparison
-                        isCorrect = options.Any(o => 
-                            string.Equals(o, chosenAnswer, StringComparison.OrdinalIgnoreCase));
-                        
-                        // If no match, try matching against correct answer index logic
-                        if (!isCorrect && correctAnswer.Length == 1 && char.IsLetter(correctAnswer[0]))
-                        {
-                            int correctIndex = char.ToUpper(correctAnswer[0]) - 'A';
-                            if (correctIndex >= 0 && correctIndex < options.Count)
-                            {
-                                isCorrect = string.Equals(options[correctIndex], chosenAnswer, StringComparison.OrdinalIgnoreCase);
-                            }
-                        }
-                    }
-                    else // True/False or Fill-in-blank
-                    {
-                        isCorrect = string.Equals(normalizedChosen, normalizedCorrect, StringComparison.OrdinalIgnoreCase);
-                    }
-                }
+                bool isCorrect = IsCorrectAnswer(question, chosenAnswer);
 
                 studentAnswers.Add(new StudentExamAnswer
                 {
-                    AccountId = accountId,
+                    AccountId = accountId.Value,
                     ExamQuestionId = null,
                     ExamDetailsId = dto.ExamId,
                     QuestionBankId = answerDto.QuestionId,
@@ -340,8 +359,8 @@ namespace QuizesApi.Controllers
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                Console.WriteLine($"Error saving answers: {ex}");
-                return StatusCode(500, new { message = "Error saving answers. Transaction rolled back.", details = ex.Message, inner = ex.InnerException?.Message });
+                _logger.LogError(ex, "Failed to save answers for exam {ExamId} and account {AccountId}", dto.ExamId, accountId.Value);
+                return StatusCode(500, new { message = "Unable to save answers. No answers were recorded." });
             }
 
             var totalMarks = exam.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0);

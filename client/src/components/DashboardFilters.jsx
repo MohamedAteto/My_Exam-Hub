@@ -1,9 +1,22 @@
-import { useState, useEffect } from 'react'
-import api from '../api/axios'
+import { useState, useEffect, useMemo } from 'react'
 import ModernSelect from './ModernSelect'
 import ModernDatePicker from './ModernDatePicker'
+import { filterDashboardExams, getDashboardClasses, getDashboardGrades } from '../utils/dashboardOptions'
 
 export default function DashboardFilters({ onFilterChange, userRole, grades = [], classes = [], subjects = [], allExams = [], recentExams = [], selectedExamId = null, onExamChange, currentFilters = null }) {
+  const isStudent = String(userRole || '').toLowerCase() === 'student'
+  const dashboardGrades = useMemo(() => {
+    const availableGrades = getDashboardGrades(grades)
+    return isStudent && currentFilters?.gradeId != null
+      ? availableGrades.filter(grade => String(grade.id ?? grade.Id) === String(currentFilters.gradeId))
+      : availableGrades
+  }, [grades, isStudent, currentFilters?.gradeId])
+  const dashboardClasses = useMemo(() => {
+    const availableClasses = getDashboardClasses(classes, dashboardGrades)
+    return isStudent && currentFilters?.classId != null
+      ? availableClasses.filter(classItem => String(classItem.id ?? classItem.Id) === String(currentFilters.classId))
+      : availableClasses
+  }, [classes, dashboardGrades, isStudent, currentFilters?.classId])
   const [selectedGrade, setSelectedGrade] = useState(currentFilters?.gradeId || '')
   const [selectedClass, setSelectedClass] = useState(currentFilters?.classId || '')
   const [selectedSubject, setSelectedSubject] = useState(currentFilters?.subjectId || '')
@@ -39,7 +52,7 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
       // Build active filters summary
       const active = []
       if (selectedGrade) {
-        const grade = grades.find(g => g.id === parseInt(selectedGrade))
+        const grade = dashboardGrades.find(g => String(g.id ?? g.Id) === String(selectedGrade))
         if (grade) active.push(grade.gradeName || grade.name)
       }
       if (selectedSubject) {
@@ -54,11 +67,11 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
         if (classItem) active.push(classItem.className || classItem.name)
       }
       if (startDate && endDate) {
-        active.push(`${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}`)
+        active.push(`${new Date(startDate).toLocaleString()} - ${new Date(endDate).toLocaleString()}`)
       } else if (startDate) {
-        active.push(`From ${new Date(startDate).toLocaleDateString()}`)
+        active.push(`From ${new Date(startDate).toLocaleString()}`)
       } else if (endDate) {
-        active.push(`Until ${new Date(endDate).toLocaleDateString()}`)
+        active.push(`Until ${new Date(endDate).toLocaleString()}`)
       }
 
       setActiveFilters(active)
@@ -66,38 +79,49 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
     }, 400) // 400ms debounce
 
     return () => clearTimeout(handler)
-  }, [selectedGrade, selectedClass, selectedSubject, startDate, endDate, selectedGroupBy, grades, classes, subjects])
+  }, [selectedGrade, selectedClass, selectedSubject, startDate, endDate, selectedGroupBy, dashboardGrades, classes, subjects])
 
-  const hasExamFilter = ((allExams && allExams.length > 0) || recentExams.length > 0)
+  const examOptions = useMemo(() => {
+    const examsById = new Map()
+    ;[...allExams, ...recentExams].forEach(exam => {
+      const examId = exam.examId ?? exam.ExamId ?? exam.id ?? exam.Id
+      if (examId === undefined || examId === null) return
+      const key = String(examId)
+      examsById.set(key, { ...(examsById.get(key) || {}), ...exam })
+    })
+    return [...examsById.values()]
+  }, [allExams, recentExams])
+  const hasExamFilter = examOptions.length > 0
 
   // Classes are filtered based on selected grade
   const filteredClasses = selectedGrade
-    ? classes.filter(c => !c.gradeId || String(c.gradeId) === String(selectedGrade))
-    : classes
+    ? dashboardClasses.filter(c => String(c.gradeId ?? c.GradeId) === String(selectedGrade))
+    : dashboardClasses
+
+  const getDefaultClassForGrade = (gradeValue) => {
+    if (!gradeValue) return ''
+    const matchingClass = dashboardClasses.find(classItem =>
+      String(classItem.gradeId ?? classItem.GradeId) === String(gradeValue)
+    )
+    return matchingClass ? String(matchingClass.id ?? matchingClass.Id) : ''
+  }
 
 
 
   // Filter exams based on grade and class
-  const filteredExams = (allExams && allExams.length > 0 ? allExams : recentExams)
-    .filter(exam => {
-      const examGradeId = exam.gradeId || exam.GradeId
-      if (selectedGrade && String(examGradeId) !== String(selectedGrade)) return false
-      
-      if (selectedClass) {
-        const examClassId = exam.classId || exam.ClassId
-        const matchLegacy = String(examClassId) === String(selectedClass)
-        
-        const classIds = exam.classes || exam.Classes || exam.classIds || exam.ClassIds || []
-        const matchArray = Array.isArray(classIds) && classIds.some(id => String(id) === String(selectedClass))
-        
-        if (!matchLegacy && !matchArray) return false
-      }
-      return true
-    })
+  const filteredExams = filterDashboardExams(
+    examOptions,
+    { gradeId: selectedGrade, classId: selectedClass, subjectId: selectedSubject, startDate, endDate }
+  )
 
   const handleClearFilters = () => {
-    setSelectedGrade('')
-    setSelectedClass('')
+    const studentGradeId = currentFilters?.gradeId ?? dashboardGrades[0]?.id ?? dashboardGrades[0]?.Id
+    const studentClass = dashboardClasses.find(classItem =>
+      String(classItem.gradeId ?? classItem.GradeId) === String(studentGradeId)
+    )
+    const studentClassId = currentFilters?.classId ?? studentClass?.id ?? studentClass?.Id
+    setSelectedGrade(isStudent ? String(studentGradeId ?? '') : '')
+    setSelectedClass(isStudent ? String(studentClassId ?? '') : '')
     setSelectedSubject('')
     setSelectedGroupBy('Student')
     setStartDate('')
@@ -149,12 +173,20 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
             searchable={true}
             required={false}
             options={[
-              { value: '', label: 'All Grades' },
-              ...grades.map(grade => ({ value: grade.id, label: grade.gradeName || grade.name }))
+              ...(!isStudent ? [{ value: '', label: 'All Grades' }] : []),
+              ...dashboardGrades.map(grade => ({ value: grade.id ?? grade.Id, label: grade.gradeName || grade.name }))
             ]}
             onChange={(e) => {
-              setSelectedGrade(e.target.value)
-              setSelectedClass('') // Reset class when grade changes
+              const nextGradeValue = e.target.value
+              setSelectedGrade(nextGradeValue)
+              if (isStudent) {
+                const nextClassValue = currentFilters?.classId && String(currentFilters.classId) !== String(getDefaultClassForGrade(nextGradeValue))
+                  ? ''
+                  : getDefaultClassForGrade(nextGradeValue)
+                setSelectedClass(nextClassValue)
+              } else {
+                setSelectedClass('')
+              }
             }}
           />
         </div>
@@ -167,10 +199,10 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
             placeholder="All Classes"
             searchable={true}
             required={false}
-            disabled={!selectedGrade && filteredClasses.length === 0}
+            disabled={filteredClasses.length === 0}
             options={[
-              { value: '', label: 'All Classes' },
-              ...filteredClasses.map(classItem => ({ value: classItem.id, label: classItem.className || classItem.name }))
+              ...(!isStudent ? [{ value: '', label: 'All Classes' }] : []),
+              ...filteredClasses.map(classItem => ({ value: classItem.id ?? classItem.Id, label: classItem.className || classItem.name }))
             ]}
             onChange={(e) => setSelectedClass(e.target.value)}
           />
@@ -195,7 +227,7 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
         {/* Group By Filter */}
         <div>
           <ModernSelect
-            label="Group By"
+            label="Leaderboard Group By"
             value={selectedGroupBy}
             required={false}
             options={[
@@ -239,7 +271,7 @@ export default function DashboardFilters({ onFilterChange, userRole, grades = []
               required={false}
               options={[
                 { value: '', label: 'All Exams' },
-                ...filteredExams.map(exam => ({ value: exam.examId || exam.id, label: exam.title }))
+                ...filteredExams.map(exam => ({ value: exam.examId ?? exam.ExamId ?? exam.id ?? exam.Id, label: exam.title || exam.Title }))
               ]}
               onChange={(e) => {
                 if (onExamChange) {

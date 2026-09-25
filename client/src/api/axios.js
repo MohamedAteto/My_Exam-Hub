@@ -1,11 +1,20 @@
 import axios from 'axios';
 import { storage, logoutFromCas } from "../utils/storage";
-// Use environment variable in production. Ensure .env.production sets REACT_APP_API_BASE_URL
-// Fallback to relative path /api if not set, or localhost if needed
-// const BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5077';
+
+const getDefaultApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return 'http://localhost:5500/api';
+  }
+
+  return 'https://exam.sewedy.com.eg/api';
+};
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://exam.sewedy.com.eg/api',
+  baseURL: getDefaultApiBaseUrl(),
   timeout: 15000,
 });
 

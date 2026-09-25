@@ -1,41 +1,20 @@
 import { useState, useMemo, useEffect, memo, useRef, useCallback } from 'react'
 import MultiSelectDropdown from '../MultiSelectDropdown'
 import ModernSelect from '../ModernSelect'
-import * as XLSX from 'xlsx'
+import ReportExportDialog from '../ReportExportDialog'
+import { getStudentAverageScore, getStudentExamCount } from '../../utils/studentPerformance'
+import { getPaginationRange, paginateItems } from '../../utils/pagination'
+import { getDashboardClasses, getDashboardGrades } from '../../utils/dashboardOptions'
 
-const StudentRow = memo(({ student, selectedExamIds, allExams, onStudentClick }) => {
+const StudentRow = memo(({ student, selectedExamIds, onStudentClick }) => {
     const getExamScore = (s, eId) => {
         if (!s.quizScores || !eId) return null
         const score = s.quizScores[String(eId)]
         return score !== undefined ? score : null
     }
 
-    const getAverageScore = (s, selectedIds) => {
-        let scores;
-        if (selectedIds && selectedIds.length > 0) {
-            // Only average scores for the selected exams
-            scores = selectedIds
-                .map(id => s.quizScores ? s.quizScores[String(id)] : null)
-                .filter(score => score !== null && score !== undefined);
-        } else {
-            // Average all scores if no filter is applied
-            scores = Object.values(s.quizScores || {});
-        }
-        
-        if (scores.length === 0) return 0;
-        return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-    }
-
-    const avgScore = getAverageScore(student, selectedExamIds)
-
-    const examsTakenCount = useMemo(() => {
-        if (selectedExamIds && selectedExamIds.length > 0) {
-            // Count how many of the selected exams the student actually took
-            return selectedExamIds.filter(id => student.quizScores && student.quizScores[String(id)] !== undefined).length;
-        }
-        // Total exams taken if no filter
-        return Object.keys(student.quizScores || {}).length;
-    }, [student.quizScores, selectedExamIds]);
+    const avgScore = getStudentAverageScore(student, selectedExamIds)
+    const examsTakenCount = getStudentExamCount(student, selectedExamIds)
 
     // Performance status colors
     const getStatusColor = (score) => {
@@ -44,7 +23,7 @@ const StudentRow = memo(({ student, selectedExamIds, allExams, onStudentClick })
         return '#ef4444' // Red
     }
 
-    const statusColor = getStatusColor(avgScore)
+    const statusColor = avgScore === null ? '#9ca3af' : getStatusColor(avgScore)
 
     return (
         <tr
@@ -59,7 +38,9 @@ const StudentRow = memo(({ student, selectedExamIds, allExams, onStudentClick })
                 background: 'white',
                 zIndex: 40,
                 borderRight: '2px solid #f3f4f6',
-                minWidth: '250px'
+                width: '250px',
+                minWidth: '250px',
+                maxWidth: '250px'
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <div style={{ position: 'relative' }}>
@@ -89,11 +70,10 @@ const StudentRow = memo(({ student, selectedExamIds, allExams, onStudentClick })
                             background: statusColor,
                             border: '2px solid white',
                             boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                        }} title={`Performance: ${avgScore}%`} />
+                        }} title={avgScore === null ? 'No attempts' : `Performance: ${avgScore}%`} />
                     </div>
                     <div>
-                        <div style={{ fontWeight: 600, color: '#111827', whiteSpace: 'nowrap' }}>{student.name}</div>
-                        <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>ID: {student.id}</div>
+                        <div style={{ fontWeight: 600, color: '#111827', overflowWrap: 'anywhere' }}>{student.name}</div>
                     </div>
                 </div>
             </td>
@@ -135,7 +115,7 @@ const StudentRow = memo(({ student, selectedExamIds, allExams, onStudentClick })
                              alignItems: 'center',
                              gap: '0.4rem'
                          }}>
-                             {avgScore}%
+                             {avgScore === null ? 'N/A' : `${avgScore}%`}
                          </div>
                     </div>
                     <div>
@@ -191,13 +171,14 @@ const StudentRow = memo(({ student, selectedExamIds, allExams, onStudentClick })
     )
 })
 
-export default function StudentsDataGrid({ students, allExams, initialExamId, initialGrade, onStudentClick }) {
+export default function StudentsDataGrid({ students, allExams, grades = [], classes = [], initialExamId, initialGrade, onStudentClick }) {
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedGrade, setSelectedGrade] = useState(initialGrade || '')
     const [selectedClass, setSelectedClass] = useState('')
     const [selectedExamIds, setSelectedExamIds] = useState(initialExamId ? [String(initialExamId)] : [])
     const [minScore, setMinScore] = useState(0)
     const [maxScore, setMaxScore] = useState(100)
+    const [isReportDialogOpen, setIsReportDialogOpen] = useState(false)
     // Scroll to Top State
     const [showScrollTop, setShowScrollTop] = useState(false)
 
@@ -232,21 +213,6 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
         const score = student.quizScores[String(examId)];
         return score !== undefined ? score : null;
     }
-
-    // Helper to get average
-    const getAverageScore = useCallback((student, selectedIds) => {
-        let scores;
-        if (selectedIds && selectedIds.length > 0) {
-            scores = selectedIds
-                .map(id => student.quizScores ? student.quizScores[String(id)] : null)
-                .filter(score => score !== null && score !== undefined);
-        } else {
-            scores = Object.values(student.quizScores || {});
-        }
-        
-        if (scores.length === 0) return 0;
-        return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-    }, []);
 
     const [sortConfig, setSortConfig] = useState({ key: 'performance', direction: 'desc' })
 
@@ -293,55 +259,59 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
         }
     }
 
+    const gradeRecords = useMemo(() => getDashboardGrades(grades), [grades])
+    const classRecords = useMemo(() => getDashboardClasses(classes, gradeRecords), [classes, gradeRecords])
+    const selectedGradeRecord = gradeRecords.find(grade => String(grade.id ?? grade.Id) === String(selectedGrade))
+    const classOptions = selectedGradeRecord
+        ? classRecords.filter(classItem => String(classItem.gradeId ?? classItem.GradeId) === String(selectedGradeRecord.id ?? selectedGradeRecord.Id))
+        : classRecords
+
     // Sync state with prop if it changes
     useEffect(() => {
         if (initialExamId !== undefined) {
             setSelectedExamIds(initialExamId ? [String(initialExamId)] : [])
         }
         if (initialGrade !== undefined) {
-            setSelectedGrade(initialGrade)
+            const initialGradeRecord = gradeRecords.find(grade =>
+                String(grade.id ?? grade.Id) === String(initialGrade) ||
+                String(grade.gradeName ?? grade.name) === String(initialGrade)
+            )
+            setSelectedGrade(initialGradeRecord ? String(initialGradeRecord.id ?? initialGradeRecord.Id) : '')
+            setSelectedClass('')
         }
-    }, [initialExamId, initialGrade])
-
-    // Get unique Grades and Classes for filters
-    const grades = useMemo(() => {
-        const uniqueGrades = [...new Set(students.map(s => s.grade).filter(g => g && g !== 'N/A'))];
-        const order = ['Junior', 'wheeler', 'Senior'];
-        
-        return uniqueGrades.sort((a, b) => {
-            const indexA = order.indexOf(a);
-            const indexB = order.indexOf(b);
-            
-            // If both are in the predefined order, sort by order
-            if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-            // If only A is in order, it comes first
-            if (indexA !== -1) return -1;
-            // If only B is in order, it comes first
-            if (indexB !== -1) return 1;
-            // Otherwise alphabetical
-            return a.localeCompare(b);
-        });
-    }, [students]);
-
-    const classes = useMemo(() => {
-        let filtered = students
-        if (selectedGrade) {
-            filtered = filtered.filter(s => s.grade === selectedGrade)
-        }
-        return [...new Set(filtered.map(s => s.class).filter(c => c && c !== 'N/A'))].sort()
-    }, [students, selectedGrade])
+    }, [initialExamId, initialGrade, gradeRecords])
 
     // Filter Logic
     const filteredStudents = useMemo(() => {
+        const getStudentGradeId = (student) => {
+            const gradeId = student.gradeId ?? student.GradeId
+            if (gradeId !== undefined && gradeId !== null) return String(gradeId)
+            const gradeName = String(student.grade ?? student.Grade ?? '').trim().toLowerCase()
+            const grade = gradeRecords.find(record => String(record.gradeName ?? record.name ?? '').trim().toLowerCase() === gradeName)
+            return grade ? String(grade.id ?? grade.Id) : ''
+        }
+
+        const getStudentClassId = (student, gradeId) => {
+            const classId = student.classId ?? student.ClassId
+            if (classId !== undefined && classId !== null) return String(classId)
+            const className = String(student.class ?? student.Class ?? '').trim().toLowerCase()
+            const classRecord = classRecords.find(record =>
+                String(record.className ?? record.name ?? '').trim().toLowerCase() === className &&
+                String(record.gradeId ?? record.GradeId) === gradeId
+            )
+            return classRecord ? String(classRecord.id ?? classRecord.Id) : ''
+        }
+
         let result = students.filter(student => {
             const searchLower = searchQuery.toLowerCase()
             const matchSearch = student.name.toLowerCase().includes(searchLower) || (student.email && student.email.toLowerCase().includes(searchLower))
             if (!matchSearch) return false
-            if (selectedGrade && student.grade !== selectedGrade) return false
-            if (selectedClass && student.class !== selectedClass) return false
+            const studentGradeId = getStudentGradeId(student)
+            if (selectedGrade && studentGradeId !== String(selectedGrade)) return false
+            if (selectedClass && getStudentClassId(student, studentGradeId) !== String(selectedClass)) return false
 
-            const avg = getAverageScore(student, selectedExamIds)
-            if (avg < minScore || avg > maxScore) return false
+            const avg = getStudentAverageScore(student, selectedExamIds)
+            if (avg === null ? minScore > 0 : avg < minScore || avg > maxScore) return false
 
             return true
         })
@@ -350,18 +320,20 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
             result.sort((a, b) => {
                 let aValue, bValue
                 if (sortConfig.key === 'performance') {
-                    const getAvg = (s) => getAverageScore(s, selectedExamIds)
+                    const getAvg = (student) => getStudentAverageScore(student, selectedExamIds)
                     aValue = getAvg(a); bValue = getAvg(b)
                 } else {
                     aValue = a[sortConfig.key] || ''; bValue = b[sortConfig.key] || ''
                 }
+                if (aValue === null) return bValue === null ? 0 : 1
+                if (bValue === null) return -1
                 if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1
                 if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1
                 return 0
             })
         }
         return result
-    }, [students, searchQuery, selectedGrade, selectedClass, sortConfig, getAverageScore, getExamScore, minScore, maxScore, selectedExamIds])
+    }, [students, gradeRecords, classRecords, searchQuery, selectedGrade, selectedClass, sortConfig, minScore, maxScore, selectedExamIds])
 
     // Reset page when filters change
     useEffect(() => {
@@ -369,12 +341,12 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
     }, [searchQuery, selectedGrade, selectedClass, minScore, maxScore, selectedExamIds])
 
     // Pagination Logic
-    const paginatedStudents = useMemo(() => {
-        const startIndex = (currentPage - 1) * pageSize
-        return filteredStudents.slice(startIndex, startIndex + pageSize)
-    }, [filteredStudents, currentPage, pageSize])
-
-    const totalPages = Math.ceil(filteredStudents.length / pageSize)
+    const pagination = getPaginationRange(filteredStudents.length, currentPage, pageSize)
+    const { totalPages, firstItem: firstVisibleStudent, lastItem: lastVisibleStudent } = pagination
+    const paginatedStudents = useMemo(
+        () => paginateItems(filteredStudents, pagination.currentPage, pageSize),
+        [filteredStudents, pagination.currentPage, pageSize]
+    )
 
     useEffect(() => {
         checkOverflow()
@@ -400,106 +372,68 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
         }))
     }, [allExams])
 
-    const handleExport = () => {
-        if (!filteredStudents || filteredStudents.length === 0) {
-            alert("No students to export based on current filters.");
-            return;
+    const studentReportColumns = useMemo(() => [
+        { key: 'name', label: 'Student Name', width: 28, type: 'text' },
+        { key: 'id', label: 'Student ID', width: 14, type: 'integer' },
+        { key: 'grade', label: 'Grade', width: 16, type: 'text' },
+        { key: 'class', label: 'Class', width: 12, type: 'text' },
+        { key: 'averageScore', label: 'Average Score', width: 16, type: 'score' },
+        { key: 'examsTaken', label: 'Exams Taken', width: 14, type: 'integer' },
+        { key: 'performanceStatus', label: 'Performance Status', width: 22, type: 'text' },
+        ...selectedExams.map(exam => ({
+            key: `exam_${exam.id || exam.examId}`,
+            label: exam.title || 'Exam Score',
+            width: 22,
+            type: 'score'
+        }))
+    ], [selectedExams])
+
+    const studentReportRows = useMemo(() => filteredStudents.map(student => {
+        const averageScore = getStudentAverageScore(student, selectedExamIds)
+        return {
+            name: student.name,
+            id: student.id,
+            grade: student.grade,
+            class: student.class,
+            averageScore,
+            examsTaken: getStudentExamCount(student, selectedExamIds),
+            performanceStatus: averageScore === null ? 'No attempts' : averageScore >= 80 ? 'Excellent' : averageScore >= 50 ? 'Good' : 'Needs Improvement',
+            ...Object.fromEntries(selectedExams.map(exam => {
+                const examId = exam.id || exam.examId
+                return [`exam_${examId}`, getExamScore(student, examId)]
+            }))
         }
+    }), [filteredStudents, selectedExamIds, selectedExams])
 
-        const exportData = filteredStudents.map(student => {
-            const row = {
-                "Student Name": student.name,
-                "Student ID": student.id,
-                "Grade": student.grade,
-                "Class": student.class,
-                "Average Score": getAverageScore(student, selectedExamIds) + '%',
-                "Exams Taken": (selectedExamIds && selectedExamIds.length > 0) 
-                    ? selectedExamIds.filter(id => student.quizScores && student.quizScores[String(id)] !== undefined).length
-                    : Object.keys(student.quizScores || {}).length,
-                "Performance Status": getAverageScore(student, selectedExamIds) >= 80 ? 'Excellent' : 
-                                      getAverageScore(student, selectedExamIds) >= 50 ? 'Good' : 'Needs Improvement'
-            };
-
-            // Add columns for selected exams
-            selectedExams.forEach(exam => {
-                const score = getExamScore(student, exam.id || exam.examId);
-                row[exam.title] = score !== null ? score + '%' : 'N/A';
-            });
-
-            return row;
-        });
-
-        const worksheet = XLSX.utils.json_to_sheet(exportData);
-        
-        // Enhanced styling with column widths
-        const wscols = [
-            { wch: 25 },  // Student Name
-            { wch: 12 },  // Student ID
-            { wch: 12 },  // Grade
-            { wch: 10 },  // Class
-            { wch: 15 },  // Average Score
-            { wch: 12 },  // Exams Taken
-            { wch: 20 }   // Performance Status
-        ];
-        
-        // Add width for exam columns
-        selectedExams.forEach(() => {
-            wscols.push({ wch: 20 });
-        });
-        
-        worksheet['!cols'] = wscols;
-        
-        // Add header row styling (background color for headers)
-        const range = XLSX.utils.decode_range(worksheet['!ref']);
-        for (let col = range.s.c; col <= range.e.c; col++) {
-            const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
-            if (!worksheet[cellAddress]) continue;
-            worksheet[cellAddress].s = {
-                font: { bold: true, color: { rgb: "FFFFFF" } },
-                fill: { fgColor: { rgb: "DC2626" } },
-                alignment: { horizontal: "center", vertical: "center" }
-            };
+    const studentReport = useMemo(() => {
+        const scoredRows = studentReportRows.filter(row => row.averageScore !== null)
+        const resultCount = studentReportRows.reduce((sum, row) => sum + row.examsTaken, 0)
+        const averageScore = scoredRows.length
+            ? scoredRows.reduce((sum, row) => sum + row.averageScore, 0) / scoredRows.length
+            : null
+        return {
+            id: 'student-performance',
+            title: 'Student Performance Report',
+            description: 'Student results currently shown in the Students grid.',
+            columns: studentReportColumns,
+            rows: studentReportRows,
+            summary: [
+                { label: 'Students', value: studentReportRows.length },
+                { label: 'Student-Exam Results', value: resultCount },
+                { label: 'Average Student Score', value: averageScore === null ? 'N/A' : `${averageScore.toFixed(2)}%` }
+            ]
         }
-        
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Students Data");
-        
-        // Add metadata sheet
-        const metadataSheet = XLSX.utils.aoa_to_sheet([
-            ['Export Information'],
-            [''],
-            ['Generated Date:', new Date().toLocaleString()],
-            ['Total Students:', filteredStudents.length],
-            ['Filters Applied:'],
-            ['  Grade:', selectedGrade || 'All Grades'],
-            ['  Class:', selectedClass || 'All Classes'],
-            ['  Score Range:', `${minScore}% - ${maxScore}%`],
-            ['  Selected Exams:', selectedExams.length > 0 ? selectedExams.map(e => e.title).join(', ') : 'All Exams'],
-            [''],
-            ['Generated by:', 'Exam Hub System'],
-            ['Report Type:', 'Student Performance Report']
-        ]);
-        
-        metadataSheet['!cols'] = [{ wch: 20 }, { wch: 50 }];
-        XLSX.utils.book_append_sheet(workbook, metadataSheet, "Export Info");
+    }, [studentReportColumns, studentReportRows])
 
-        // Generate filename with metadata
-        let filename = "students_performance_report";
-        if (selectedGrade) {
-            filename += `_${selectedGrade.replace(/[^a-z0-9]/gi, '_').toLowerCase()}`;
-        }
-        if (selectedClass) {
-            filename += `_class-${selectedClass}`;
-        }
-        if (selectedExams.length === 1) {
-            filename += `_exam-${selectedExams[0].title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}`;
-        }
+    const studentReportFilters = [
+        `Grade: ${gradeRecords.find(grade => String(grade.id ?? grade.Id) === String(selectedGrade))?.gradeName || 'All Grades'}`,
+        `Class: ${classRecords.find(classItem => String(classItem.id ?? classItem.Id) === String(selectedClass))?.className || 'All Classes'}`,
+        `Score: ${minScore}%–${maxScore}%`,
+        `Exams: ${selectedExams.length ? selectedExams.map(exam => exam.title).join(', ') : 'All Exams'}`,
+        ...(searchQuery ? [`Search: ${searchQuery}`] : [])
+    ]
 
-        const date = new Date().toISOString().split('T')[0];
-        filename += `_${date}.xlsx`;
-
-        XLSX.writeFile(workbook, filename);
-    };
+    const handleExport = () => setIsReportDialogOpen(true)
 
     return (
         <div style={{
@@ -535,13 +469,13 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
                             alignItems: 'center',
                             gap: '0.5rem',
                             padding: '0.75rem 1.25rem',
-                            background: '#10b981', // Emerald 500
+                            background: '#dc2626',
                             color: 'white',
                             border: 'none',
                             borderRadius: '12px',
                             fontWeight: 600,
                             cursor: 'pointer',
-                            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)',
+                            boxShadow: '0 4px 12px rgba(220, 38, 38, 0.2)',
                             transition: 'all 0.2s'
                         }}
                         onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
@@ -552,7 +486,7 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
                             <polyline points="7 10 12 15 17 10" />
                             <line x1="12" y1="15" x2="12" y2="3" />
                         </svg>
-                        Export to Excel
+                        Export Report
                     </button>
                 </div>
 
@@ -604,7 +538,7 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
                             placeholder="All Grades"
                             options={[
                                 { value: '', label: 'All Grades' },
-                                ...grades.map(g => ({ value: g, label: g }))
+                                ...gradeRecords.map(grade => ({ value: String(grade.id ?? grade.Id), label: grade.gradeName || grade.name }))
                             ]}
                             onChange={(e) => { setSelectedGrade(e.target.value); setSelectedClass(''); }}
                         />
@@ -616,10 +550,13 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
                             label="Class"
                             value={selectedClass}
                             placeholder="All Classes"
-                            disabled={!selectedGrade && classes.length === 0}
+                            disabled={classOptions.length === 0}
                             options={[
                                 { value: '', label: 'All Classes' },
-                                ...classes.map(c => ({ value: c, label: c }))
+                                ...classOptions.map(classItem => {
+                                    const className = classItem.className || classItem.name
+                                    return { value: String(classItem.id ?? classItem.Id), label: className }
+                                })
                             ]}
                             onChange={(e) => setSelectedClass(e.target.value)}
                         />
@@ -754,7 +691,20 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
                             position: 'relative'
                         }}
                     >
-                        <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, minWidth: '900px' }}>
+                        <table style={{
+                            width: `${700 + selectedExamIds.length * 150}px`,
+                            minWidth: '700px',
+                            borderCollapse: 'separate',
+                            borderSpacing: 0,
+                            tableLayout: 'fixed'
+                        }}>
+                            <colgroup>
+                                <col style={{ width: '250px' }} />
+                                <col style={{ width: '150px' }} />
+                                <col style={{ width: '160px' }} />
+                                {selectedExamIds.map(examId => <col key={examId} style={{ width: '150px' }} />)}
+                                <col style={{ width: '140px' }} />
+                            </colgroup>
                             <thead>
                                 <tr style={{ background: '#f9fafb', position: 'sticky', top: 0, zIndex: 100 }}>
                                     <th style={{
@@ -771,7 +721,9 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
                                         zIndex: 110,
                                         borderRight: '2px solid #e5e7eb',
                                         borderBottom: '2px solid #e5e7eb',
-                                        minWidth: '250px'
+                                        width: '250px',
+                                        minWidth: '250px',
+                                        maxWidth: '250px'
                                     }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }} onClick={() => handleSort('name')}>
                                             Student
@@ -826,7 +778,6 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
                                             key={student.id}
                                             student={student}
                                             selectedExamIds={selectedExamIds}
-                                            allExams={allExams}
                                             onStudentClick={onStudentClick}
                                         />
                                     ))
@@ -850,7 +801,7 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
                         zIndex: 100
                     }}>
                         <div style={{ color: '#6b7280', fontSize: '0.9rem' }}>
-                            Showing <span style={{ fontWeight: 600, color: '#374151' }}>{(currentPage - 1) * pageSize + 1}</span> to <span style={{ fontWeight: 600, color: '#374151' }}>{Math.min(currentPage * pageSize, filteredStudents.length)}</span> of <span style={{ fontWeight: 600, color: '#374151' }}>{filteredStudents.length}</span> students
+                            Showing <span style={{ fontWeight: 600, color: '#374151' }}>{firstVisibleStudent}</span> to <span style={{ fontWeight: 600, color: '#374151' }}>{lastVisibleStudent}</span> of <span style={{ fontWeight: 600, color: '#374151' }}>{filteredStudents.length}</span> students
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
@@ -858,9 +809,9 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                 <span style={{ fontSize: '0.85rem', color: '#6b7280', fontWeight: 500 }}>Rows per page:</span>
                                 <select
-                                    value={pageSize}
+                                    value={pageSize === 'all' ? 'all' : pageSize}
                                     onChange={(e) => {
-                                        setPageSize(Number(e.target.value))
+                                        setPageSize(e.target.value === 'all' ? 'all' : Number(e.target.value))
                                         setCurrentPage(1)
                                     }}
                                     style={{
@@ -878,10 +829,12 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
                                     {[10, 50, 70, 100].map(size => (
                                         <option key={size} value={size}>{size}</option>
                                     ))}
+                                    <option value="all">All</option>
                                 </select>
                             </div>
 
                             {/* Pagination Buttons */}
+                            {totalPages > 1 && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                 <button
                                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
@@ -959,6 +912,7 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
                                 </button>
                             </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -994,6 +948,12 @@ export default function StudentsDataGrid({ students, allExams, initialExamId, in
                         <path d="M12 19V5M5 12l7-7 7 7" />
                     </svg>
                 </button>
+                <ReportExportDialog
+                    open={isReportDialogOpen}
+                    onClose={() => setIsReportDialogOpen(false)}
+                    report={studentReport}
+                    appliedFilters={studentReportFilters}
+                />
             </div>
         </div>
     )
