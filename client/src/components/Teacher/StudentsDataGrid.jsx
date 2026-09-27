@@ -26,21 +26,17 @@ const StudentRow = memo(({ student, selectedExamIds, onStudentClick }) => {
     const statusColor = avgScore === null ? '#9ca3af' : getStatusColor(avgScore)
 
     return (
-        <tr
-            style={{ borderBottom: '1px solid #f3f4f6', transition: 'background 0.1s', background: 'white' }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-        >
+        <tr className="student-grid-row">
             <td style={{
-                padding: '1rem 1.5rem',
+                padding: '1rem 1.25rem',
                 position: 'sticky',
                 left: 0,
                 background: 'white',
                 zIndex: 40,
                 borderRight: '2px solid #f3f4f6',
-                width: '250px',
-                minWidth: '250px',
-                maxWidth: '250px'
+                width: '270px',
+                minWidth: '270px',
+                maxWidth: '270px'
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <div style={{ position: 'relative' }}>
@@ -77,7 +73,7 @@ const StudentRow = memo(({ student, selectedExamIds, onStudentClick }) => {
                     </div>
                 </div>
             </td>
-            <td style={{ padding: '1rem 1.5rem' }}>
+            <td style={{ padding: '1rem 1.25rem' }}>
                 <div style={{ display: 'flex', gap: '0.5rem', flexDirection: 'column', alignItems: 'flex-start' }}>
                     <span style={{
                         padding: '0.2rem 0.6rem',
@@ -103,7 +99,7 @@ const StudentRow = memo(({ student, selectedExamIds, onStudentClick }) => {
                     </span>
                 </div>
             </td>
-            <td style={{ padding: '1rem 1.5rem' }}>
+            <td style={{ padding: '1rem 1.25rem' }}>
                 <div style={{ display: 'flex', gap: '1.5rem' }}>
                     <div>
                         <div style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', fontWeight: 600 }}>Avg Score</div>
@@ -147,7 +143,7 @@ const StudentRow = memo(({ student, selectedExamIds, onStudentClick }) => {
                     </td>
                 )
             })}
-            <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
+            <td style={{ padding: '1rem 1.25rem', textAlign: 'right' }}>
                 <button
                     onClick={() => onStudentClick(student.id)}
                     style={{
@@ -450,7 +446,7 @@ export default function StudentsDataGrid({ students, allExams, grades = [], clas
                     }
                 `}
             </style>
-            <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+            <div style={{ maxWidth: '1440px', margin: '0 auto' }}>
                 <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                     <div>
                         <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#1f2937', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -683,7 +679,7 @@ export default function StudentsDataGrid({ students, allExams, grades = [], clas
                             overflowX: 'auto',
                             overflowY: 'auto',
                             maxHeight: 'calc(100vh - 320px)',
-                            minHeight: '650px',
+                            minHeight: '420px',
                             border: '1px solid #e5e7eb',
                             borderBottom: 'none',
                             cursor: isDragging ? 'grabbing' : 'grab',
@@ -692,18 +688,18 @@ export default function StudentsDataGrid({ students, allExams, grades = [], clas
                         }}
                     >
                         <table style={{
-                            width: `${700 + selectedExamIds.length * 150}px`,
-                            minWidth: '700px',
+                            width: '100%',
+                            minWidth: `${800 + selectedExamIds.length * 150}px`,
                             borderCollapse: 'separate',
                             borderSpacing: 0,
                             tableLayout: 'fixed'
                         }}>
                             <colgroup>
-                                <col style={{ width: '250px' }} />
-                                <col style={{ width: '150px' }} />
-                                <col style={{ width: '160px' }} />
+                                <col style={{ width: '270px' }} />
+                                <col style={{ width: '170px' }} />
+                                <col style={{ width: '180px' }} />
                                 {selectedExamIds.map(examId => <col key={examId} style={{ width: '150px' }} />)}
-                                <col style={{ width: '140px' }} />
+                                <col style={{ width: '160px' }} />
                             </colgroup>
                             <thead>
                                 <tr style={{ background: '#f9fafb', position: 'sticky', top: 0, zIndex: 100 }}>
@@ -721,9 +717,9 @@ export default function StudentsDataGrid({ students, allExams, grades = [], clas
                                         zIndex: 110,
                                         borderRight: '2px solid #e5e7eb',
                                         borderBottom: '2px solid #e5e7eb',
-                                        width: '250px',
-                                        minWidth: '250px',
-                                        maxWidth: '250px'
+                                        width: '270px',
+                                        minWidth: '270px',
+                                        maxWidth: '270px'
                                     }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }} onClick={() => handleSort('name')}>
                                             Student

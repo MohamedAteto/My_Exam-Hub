@@ -97,6 +97,67 @@ button {
   font-family: inherit;
 }
 
+/* Shared polish: consistent focus states, surfaces, and comfortable responsive spacing. */
+button,
+input,
+select,
+textarea {
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast),
+    background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 3px solid rgba(239, 68, 68, 0.28);
+  outline-offset: 2px;
+}
+
+input:not([type='checkbox']):not([type='radio']),
+select,
+textarea {
+  min-height: 42px;
+  border-color: #dbe1ea;
+}
+
+input:not([type='checkbox']):not([type='radio']):focus,
+select:focus,
+textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.student-grid-row {
+  background: #fff;
+  transition: background-color var(--transition-fast);
+}
+
+.student-grid-row:hover,
+.student-grid-row:hover > td {
+  background: #fff8f8 !important;
+}
+
+.student-grid-row > td {
+  border-bottom: 1px solid #edf0f4;
+  transition: background-color var(--transition-fast);
+}
+
+.student-grid-row > td:first-child {
+  box-shadow: 8px 0 14px -14px rgba(15, 23, 42, 0.38);
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    padding: 1rem;
+  }
+
+  .table-container {
+    border-radius: 14px 14px 0 0 !important;
+  }
+}
+
 /* Styles from StudentPage.css, SuperAdminPage.jsx, and StudentDetailsPage.jsx, now global */
 /* Dashboard layout foundation */
 .dashboard-container {
