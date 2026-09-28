@@ -8,7 +8,6 @@ D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\publish\QuizesApi.dll
 D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\publish\QuizesApi.runtimeconfig.json
 D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\publish\QuizesApi.pdb
 D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\publish\AutoMapper.dll
-D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\publish\AutoMapper.Extensions.Microsoft.DependencyInjection.dll
 D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\publish\Azure.Core.dll
 D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\publish\Azure.Identity.dll
 D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\publish\BCrypt.Net-Next.dll
@@ -57,6 +56,7 @@ D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\publish\Swashbuckle.AspNetCor
 D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\publish\Swashbuckle.AspNetCore.SwaggerUI.dll
 D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\publish\System.ClientModel.dll
 D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\publish\System.Configuration.ConfigurationManager.dll
+D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\publish\System.Diagnostics.DiagnosticSource.dll
 D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\publish\System.Drawing.Common.dll
 D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\publish\System.IdentityModel.Tokens.Jwt.dll
 D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\publish\System.IO.Packaging.dll

@@ -27,9 +27,14 @@ export function formatRichText(text) {
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/__(.*?)__/g, '<u>$1</u>')
-    .replace(/\^(.*?)\^/g, '<sup>$1</sup>')
     .replace(/~(.*?)~/g, '<sub>$1</sub>')
-    .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" />');
+    .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" />')
+    // Also support plain-text notation commonly used in Excel cells.
+    .replace(/(\([^()\n]+\)|[A-Za-z0-9]+)\^(\([^()\n]+\)|[A-Za-z0-9]+)/g, '$1<sup>$2</sup>')
+    .replace(/([A-Za-z])_([A-Za-z0-9])/g, '$1<sub>$2</sub>')
+    // Delimited rich-text notation (for example ^2^) remains supported.
+    .replace(/\^([^\^\n]+)\^/g, '<sup>$1</sup>')
+    .replace(/\r\n|\r|\n/g, '<br>');
 
   return sanitizeHTML(html);
 }

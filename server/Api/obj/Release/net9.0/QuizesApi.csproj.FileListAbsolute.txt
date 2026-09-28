@@ -10,7 +10,6 @@ D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\QuizesApi.runtimeconfig.json
 D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\QuizesApi.dll
 D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\QuizesApi.pdb
 D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\AutoMapper.dll
-D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\AutoMapper.Extensions.Microsoft.DependencyInjection.dll
 D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\Azure.Core.dll
 D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\Azure.Identity.dll
 D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\BCrypt.Net-Next.dll
@@ -372,3 +371,4 @@ E:\Code-hub\El-Sewedy IATS Projects\Exam-Hub\server\Api\obj\Release\net9.0\refin
 E:\Code-hub\El-Sewedy IATS Projects\Exam-Hub\server\Api\obj\Release\net9.0\QuizesApi.pdb
 E:\Code-hub\El-Sewedy IATS Projects\Exam-Hub\server\Api\obj\Release\net9.0\QuizesApi.genruntimeconfig.cache
 E:\Code-hub\El-Sewedy IATS Projects\Exam-Hub\server\Api\obj\Release\net9.0\ref\QuizesApi.dll
+D:\Projects\Exam-Hub\server\Api\bin\Release\net9.0\System.Diagnostics.DiagnosticSource.dll

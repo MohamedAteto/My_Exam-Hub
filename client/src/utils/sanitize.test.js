@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeHtml, stripHtml } from './sanitize';
+import { formatRichText, sanitizeHtml, stripHtml } from './sanitize';
 
 describe('Sanitize Utilities', () => {
   describe('sanitizeHtml', () => {
@@ -106,6 +106,23 @@ describe('Sanitize Utilities', () => {
       const output = stripHtml(input);
       
       expect(output).toBe('<div>Hello&World</div>');
+    });
+  });
+
+  describe('formatRichText', () => {
+    it('formats Excel-style powers and subscripts', () => {
+      const output = formatRichText('x^2 + (a+b)^2 and H_2O');
+
+      expect(output).toContain('x<sup>2</sup>');
+      expect(output).toContain('(a+b)<sup>2</sup>');
+      expect(output).toContain('H<sub>2</sub>O');
+    });
+
+    it('preserves rich-text power notation and line breaks', () => {
+      const output = formatRichText('Area ^2^\nNext line');
+
+      expect(output).toContain('Area <sup>2</sup>');
+      expect(output).toContain('<br>');
     });
   });
 });

@@ -186,15 +186,27 @@ namespace QuizesApi.Controllers
                 if (worksheet.RowsUsed().Count() == 0)
                      return BadRequest(new { message = "Excel file is empty." });
 
-                var rows = worksheet.RangeUsed().RowsUsed().Skip(1); // Skip header
-                var rowCount = rows.Count();
+                // The downloadable template contains a title and instructions before
+                // the headers, so the header is not necessarily the first used row.
+                // Locate it by its column names instead of blindly skipping row 1.
+                var usedRows = worksheet.RangeUsed().RowsUsed().ToList();
+                var headerRow = usedRows.FirstOrDefault(row =>
+                    string.Equals(row.Cell(1).GetValue<string>().Trim(), "Question Type", StringComparison.OrdinalIgnoreCase) &&
+                    row.Cell(2).GetValue<string>().Trim().StartsWith("Question Text", StringComparison.OrdinalIgnoreCase));
+
+                if (headerRow == null)
+                    return BadRequest(new { message = "Invalid template. Could not find the question headers." });
+
+                var rows = usedRows.Where(row => row.RowNumber() > headerRow.RowNumber());
+                var questionRows = rows.Where(row => !string.IsNullOrWhiteSpace(row.Cell(2).GetValue<string>())).ToList();
+                var rowCount = questionRows.Count;
 
                 // Enforce maximum row limit to prevent memory issues
                 const int maxRows = 1000;
                 if (rowCount > maxRows)
                     return BadRequest(new { message = $"Maximum {maxRows} questions allowed per upload. File contains {rowCount} rows." });
 
-                foreach (var row in rows)
+                foreach (var row in questionRows)
                 {
                     result.TotalProcessed++;
                     try
@@ -340,40 +352,8 @@ namespace QuizesApi.Controllers
                 using var workbook = new XLWorkbook();
                 var worksheet = workbook.Worksheets.Add("Questions Template");
 
-                // Title Section
-                worksheet.Cell(1, 1).Value = "EXAM QUESTIONS TEMPLATE";
-                worksheet.Range("A1:H1").Merge();
-                var titleCell = worksheet.Cell(1, 1);
-                titleCell.Style.Font.Bold = true;
-                titleCell.Style.Font.FontSize = 16;
-                titleCell.Style.Font.FontColor = XLColor.White;
-                titleCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#DC2626");
-                titleCell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-                titleCell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
-                worksheet.Row(1).Height = 35;
-
-                // Instructions Section
-                worksheet.Cell(2, 1).Value = "INSTRUCTIONS:";
-                worksheet.Cell(2, 1).Style.Font.Bold = true;
-                worksheet.Cell(2, 1).Style.Font.FontSize = 11;
-                worksheet.Cell(2, 1).Style.Font.FontColor = XLColor.FromHtml("#1F2937");
-                
-                worksheet.Cell(3, 1).Value = "• For MCQ: Fill all 4 options (A-D), Correct Answer should match one of the option values";
-                worksheet.Cell(4, 1).Value = "• For True/False: Leave options blank, Correct Answer should be 'True' or 'False'";
-                worksheet.Cell(5, 1).Value = "• For Fill Blank: Leave options blank, Correct Answer is the expected fill-in text";
-                worksheet.Cell(6, 1).Value = "• Question Type column is for reference only (not processed by system)";
-                worksheet.Cell(7, 1).Value = "• Marks default to 1 if left empty. Delete sample rows before uploading your data.";
-                
-                foreach (var row in Enumerable.Range(3, 5))
-                {
-                    worksheet.Cell(row, 1).Style.Font.FontSize = 10;
-                    worksheet.Cell(row, 1).Style.Font.FontColor = XLColor.FromHtml("#6B7280");
-                    worksheet.Range($"A{row}:H{row}").Merge();
-                    worksheet.Row(row).Height = 18;
-                }
-
                 // Headers Row
-                int headerRow = 9;
+                int headerRow = 1;
                 worksheet.Cell(headerRow, 1).Value = "Question Type";
                 worksheet.Cell(headerRow, 2).Value = "Question Text *";
                 worksheet.Cell(headerRow, 3).Value = "Correct Answer *";
@@ -477,25 +457,6 @@ namespace QuizesApi.Controllers
 
                 // Freeze header row
                 worksheet.SheetView.FreezeRows(headerRow);
-
-                // Add notes section at bottom
-                int notesRow = dataRow + 3;
-                worksheet.Cell(notesRow, 1).Value = "NOTES:";
-                worksheet.Cell(notesRow, 1).Style.Font.Bold = true;
-                worksheet.Cell(notesRow, 1).Style.Font.FontColor = XLColor.FromHtml("#DC2626");
-                
-                notesRow++;
-                worksheet.Cell(notesRow, 1).Value = "✓ Upload supports .xlsx format only";
-                worksheet.Cell(notesRow + 1, 1).Value = "✓ Required fields marked with * must not be empty";
-                worksheet.Cell(notesRow + 2, 1).Value = "✓ For best results, keep questions concise and clear";
-                worksheet.Cell(notesRow + 3, 1).Value = "✓ Maximum file size: 10MB";
-                
-                foreach (var row in Enumerable.Range(notesRow, 4))
-                {
-                    worksheet.Range($"A{row}:H{row}").Merge();
-                    worksheet.Cell(row, 1).Style.Font.FontSize = 9;
-                    worksheet.Cell(row, 1).Style.Font.FontColor = XLColor.FromHtml("#6B7280");
-                }
 
                 using var stream = new MemoryStream();
                 workbook.SaveAs(stream);

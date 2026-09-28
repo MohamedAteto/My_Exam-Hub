@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\Zspark2\\Exam-Hub\\server\\Api\\QuizesApi.csproj": {}
+    "D:\\Projects\\Exam-Hub\\server\\Api\\QuizesApi.csproj": {}
   },
   "projects": {
-    "C:\\Users\\Zspark2\\Exam-Hub\\server\\Api\\QuizesApi.csproj": {
+    "D:\\Projects\\Exam-Hub\\server\\Api\\QuizesApi.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\Zspark2\\Exam-Hub\\server\\Api\\QuizesApi.csproj",
+        "projectUniqueName": "D:\\Projects\\Exam-Hub\\server\\Api\\QuizesApi.csproj",
         "projectName": "QuizesApi",
-        "projectPath": "C:\\Users\\Zspark2\\Exam-Hub\\server\\Api\\QuizesApi.csproj",
-        "packagesPath": "C:\\Users\\Zspark2\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\Zspark2\\Exam-Hub\\server\\Api\\obj\\",
+        "projectPath": "D:\\Projects\\Exam-Hub\\server\\Api\\QuizesApi.csproj",
+        "packagesPath": "C:\\Users\\Zspark1\\.nuget\\packages\\",
+        "outputPath": "D:\\Projects\\Exam-Hub\\server\\Api\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\Zspark2\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\Zspark1\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -26,7 +26,6 @@
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
-          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -107,6 +106,20 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Runtime.win-x64",
+              "version": "[9.0.20, 9.0.20]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Runtime.win-x64",
+              "version": "[9.0.20, 9.0.20]"
+            },
+            {
+              "name": "Microsoft.WindowsDesktop.App.Runtime.win-x64",
+              "version": "[9.0.20, 9.0.20]"
+            }
+          ],
           "frameworkReferences": {
             "Microsoft.AspNetCore.App": {
               "privateAssets": "none"
@@ -115,7 +128,12 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.400/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.401/PortableRuntimeIdentifierGraph.json"
+        }
+      },
+      "runtimes": {
+        "win-x64": {
+          "#import": []
         }
       }
     }
