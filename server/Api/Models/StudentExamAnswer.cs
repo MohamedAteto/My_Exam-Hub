@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace QuizesApi.Models;
@@ -17,6 +17,11 @@ public partial class StudentExamAnswer
     public bool Score { get; set; }
 
     public long? QuestionBankId { get; set; }
+
+    // FEATURE: AUTOMATIC ANSWER SAVING
+    // Differentiates between in-progress draft answers and finalized exam submissions
+    public bool IsSubmitted { get; set; } = true;
+    public DateTime? LastSavedAt { get; set; }
 
     public virtual Account Account { get; set; } = null!;
 

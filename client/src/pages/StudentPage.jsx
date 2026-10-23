@@ -29,6 +29,13 @@ export default function StudentPage() {
   const [completedSearchTerm, setCompletedSearchTerm] = useState('')
   const quizTimerRef = useRef(null)
 
+  // FEATURE: AUTOMATIC ANSWER SAVING - State & Refs
+  const [examAnswers, setExamAnswers] = useState({})
+  const [saveStatus, setSaveStatus] = useState('saved') // 'saving' | 'saved' | 'offline' | 'error'
+  const debounceTimersRef = useRef({})
+  const pendingSavesRef = useRef({})
+  const hasResumedRef = useRef(false)
+
   // Real data from backend
   const [exams, setExams] = useState({ available: [], upcoming: [] })
   const [completedExams, setCompletedExams] = useState([])
@@ -351,7 +358,163 @@ export default function StudentPage() {
     return `${minutes}m`
   }
 
-  async function startExam(exam) {
+  // FEATURE: AUTOMATIC ANSWER SAVING - Sync queued offline answers
+  const syncPendingAnswers = useCallback(async () => {
+    if (!currentExam || !navigator.onLine) return
+
+    const token = storage.getItem('token')
+    let userId = null
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        userId = payload.sub || payload.id
+      } catch (e) {}
+    }
+
+    const pending = pendingSavesRef.current
+    const questionIds = Object.keys(pending)
+    if (questionIds.length === 0) {
+      setSaveStatus('saved')
+      return
+    }
+
+    setSaveStatus('saving')
+
+    const items = questionIds.map(qid => ({
+      questionId: Number(qid),
+      answer: pending[qid].value,
+      clientTimestamp: new Date(pending[qid].timestamp).toISOString()
+    }))
+
+    try {
+      await api.post('/studentexamanswer/auto-save-batch', {
+        examId: currentExam.id,
+        accountId: Number(userId),
+        answers: items
+      })
+
+      questionIds.forEach(qid => {
+        delete pendingSavesRef.current[qid]
+      })
+
+      if (userId && currentExam.id) {
+        storage.removeItem(`exam_pending_${userId}_${currentExam.id}`)
+      }
+      setSaveStatus('saved')
+    } catch (err) {
+      console.error('Batch auto-save sync error:', err)
+      if (!navigator.onLine) {
+        setSaveStatus('offline')
+      } else {
+        setSaveStatus('error')
+      }
+    }
+  }, [currentExam])
+
+  // FEATURE: AUTOMATIC ANSWER SAVING - Listen to online/offline connectivity
+  useEffect(() => {
+    const handleOnline = () => {
+      if (isExamActive && !isReviewMode) {
+        syncPendingAnswers()
+      }
+    }
+
+    const handleOffline = () => {
+      if (isExamActive && !isReviewMode) {
+        setSaveStatus('offline')
+      }
+    }
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [isExamActive, isReviewMode, syncPendingAnswers])
+
+  // FEATURE: AUTOMATIC ANSWER SAVING - Handle answer change with debounce and race-condition prevention
+  const handleAnswerChange = useCallback((questionId, value) => {
+    if (!currentExam || isReviewMode) return
+
+    const token = storage.getItem('token')
+    let userId = null
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        userId = payload.sub || payload.id
+      } catch (e) {}
+    }
+
+    const timestamp = Date.now()
+
+    // 1. Immediately update in-memory state for instant UI feedback
+    setExamAnswers(prev => {
+      const updated = { ...prev, [questionId]: value }
+      // 2. Immediately persist to localStorage draft for zero-loss recovery
+      if (userId && currentExam.id) {
+        storage.setItem(`exam_draft_${userId}_${currentExam.id}`, JSON.stringify(updated))
+      }
+      return updated
+    })
+
+    // 3. Track pending saves for offline recovery queue
+    pendingSavesRef.current[questionId] = { value, timestamp }
+    if (userId && currentExam.id) {
+      storage.setItem(`exam_pending_${userId}_${currentExam.id}`, JSON.stringify(pendingSavesRef.current))
+    }
+
+    // 4. If offline, mark status and stop debounce
+    if (!navigator.onLine) {
+      setSaveStatus('offline')
+      return
+    }
+
+    setSaveStatus('saving')
+
+    // 5. Clear previous debounce timer for this specific question
+    if (debounceTimersRef.current[questionId]) {
+      clearTimeout(debounceTimersRef.current[questionId])
+    }
+
+    // 6. Debounce HTTP save (~450ms)
+    debounceTimersRef.current[questionId] = setTimeout(async () => {
+      try {
+        const payload = {
+          examId: currentExam.id,
+          accountId: Number(userId),
+          questionId: questionId,
+          answer: value,
+          clientTimestamp: new Date(timestamp).toISOString()
+        }
+
+        await api.post('/studentexamanswer/auto-save', payload)
+
+        // Only remove if this was the latest save request for this question
+        if (pendingSavesRef.current[questionId]?.timestamp === timestamp) {
+          delete pendingSavesRef.current[questionId]
+          if (userId && currentExam.id) {
+            storage.setItem(`exam_pending_${userId}_${currentExam.id}`, JSON.stringify(pendingSavesRef.current))
+          }
+        }
+
+        if (Object.keys(pendingSavesRef.current).length === 0) {
+          setSaveStatus('saved')
+        }
+      } catch (err) {
+        console.error('Auto-save error:', err)
+        if (!navigator.onLine) {
+          setSaveStatus('offline')
+        } else {
+          setSaveStatus('error')
+        }
+      }
+    }, 450)
+  }, [currentExam, isReviewMode])
+
+  // FEATURE: AUTOMATIC ANSWER SAVING - Start Exam with restoration from backend drafts and local cache
+  const startExam = useCallback(async (exam) => {
     if (isExamActive) {
       showModal('Exam in Progress', 'Please complete your current exam before starting a new one.')
       return
@@ -382,9 +545,15 @@ export default function StudentPage() {
         return
       }
 
-      // Fetch detailed exam with questions
+      // Fetch detailed exam with questions and any previously saved draft answers
       const response = await api.get(`/studentexamanswer/student/${userId}/exam/${exam.examId || exam.id}`)
       const examData = response.data
+
+      // If exam was already submitted, do not allow retaking
+      if (examData.isSubmitted) {
+        showModal('Exam Already Submitted', 'You have already submitted this exam.')
+        return
+      }
 
       // Map raw questions to the structure QuizInterface expects
       const mappedQuestions = (examData.questions || []).map(q => {
@@ -394,15 +563,13 @@ export default function StudentPage() {
         let correct = q.correctAnswer
 
         if (type === 'mcq') {
-          // Map letter answers (A, B, C, D) to indices for MCQs
           if (typeof q.correctAnswer === 'string' && q.correctAnswer.length === 1 && q.correctAnswer.match(/[A-D]/i)) {
-            correct = q.correctAnswer.toUpperCase().charCodeAt(0) - 65 // A=0, B=1, etc.
+            correct = q.correctAnswer.toUpperCase().charCodeAt(0) - 65
           } else {
             const idx = options.findIndex(opt => opt === q.correctAnswer)
             if (idx >= 0) correct = idx
           }
         } else if (type === 'tf') {
-          // Normalize to boolean
           correct = String(q.correctAnswer).toLowerCase().trim() === 'true'
         }
 
@@ -412,31 +579,93 @@ export default function StudentPage() {
           type: type,
           options: options,
           correct: correct,
-          marks: q.mark || 1
+          marks: q.mark || 1,
+          userAnswer: q.userAnswer || ''
         }
       })
 
-      // Shuffle questions for randomization
-      const shuffleArray = (array) => {
-        const shuffled = [...array]
-        for (let i = shuffled.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+      // Preserve consistent question order across refreshes for the active attempt
+      const orderKey = `exam_order_${userId}_${examData.examId}`
+      let orderedQuestions = [...mappedQuestions]
+      const savedOrderRaw = storage.getItem(orderKey)
+
+      if (savedOrderRaw) {
+        try {
+          const savedOrder = JSON.parse(savedOrderRaw)
+          if (Array.isArray(savedOrder) && savedOrder.length === mappedQuestions.length) {
+            const qMap = new Map(mappedQuestions.map(q => [q.id, q]))
+            const restoredList = savedOrder.map(id => qMap.get(id)).filter(Boolean)
+            if (restoredList.length === mappedQuestions.length) {
+              orderedQuestions = restoredList
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to parse saved question order:', e)
         }
-        return shuffled
+      } else {
+        // Initial shuffle for this exam attempt
+        for (let i = orderedQuestions.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [orderedQuestions[i], orderedQuestions[j]] = [orderedQuestions[j], orderedQuestions[i]]
+        }
+        storage.setItem(orderKey, JSON.stringify(orderedQuestions.map(q => q.id)))
       }
 
-      const randomizedExam = {
+      // FEATURE: AUTOMATIC ANSWER SAVING - Rehydrate answers (Backend authoritative + LocalStorage overlay)
+      const initialAnswers = {}
+
+      // 1. Backend saved drafts
+      (examData.questions || []).forEach(q => {
+        if (q.userAnswer !== undefined && q.userAnswer !== null && q.userAnswer !== '') {
+          initialAnswers[q.questionId] = q.userAnswer
+        }
+      })
+
+      // 2. Local draft overlay
+      const draftKey = `exam_draft_${userId}_${examData.examId}`
+      const savedDraft = storage.getItem(draftKey)
+      if (savedDraft) {
+        try {
+          const parsedDraft = JSON.parse(savedDraft)
+          Object.assign(initialAnswers, parsedDraft)
+        } catch (e) {
+          console.warn('Failed to parse local draft:', e)
+        }
+      }
+
+      // 3. Local pending saves queue
+      const pendingKey = `exam_pending_${userId}_${examData.examId}`
+      const savedPending = storage.getItem(pendingKey)
+      if (savedPending) {
+        try {
+          pendingSavesRef.current = JSON.parse(savedPending) || {}
+        } catch (e) {
+          pendingSavesRef.current = {}
+        }
+      } else {
+        pendingSavesRef.current = {}
+      }
+
+      setExamAnswers(initialAnswers)
+      setSaveStatus(Object.keys(pendingSavesRef.current).length > 0 ? (navigator.onLine ? 'saving' : 'offline') : 'saved')
+
+      // 4. Record active session marker for refresh auto-recovery
+      storage.setItem('active_exam_session', JSON.stringify({
+        examId: examData.examId,
+        userId: userId
+      }))
+
+      const examObject = {
         id: examData.examId,
         name: examData.title,
         subject: examData.examSubject,
         duration: examData.duration || 60,
         startDate: examData.startDate,
         endDate: examData.endDate,
-        questions: shuffleArray(mappedQuestions)
+        questions: orderedQuestions
       }
 
-      setCurrentExam(randomizedExam)
+      setCurrentExam(examObject)
       setIsExamActive(true)
       setCurrentSection('quiz')
 
@@ -446,22 +675,68 @@ export default function StudentPage() {
       const timeRemainingMs = endDate.getTime() - now.getTime()
       setTimeRemaining(Math.max(0, Math.floor(timeRemainingMs / 1000)))
 
+      // If pending items exist and we are online, trigger sync
+      if (Object.keys(pendingSavesRef.current).length > 0 && navigator.onLine) {
+        setTimeout(() => syncPendingAnswers(), 500)
+      }
+
     } catch (err) {
       console.error('Error starting exam:', err)
       showModal('Error', 'Failed to load exam questions. Please try again.')
     } finally {
       setLoading(false)
     }
-  }
+  }, [isExamActive, getTimeUntilDeadline, syncPendingAnswers])
+
+  // FEATURE: AUTOMATIC ANSWER SAVING - Auto-resume active exam on page refresh (F5)
+  useEffect(() => {
+    if (loading || isExamActive || hasResumedRef.current) return
+
+    const token = storage.getItem('token')
+    let currentUserId = null
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        currentUserId = payload.sub || payload.id
+      } catch (e) {}
+    }
+    if (!currentUserId) return
+
+    const activeSessionRaw = storage.getItem('active_exam_session')
+    if (!activeSessionRaw) return
+
+    try {
+      const activeSession = JSON.parse(activeSessionRaw)
+      if (activeSession && activeSession.examId && String(activeSession.userId) === String(currentUserId)) {
+        const isCompleted = completedExams.some(e => (e.examId ?? e.ExamId) === activeSession.examId)
+        if (isCompleted) {
+          storage.removeItem('active_exam_session')
+          return
+        }
+        const examToResume = exams.available.find(e => (e.examId ?? e.id) === activeSession.examId)
+        if (examToResume) {
+          hasResumedRef.current = true
+          startExam(examToResume)
+        }
+      }
+    } catch (e) {
+      console.warn('Auto-resume failed:', e)
+    }
+  }, [loading, isExamActive, exams.available, completedExams, startExam])
 
   function autoSubmitExam() {
     submitExam(true)
   }
 
+  // FEATURE: AUTOMATIC ANSWER SAVING - Final exam submission finalizing drafts
   const submitExam = useCallback(async (autoSubmit = false) => {
     if (!currentExam) return
 
     try {
+      // Clear any pending debounce timers
+      Object.values(debounceTimersRef.current).forEach(timer => clearTimeout(timer))
+      debounceTimersRef.current = {}
+
       // Get user ID from token
       const token = storage.getItem('token')
       let userId = null
@@ -479,28 +754,26 @@ export default function StudentPage() {
         return
       }
 
-      // Collect answers from the form
+      // Collect answers from reactive state (with fallback to form DOM if needed)
       const form = document.getElementById('quiz-form')
-      // If auto-submitting and form is missing (e.g. tab closed), we might need a fallback
-      // But usually the component is still mounted.
-
-      let answers = []
+      let formData = null
       if (form) {
-        const formData = new FormData(form)
-        answers = currentExam.questions.map((question, index) => {
-          const questionName = `question_${index + 1}`
-          const answer = formData.get(questionName)
-          const answerValue = answer ? String(answer).trim() : ''
-
-          return {
-            questionId: question.id,
-            answer: answerValue
-          }
-        }).filter(a => a.questionId)
-      } else {
-        // Fallback if form is not found (should not happen in normal flow)
-        console.warn("Exam form not found during submission")
+        formData = new FormData(form)
       }
+
+      const answers = currentExam.questions.map((question, index) => {
+        let answerVal = examAnswers[question.id]
+        if ((answerVal === undefined || answerVal === null) && formData) {
+          const formVal = formData.get(`question_${index + 1}`)
+          if (formVal !== null && formVal !== undefined) {
+            answerVal = formVal
+          }
+        }
+        return {
+          questionId: question.id,
+          answer: answerVal ? String(answerVal).trim() : ''
+        }
+      }).filter(a => a.questionId)
 
       // Prepare submission payload
       const submissionPayload = {
@@ -518,6 +791,17 @@ export default function StudentPage() {
 
       // Submit answers to backend
       const response = await api.post('/studentexamanswer/submit', submissionPayload)
+
+      // Clean up local persistence for this exam attempt
+      storage.removeItem('active_exam_session')
+      if (userId && currentExam.id) {
+        storage.removeItem(`exam_draft_${userId}_${currentExam.id}`)
+        storage.removeItem(`exam_pending_${userId}_${currentExam.id}`)
+        storage.removeItem(`exam_order_${userId}_${currentExam.id}`)
+      }
+      pendingSavesRef.current = {}
+      setExamAnswers({})
+      setSaveStatus('saved')
 
       // Move exam from available to completed
       setExams(prev => ({
@@ -584,7 +868,7 @@ export default function StudentPage() {
       }
       showModal('Error', errorMessage)
     }
-  }, [currentExam])
+  }, [currentExam, examAnswers])
 
   function showSection(section) {
     setCurrentSection(section)
@@ -1423,11 +1707,19 @@ export default function StudentPage() {
                   timeRemaining={timeRemaining}
                   submitQuiz={submitExam}
                   backToDashboard={isReviewMode ? backToCompleted : () => {
-                    setIsExamActive(false)
-                    setCurrentSection('available')
-                    setCurrentExam(null)
-                    setTimeRemaining(0)
+                    showModal('Exam in Progress', 'Your answers are saved automatically. Are you sure you want to return to the dashboard?').then((confirmed) => {
+                      if (confirmed) {
+                        setIsExamActive(false)
+                        setCurrentSection('available')
+                        setCurrentExam(null)
+                        setTimeRemaining(0)
+                      }
+                    })
                   }}
+                  answers={examAnswers}
+                  onAnswerChange={handleAnswerChange}
+                  saveStatus={saveStatus}
+                  onRetrySave={syncPendingAnswers}
                 />
               )}
             </>

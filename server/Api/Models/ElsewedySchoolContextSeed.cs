@@ -9,6 +9,23 @@ public static class ElsewedySchoolContextSeed
 {
 	public static async Task SeedAsync(ElsewedySchoolSysDbDevContext db)
 	{
+		// FEATURE: AUTOMATIC ANSWER SAVING
+		// Ensure columns exist on database startup for draft persistence
+		try
+		{
+			await db.Database.ExecuteSqlRawAsync(@"
+				IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'StudentExamAnswer' AND COLUMN_NAME = 'IsSubmitted')
+				BEGIN
+					ALTER TABLE StudentExamAnswer ADD IsSubmitted BIT NOT NULL CONSTRAINT DF_StudentExamAnswer_IsSubmitted DEFAULT 1;
+				END
+				IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'StudentExamAnswer' AND COLUMN_NAME = 'LastSavedAt')
+				BEGIN
+					ALTER TABLE StudentExamAnswer ADD LastSavedAt DATETIME2 NULL;
+				END
+			");
+		}
+		catch { /* Silently proceed if DDL is restricted or already applied */ }
+
 		// Seed roles
 		if (!db.Roles.Any(r => r.BusinessEntity == "Quizes System"))
 		{

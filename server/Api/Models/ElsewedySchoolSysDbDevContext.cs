@@ -722,6 +722,10 @@ public partial class ElsewedySchoolSysDbDevContext : DbContext
             entity.Property(e => e.ExamDetailsId).HasColumnName("ExamDetailsID");
             entity.Property(e => e.ExamQuestionId).HasColumnName("ExamQuestionID");
 
+            // FEATURE: AUTOMATIC ANSWER SAVING
+            entity.Property(e => e.IsSubmitted).HasDefaultValue(true);
+            entity.Property(e => e.LastSavedAt).HasColumnType("datetime2");
+
             entity.HasIndex(e => new { e.AccountId, e.ExamDetailsId, e.QuestionBankId }, "UQ_StudentExamAnswer_AccountExamQuestion").IsUnique();
 
             entity.HasOne(d => d.Account).WithMany(p => p.StudentExamAnswers)
