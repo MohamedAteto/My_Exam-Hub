@@ -1,4 +1,3 @@
-// FEATURE: AUTOMATIC ANSWER SAVING
 import React, { useState, useEffect } from 'react'
 
 export default function QuizInterface({
@@ -10,8 +9,8 @@ export default function QuizInterface({
   backToDashboard,
   answers = {},
   onAnswerChange,
-  saveStatus = 'saved', // 'idle' | 'saving' | 'saved' | 'offline' | 'error'
-  onRetrySave,
+  reviewMarks = {},
+  onToggleReviewMark,
 }) {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
 
@@ -31,7 +30,7 @@ export default function QuizInterface({
     return { __html: html }
   }
 
-  // FEATURE: AUTOMATIC ANSWER SAVING - Helper function to create reactive question HTML
+  // Helper function to create reactive question HTML
   const createQuestionHTML = (question, index, reviewMode = false) => {
     const num = index + 1
     const currentVal = answers[question.id]
@@ -199,23 +198,10 @@ export default function QuizInterface({
     }
   }, [currentQuiz, isReviewMode, timeRemaining])
 
+  const markedCount = Object.values(reviewMarks).filter(Boolean).length
+
   return (
     <div id="quiz-view" className={`quiz-interface ${currentQuiz ? 'active' : ''}`}>
-      <style>{`
-        @keyframes autoSaveSpin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        .autosave-spinner {
-          display: inline-block;
-          width: 12px;
-          height: 12px;
-          border: 2px solid #f59e0b;
-          border-top-color: transparent;
-          border-radius: 50%;
-          animation: autoSaveSpin 0.8s linear infinite;
-        }
-      `}</style>
       <div className={isReviewMode ? 'quiz-review-header' : 'quiz-header'} id="quiz-header">
         {isReviewMode && (
           <button
@@ -239,81 +225,26 @@ export default function QuizInterface({
             <span id="quiz-total-marks">Total: {currentQuiz.totalMarks} Marks</span>
           )}
 
-          {/* FEATURE: AUTOMATIC ANSWER SAVING - Unobtrusive Save Status Badge */}
-          {!isReviewMode && (
-            <div
-              className="save-status-badge"
+          {/* Mark for Review live counter badge */}
+          {!isReviewMode && onToggleReviewMark && (
+            <span
+              className="quiz-review-count"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '3px 10px',
+                background: markedCount > 0 ? 'rgba(245, 158, 11, 0.2)' : 'rgba(243, 244, 246, 0.9)',
+                color: markedCount > 0 ? '#b45309' : '#4b5563',
+                padding: '3px 12px',
                 borderRadius: '12px',
+                border: markedCount > 0 ? '1px solid rgba(245, 158, 11, 0.5)' : '1px solid #d1d5db',
+                fontWeight: 600,
                 fontSize: '0.85rem',
-                fontWeight: 500,
-                backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
                 transition: 'all 0.2s ease'
               }}
             >
-              {saveStatus === 'saving' && (
-                <span style={{ color: '#d97706', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                  <span className="autosave-spinner" />
-                  Saving...
-                </span>
-              )}
-              {saveStatus === 'saved' && (
-                <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  Saved
-                </span>
-              )}
-              {saveStatus === 'offline' && (
-                <span style={{ color: '#ea580c', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="1" y1="1" x2="23" y2="23" />
-                    <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
-                    <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
-                    <path d="M10.71 5.05A16 16 0 0 1 22.58 9" />
-                    <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
-                    <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
-                    <line x1="12" y1="20" x2="12.01" y2="20" />
-                  </svg>
-                  Offline / Waiting to reconnect
-                </span>
-              )}
-              {saveStatus === 'error' && (
-                <span style={{ color: '#ef4444', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                  Save failed
-                  {onRetrySave && (
-                    <button
-                      type="button"
-                      onClick={onRetrySave}
-                      style={{
-                        marginLeft: '3px',
-                        background: 'none',
-                        border: 'none',
-                        color: '#ef4444',
-                        textDecoration: 'underline',
-                        cursor: 'pointer',
-                        padding: 0,
-                        fontWeight: 600,
-                        fontSize: '0.85rem'
-                      }}
-                    >
-                      Retry
-                    </button>
-                  )}
-                </span>
-              )}
-            </div>
+              🚩 Marked for Review: {markedCount}
+            </span>
           )}
         </div>
       </div>
@@ -326,19 +257,75 @@ export default function QuizInterface({
           Exam submitted successfully! Moving to completed exams...
         </div>
         <div id="quiz-questions">
-          {currentQuiz.questions.map((question, index) => (
-            <div key={question.id || index} className="question">
-              <span className="question-number">{index + 1}</span>
-              <span className="question-text" dangerouslySetInnerHTML={renderRichText(question.question)} />
-              <span className="question-type">{(question.type || '').toUpperCase()}</span>
-              {question.marks && (
-                <span className="question-marks">
-                  {question.marks} Marks
-                </span>
-              )}
-              {createQuestionHTML(question, index, isReviewMode)}
-            </div>
-          ))}
+          {currentQuiz.questions.map((question, index) => {
+            const isMarked = !isReviewMode && Boolean(reviewMarks[question.id])
+
+            return (
+              <div
+                key={question.id || index}
+                id={`question-card-${question.id}`}
+                className={`question ${isMarked ? 'question-marked' : ''}`}
+                style={isMarked ? {
+                  border: '2px solid #f59e0b',
+                  borderLeft: '6px solid #f59e0b',
+                  backgroundColor: 'rgba(254, 243, 199, 0.18)',
+                  borderRadius: '8px',
+                  boxShadow: '0 2px 8px rgba(245, 158, 11, 0.12)',
+                  transition: 'all 0.2s ease-in-out',
+                  position: 'relative'
+                } : {
+                  position: 'relative',
+                  transition: 'all 0.2s ease-in-out'
+                }}
+              >
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span className="question-number">{index + 1}</span>
+                    <span className="question-type">{(question.type || '').toUpperCase()}</span>
+                    {question.marks && (
+                      <span className="question-marks">
+                        {question.marks} Marks
+                      </span>
+                    )}
+                  </div>
+
+                  {!isReviewMode && onToggleReviewMark && (
+                    <button
+                      type="button"
+                      className={`mark-for-review-btn ${isMarked ? 'marked' : ''}`}
+                      onClick={() => onToggleReviewMark(question.id)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: isMarked ? '#fef3c7' : '#ffffff',
+                        color: isMarked ? '#b45309' : '#4b5563',
+                        border: isMarked ? '1.5px solid #f59e0b' : '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        padding: '5px 12px',
+                        fontSize: '0.825rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        boxShadow: isMarked ? '0 1px 3px rgba(245, 158, 11, 0.2)' : '0 1px 2px rgba(0, 0, 0, 0.05)',
+                        transition: 'all 0.15s ease'
+                      }}
+                      title={isMarked ? 'Remove mark for review' : 'Mark for review'}
+                    >
+                      {isMarked ? '🚩 Marked for Review' : '🏳️ Mark for Review'}
+                    </button>
+                  )}
+                </div>
+
+                <span className="question-text" dangerouslySetInnerHTML={renderRichText(question.question)} />
+                {createQuestionHTML(question, index, isReviewMode)}
+              </div>
+            )
+          })}
         </div>
         <div className="submit-section" id="submit-section">
           {!isReviewMode && (

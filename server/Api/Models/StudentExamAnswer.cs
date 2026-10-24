@@ -18,11 +18,6 @@ public partial class StudentExamAnswer
 
     public long? QuestionBankId { get; set; }
 
-    // FEATURE: AUTOMATIC ANSWER SAVING
-    // Differentiates between in-progress draft answers and finalized exam submissions
-    public bool IsSubmitted { get; set; } = true;
-    public DateTime? LastSavedAt { get; set; }
-
     public virtual Account Account { get; set; } = null!;
 
     public virtual ExamDetail? ExamDetailNav { get; set; }

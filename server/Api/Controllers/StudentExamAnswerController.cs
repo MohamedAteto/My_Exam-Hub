@@ -40,56 +40,13 @@ namespace QuizesApi.Controllers
                     }
                 }
             }
-        }
-
-        private long GetAuthenticatedAccountId()
-        {
-            var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
-                ?? User.FindFirst("sub")?.Value 
-                ?? User.FindFirst("id")?.Value;
-            
-            if (long.TryParse(accountIdClaim, out long id))
-            {
-                return id;
-            }
-            return 0;
-        }
-
-        private bool CalculateIsCorrect(QuestionBank question, string chosenAnswer)
-        {
-            if (string.IsNullOrEmpty(chosenAnswer) || question == null) return false;
-            string correctAnswer = question.CorrectAnswer?.Trim() ?? string.Empty;
-
-            if (question.OptionC != null && question.OptionD != null)
-            {
-                if (correctAnswer.Length == 1 && char.IsLetter(correctAnswer[0]))
-                {
-                    int correctIndex = char.ToUpper(correctAnswer[0]) - 'A';
-                    var optionsList = new List<string>();
-                    if (question.OptionA != null) optionsList.Add(question.OptionA);
-                    if (question.OptionB != null) optionsList.Add(question.OptionB);
-                    if (question.OptionC != null) optionsList.Add(question.OptionC);
-                    if (question.OptionD != null) optionsList.Add(question.OptionD);
-                    
-                    if (correctIndex >= 0 && correctIndex < optionsList.Count)
-                    {
-                        return chosenAnswer.Equals(optionsList[correctIndex].Trim(), StringComparison.OrdinalIgnoreCase);
-                    }
-                }
-                else
-                {
-                    return chosenAnswer.Equals(correctAnswer, StringComparison.OrdinalIgnoreCase);
-                }
-            }
-            return chosenAnswer.Equals(correctAnswer, StringComparison.OrdinalIgnoreCase);
-        }
+        }    
 
         [HttpGet("student/{accountId}/exams")]
         public async Task<ActionResult> GetStudentExams(long accountId)
         {
-            // Only count fully submitted exams for grade history
             var studentAnswers = await _context.StudentExamAnswers
-                .Where(sea => sea.AccountId == accountId && sea.IsSubmitted)
+                .Where(sea => sea.AccountId == accountId)
                 .ToListAsync();
 
             var allExams = await _context.ExamDetails.Include(e => e.Subject).ToListAsync();
@@ -168,25 +125,22 @@ namespace QuizesApi.Controllers
             return Ok(result);
         }
 
-        // FEATURE: AUTOMATIC ANSWER SAVING - Returns existing saved answers (draft or submitted)
         [HttpGet("student/{accountId}/exam/{examId}")]
         public async Task<ActionResult> GetStudentExamAnswers(long accountId, long examId)
         {
             var exam = await _context.ExamDetails.Include(e => e.Subject).FirstOrDefaultAsync(e => e.ExamId == examId);
             if (exam == null) return NotFound();
 
+            // Strict Access Control for Teachers
             var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
                 ?? User.FindFirst("sub")?.Value 
                 ?? User.FindFirst("id")?.Value;
             
-            bool isTeacher = false;
-            bool isAdmin = false;
-
             if (long.TryParse(accountIdClaim, out long requesterId))
             {
                 var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
-                isTeacher = roles.Contains("Teacher");
-                isAdmin = roles.Contains("Superadmin") || roles.Contains("Admin") || roles.Contains("Board");
+                bool isTeacher = roles.Contains("Teacher");
+                bool isAdmin = roles.Contains("Superadmin") || roles.Contains("Admin") || roles.Contains("Board");
             }
 
             await PopulateExamQuestions(new List<ExamDetail> { exam });
@@ -200,12 +154,9 @@ namespace QuizesApi.Controllers
                 .Where(sea => sea.AccountId == accountId && sea.ExamDetailsId == examId && sea.QuestionBankId.HasValue && questionIds.Contains(sea.QuestionBankId.Value))
                 .ToListAsync();
 
-            bool isSubmitted = answers.Any(a => a.IsSubmitted);
-            bool canSeeAnswers = isSubmitted || isTeacher || isAdmin;
-
             var totalMarks = exam.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0);
-            var earnedMarks = isSubmitted ? answers.Where(a => a.Score).Sum(a => 
-                exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId.HasValue && eq.QuestionId.Value == a.QuestionBankId)?.Question?.Mark ?? 0) : 0;
+            var earnedMarks = answers.Where(a => a.Score).Sum(a => 
+                exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId.HasValue && eq.QuestionId.Value == a.QuestionBankId)?.Question?.Mark ?? 0);
 
             var result = new
             {
@@ -217,8 +168,7 @@ namespace QuizesApi.Controllers
                 EndDate = DateTime.SpecifyKind(exam.EndDate.GetValueOrDefault(), DateTimeKind.Utc),
                 TotalMarks = totalMarks,
                 EarnedMarks = earnedMarks,
-                Score = isSubmitted && totalMarks > 0 ? Math.Round((double)(earnedMarks * 100m / totalMarks), 2) : 0.0,
-                IsSubmitted = isSubmitted,
+                Score = totalMarks > 0 ? Math.Round((double)(earnedMarks * 100m / totalMarks), 2) : 0.0,
                 Questions = exam.ExamQuestionBanks
                     .Where(eq => eq.Question != null)
                     .Select(eq =>
@@ -232,12 +182,10 @@ namespace QuizesApi.Controllers
                             OptionB = eq.Question.OptionB,
                             OptionC = eq.Question.OptionC,
                             OptionD = eq.Question.OptionD,
-                            // Security: Hide correct answers during active test until submitted or teacher review
-                            CorrectAnswer = canSeeAnswers ? eq.Question.CorrectAnswer : string.Empty,
+                            CorrectAnswer = eq.Question.CorrectAnswer,
                             Mark = eq.Question.Mark ?? 0,
                             UserAnswer = answer?.ChoosedAnswer ?? string.Empty,
-                            IsCorrect = canSeeAnswers ? (answer?.Score ?? false) : false,
-                            LastSavedAt = answer?.LastSavedAt
+                            IsCorrect = answer?.Score ?? false
                         };
                     }).ToList()
             };
@@ -245,203 +193,21 @@ namespace QuizesApi.Controllers
             return Ok(result);
         }
 
-        // FEATURE: AUTOMATIC ANSWER SAVING - Single answer auto-save with debounce and race-condition protection
-        [HttpPost("auto-save")]
-        public async Task<ActionResult> AutoSaveAnswer([FromBody] AutoSaveAnswerDto dto)
-        {
-            if (dto == null) return BadRequest(new { message = "Request body is required." });
-
-            long accountId = GetAuthenticatedAccountId();
-            if (accountId <= 0 && dto.AccountId > 0)
-            {
-                accountId = dto.AccountId;
-            }
-
-            if (accountId <= 0) return BadRequest(new { message = "Unable to determine account ID. Please log in again." });
-            if (dto.ExamId <= 0) return BadRequest(new { message = "Invalid exam ID." });
-            if (dto.QuestionId <= 0) return BadRequest(new { message = "Invalid question ID." });
-
-            var exam = await _context.ExamDetails.FirstOrDefaultAsync(e => e.ExamId == dto.ExamId);
-            if (exam == null) return NotFound(new { message = "Exam not found." });
-
-            // Enforce submission finality: cannot edit after final submission
-            var alreadySubmitted = await _context.StudentExamAnswers
-                .AnyAsync(sea => sea.AccountId == accountId && sea.ExamDetailsId == dto.ExamId && sea.IsSubmitted);
-            if (alreadySubmitted)
-            {
-                return BadRequest(new { message = "Exam has already been submitted. Answers cannot be modified." });
-            }
-
-            // Verify question belongs to exam
-            var belongsToExam = await _context.ExamQuestionBanks
-                .AnyAsync(eq => eq.ExamId == dto.ExamId && eq.QuestionId == dto.QuestionId);
-            if (!belongsToExam)
-            {
-                return BadRequest(new { message = "Question does not belong to this exam." });
-            }
-
-            string chosenAnswer = dto.Answer?.ToString()?.Trim() ?? string.Empty;
-            DateTime saveTime = dto.ClientTimestamp ?? DateTime.UtcNow;
-
-            var existing = await _context.StudentExamAnswers
-                .FirstOrDefaultAsync(sea => sea.AccountId == accountId && sea.ExamDetailsId == dto.ExamId && sea.QuestionBankId == dto.QuestionId);
-
-            if (existing != null)
-            {
-                if (existing.IsSubmitted)
-                {
-                    return BadRequest(new { message = "Answer already submitted." });
-                }
-
-                // Prevent out-of-order overwrite
-                if (dto.ClientTimestamp.HasValue && existing.LastSavedAt.HasValue && dto.ClientTimestamp.Value < existing.LastSavedAt.Value)
-                {
-                    return Ok(new
-                    {
-                        message = "Skipped older answer update.",
-                        questionId = dto.QuestionId,
-                        lastSavedAt = existing.LastSavedAt
-                    });
-                }
-
-                existing.ChoosedAnswer = chosenAnswer;
-                existing.LastSavedAt = saveTime;
-                existing.IsSubmitted = false;
-                existing.Score = false;
-            }
-            else
-            {
-                var newAnswer = new StudentExamAnswer
-                {
-                    AccountId = accountId,
-                    ExamDetailsId = dto.ExamId,
-                    QuestionBankId = dto.QuestionId,
-                    ChoosedAnswer = chosenAnswer,
-                    Score = false,
-                    IsSubmitted = false,
-                    LastSavedAt = saveTime
-                };
-                await _context.StudentExamAnswers.AddAsync(newAnswer);
-            }
-
-            try
-            {
-                await _context.SaveChangesAsync();
-                return Ok(new
-                {
-                    message = "Answer auto-saved.",
-                    questionId = dto.QuestionId,
-                    lastSavedAt = saveTime
-                });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error auto-saving answer: {ex}");
-                return StatusCode(500, new { message = "Error auto-saving answer", details = ex.Message });
-            }
-        }
-
-        // FEATURE: AUTOMATIC ANSWER SAVING - Batch auto-save for syncing offline recovery queue
-        [HttpPost("auto-save-batch")]
-        public async Task<ActionResult> AutoSaveBatch([FromBody] AutoSaveBatchDto dto)
-        {
-            if (dto == null || dto.Answers == null || !dto.Answers.Any())
-            {
-                return BadRequest(new { message = "Request body and non-empty answers list are required." });
-            }
-
-            long accountId = GetAuthenticatedAccountId();
-            if (accountId <= 0 && dto.AccountId > 0)
-            {
-                accountId = dto.AccountId;
-            }
-
-            if (accountId <= 0) return BadRequest(new { message = "Unable to determine account ID. Please log in again." });
-            if (dto.ExamId <= 0) return BadRequest(new { message = "Invalid exam ID." });
-
-            var alreadySubmitted = await _context.StudentExamAnswers
-                .AnyAsync(sea => sea.AccountId == accountId && sea.ExamDetailsId == dto.ExamId && sea.IsSubmitted);
-            if (alreadySubmitted)
-            {
-                return BadRequest(new { message = "Exam has already been submitted. Answers cannot be modified." });
-            }
-
-            var validQuestionIds = await _context.ExamQuestionBanks
-                .Where(eq => eq.ExamId == dto.ExamId && eq.QuestionId.HasValue)
-                .Select(eq => eq.QuestionId.Value)
-                .ToListAsync();
-
-            var existingAnswers = await _context.StudentExamAnswers
-                .Where(sea => sea.AccountId == accountId && sea.ExamDetailsId == dto.ExamId)
-                .ToListAsync();
-
-            int savedCount = 0;
-            foreach (var item in dto.Answers)
-            {
-                if (!validQuestionIds.Contains(item.QuestionId)) continue;
-
-                string chosenAnswer = item.Answer?.ToString()?.Trim() ?? string.Empty;
-                DateTime saveTime = item.ClientTimestamp ?? DateTime.UtcNow;
-
-                var existing = existingAnswers.FirstOrDefault(a => a.QuestionBankId == item.QuestionId);
-                if (existing != null)
-                {
-                    if (existing.IsSubmitted) continue;
-
-                    if (item.ClientTimestamp.HasValue && existing.LastSavedAt.HasValue && item.ClientTimestamp.Value < existing.LastSavedAt.Value)
-                    {
-                        continue;
-                    }
-
-                    existing.ChoosedAnswer = chosenAnswer;
-                    existing.LastSavedAt = saveTime;
-                    existing.IsSubmitted = false;
-                    existing.Score = false;
-                    savedCount++;
-                }
-                else
-                {
-                    var newAnswer = new StudentExamAnswer
-                    {
-                        AccountId = accountId,
-                        ExamDetailsId = dto.ExamId,
-                        QuestionBankId = item.QuestionId,
-                        ChoosedAnswer = chosenAnswer,
-                        Score = false,
-                        IsSubmitted = false,
-                        LastSavedAt = saveTime
-                    };
-                    await _context.StudentExamAnswers.AddAsync(newAnswer);
-                    existingAnswers.Add(newAnswer);
-                    savedCount++;
-                }
-            }
-
-            try
-            {
-                await _context.SaveChangesAsync();
-                return Ok(new
-                {
-                    message = "Batch answers auto-saved successfully.",
-                    savedCount,
-                    syncedAt = DateTime.UtcNow
-                });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error batch auto-saving answers: {ex}");
-                return StatusCode(500, new { message = "Error batch auto-saving answers", details = ex.Message });
-            }
-        }
-
-        // FEATURE: AUTOMATIC ANSWER SAVING - Final exam submission finalizing drafts
         [HttpPost("submit")]
         public async Task<ActionResult> SubmitStudentAnswers([FromBody] StudentAnswerSubmitDto dto)
         {
             if (dto == null) return BadRequest(new { message = "Request body is required." });
 
-            long accountId = GetAuthenticatedAccountId();
-            if (accountId <= 0 && dto.AccountId > 0)
+            var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                ?? User.FindFirst("sub")?.Value 
+                ?? User.FindFirst("id")?.Value;
+            
+            long accountId = 0;
+            if (!string.IsNullOrEmpty(accountIdClaim) && long.TryParse(accountIdClaim, out long tokenAccountId))
+            {
+                accountId = tokenAccountId;
+            }
+            else if (dto.AccountId > 0)
             {
                 accountId = dto.AccountId;
             }
@@ -461,10 +227,7 @@ namespace QuizesApi.Controllers
                 .Where(sea => sea.AccountId == accountId && sea.ExamDetailsId == dto.ExamId)
                 .ToListAsync();
 
-            if (existingAnswers.Any(a => a.IsSubmitted))
-            {
-                return BadRequest(new { message = "You have already submitted answers for this exam." });
-            }
+            if (existingAnswers.Any()) return BadRequest(new { message = "You have already submitted answers for this exam." });
 
             var questionIds = exam.ExamQuestionBanks
                 .Where(eq => eq.QuestionId.HasValue)
@@ -485,8 +248,8 @@ namespace QuizesApi.Controllers
                 dto.Answers.Add(new AnswerDto { QuestionId = missingQid, Answer = string.Empty });
             }
 
-            DateTime submitTime = DateTime.UtcNow;
-
+            var studentAnswers = new List<StudentExamAnswer>();
+            
             foreach (var answerDto in dto.Answers)
             {
                 var question = exam.ExamQuestionBanks
@@ -495,46 +258,62 @@ namespace QuizesApi.Controllers
                 if (question == null) continue;
                 
                 string chosenAnswer = answerDto.Answer?.ToString()?.Trim() ?? string.Empty;
-                bool isCorrect = CalculateIsCorrect(question, chosenAnswer);
-
-                var existingAnswer = existingAnswers.FirstOrDefault(a => a.QuestionBankId == answerDto.QuestionId);
-                if (existingAnswer != null)
+                bool isCorrect = false;
+                string correctAnswer = question.CorrectAnswer?.Trim() ?? string.Empty;
+                
+                if (!string.IsNullOrEmpty(chosenAnswer))
                 {
-                    existingAnswer.ChoosedAnswer = chosenAnswer;
-                    existingAnswer.Score = isCorrect;
-                    existingAnswer.IsSubmitted = true;
-                    existingAnswer.LastSavedAt = submitTime;
-                }
-                else
-                {
-                    var newAnswer = new StudentExamAnswer
+                    if (question.OptionC != null && question.OptionD != null)
                     {
-                        AccountId = accountId,
-                        ExamQuestionId = null,
-                        ExamDetailsId = dto.ExamId,
-                        QuestionBankId = answerDto.QuestionId,
-                        ChoosedAnswer = chosenAnswer,
-                        Score = isCorrect,
-                        IsSubmitted = true,
-                        LastSavedAt = submitTime
-                    };
-                    await _context.StudentExamAnswers.AddAsync(newAnswer);
-                    existingAnswers.Add(newAnswer);
+                        if (correctAnswer.Length == 1 && char.IsLetter(correctAnswer[0]))
+                        {
+                            int correctIndex = char.ToUpper(correctAnswer[0]) - 'A';
+                            var optionsList = new List<string>();
+                            if (question.OptionA != null) optionsList.Add(question.OptionA);
+                            if (question.OptionB != null) optionsList.Add(question.OptionB);
+                            if (question.OptionC != null) optionsList.Add(question.OptionC);
+                            if (question.OptionD != null) optionsList.Add(question.OptionD);
+                            
+                            if (correctIndex >= 0 && correctIndex < optionsList.Count)
+                            {
+                                isCorrect = chosenAnswer.Equals(optionsList[correctIndex].Trim(), StringComparison.OrdinalIgnoreCase);
+                            }
+                        }
+                        else
+                        {
+                            isCorrect = chosenAnswer.Equals(correctAnswer, StringComparison.OrdinalIgnoreCase);
+                        }
+                    }
+                    else
+                    {
+                         isCorrect = chosenAnswer.Equals(correctAnswer, StringComparison.OrdinalIgnoreCase);
+                    }
                 }
+
+                studentAnswers.Add(new StudentExamAnswer
+                {
+                    AccountId = accountId,
+                    ExamQuestionId = null,
+                    ExamDetailsId = dto.ExamId,
+                    QuestionBankId = answerDto.QuestionId,
+                    ChoosedAnswer = chosenAnswer,
+                    Score = isCorrect
+                });
             }
 
             try
             {
+                await _context.StudentExamAnswers.AddRangeAsync(studentAnswers);
                 await _context.SaveChangesAsync();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error submitting answers: {ex}");
+                Console.WriteLine($"Error saving answers: {ex}");
                 return StatusCode(500, new { message = "Error saving answers", details = ex.Message, inner = ex.InnerException?.Message });
             }
 
             var totalMarks = exam.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0);
-            var earnedMarks = existingAnswers.Where(a => a.Score).Sum(a =>
+            var earnedMarks = studentAnswers.Where(a => a.Score).Sum(a =>
                 exam.ExamQuestionBanks.FirstOrDefault(eq => eq.QuestionId.HasValue && eq.QuestionId.Value == a.QuestionBankId)?.Question?.Mark ?? 0);
 
             return Ok(new
@@ -559,29 +338,5 @@ namespace QuizesApi.Controllers
     {
         public long QuestionId { get; set; }
         public object Answer { get; set; } = null!;
-    }
-
-    // FEATURE: AUTOMATIC ANSWER SAVING - DTOs
-    public class AutoSaveAnswerDto
-    {
-        public long ExamId { get; set; }
-        public long AccountId { get; set; }
-        public long QuestionId { get; set; }
-        public object Answer { get; set; } = null!;
-        public DateTime? ClientTimestamp { get; set; }
-    }
-
-    public class AutoSaveBatchDto
-    {
-        public long ExamId { get; set; }
-        public long AccountId { get; set; }
-        public List<AutoSaveAnswerItemDto> Answers { get; set; } = new();
-    }
-
-    public class AutoSaveAnswerItemDto
-    {
-        public long QuestionId { get; set; }
-        public object Answer { get; set; } = null!;
-        public DateTime? ClientTimestamp { get; set; }
     }
 }

@@ -29,11 +29,9 @@ export default function StudentPage() {
   const [completedSearchTerm, setCompletedSearchTerm] = useState('')
   const quizTimerRef = useRef(null)
 
-  // FEATURE: AUTOMATIC ANSWER SAVING - State & Refs
+  // Exam state & Review Marks
   const [examAnswers, setExamAnswers] = useState({})
-  const [saveStatus, setSaveStatus] = useState('saved') // 'saving' | 'saved' | 'offline' | 'error'
-  const debounceTimersRef = useRef({})
-  const pendingSavesRef = useRef({})
+  const [reviewMarks, setReviewMarks] = useState({})
   const hasResumedRef = useRef(false)
 
   // Real data from backend
@@ -358,9 +356,9 @@ export default function StudentPage() {
     return `${minutes}m`
   }
 
-  // FEATURE: AUTOMATIC ANSWER SAVING - Sync queued offline answers
-  const syncPendingAnswers = useCallback(async () => {
-    if (!currentExam || !navigator.onLine) return
+  // Handle Mark for Review toggle
+  const handleToggleReviewMark = useCallback((questionId) => {
+    if (!currentExam || isReviewMode) return
 
     const token = storage.getItem('token')
     let userId = null
@@ -371,70 +369,16 @@ export default function StudentPage() {
       } catch (e) {}
     }
 
-    const pending = pendingSavesRef.current
-    const questionIds = Object.keys(pending)
-    if (questionIds.length === 0) {
-      setSaveStatus('saved')
-      return
-    }
-
-    setSaveStatus('saving')
-
-    const items = questionIds.map(qid => ({
-      questionId: Number(qid),
-      answer: pending[qid].value,
-      clientTimestamp: new Date(pending[qid].timestamp).toISOString()
-    }))
-
-    try {
-      await api.post('/studentexamanswer/auto-save-batch', {
-        examId: currentExam.id,
-        accountId: Number(userId),
-        answers: items
-      })
-
-      questionIds.forEach(qid => {
-        delete pendingSavesRef.current[qid]
-      })
-
+    setReviewMarks(prev => {
+      const updated = { ...prev, [questionId]: !prev[questionId] }
       if (userId && currentExam.id) {
-        storage.removeItem(`exam_pending_${userId}_${currentExam.id}`)
+        storage.setItem(`exam_review_marks_${userId}_${currentExam.id}`, JSON.stringify(updated))
       }
-      setSaveStatus('saved')
-    } catch (err) {
-      console.error('Batch auto-save sync error:', err)
-      if (!navigator.onLine) {
-        setSaveStatus('offline')
-      } else {
-        setSaveStatus('error')
-      }
-    }
-  }, [currentExam])
+      return updated
+    })
+  }, [currentExam, isReviewMode])
 
-  // FEATURE: AUTOMATIC ANSWER SAVING - Listen to online/offline connectivity
-  useEffect(() => {
-    const handleOnline = () => {
-      if (isExamActive && !isReviewMode) {
-        syncPendingAnswers()
-      }
-    }
-
-    const handleOffline = () => {
-      if (isExamActive && !isReviewMode) {
-        setSaveStatus('offline')
-      }
-    }
-
-    window.addEventListener('online', handleOnline)
-    window.addEventListener('offline', handleOffline)
-
-    return () => {
-      window.removeEventListener('online', handleOnline)
-      window.removeEventListener('offline', handleOffline)
-    }
-  }, [isExamActive, isReviewMode, syncPendingAnswers])
-
-  // FEATURE: AUTOMATIC ANSWER SAVING - Handle answer change with debounce and race-condition prevention
+  // Handle student answer selection with client-side localStorage caching for reload protection
   const handleAnswerChange = useCallback((questionId, value) => {
     if (!currentExam || isReviewMode) return
 
@@ -447,70 +391,13 @@ export default function StudentPage() {
       } catch (e) {}
     }
 
-    const timestamp = Date.now()
-
-    // 1. Immediately update in-memory state for instant UI feedback
     setExamAnswers(prev => {
       const updated = { ...prev, [questionId]: value }
-      // 2. Immediately persist to localStorage draft for zero-loss recovery
       if (userId && currentExam.id) {
         storage.setItem(`exam_draft_${userId}_${currentExam.id}`, JSON.stringify(updated))
       }
       return updated
     })
-
-    // 3. Track pending saves for offline recovery queue
-    pendingSavesRef.current[questionId] = { value, timestamp }
-    if (userId && currentExam.id) {
-      storage.setItem(`exam_pending_${userId}_${currentExam.id}`, JSON.stringify(pendingSavesRef.current))
-    }
-
-    // 4. If offline, mark status and stop debounce
-    if (!navigator.onLine) {
-      setSaveStatus('offline')
-      return
-    }
-
-    setSaveStatus('saving')
-
-    // 5. Clear previous debounce timer for this specific question
-    if (debounceTimersRef.current[questionId]) {
-      clearTimeout(debounceTimersRef.current[questionId])
-    }
-
-    // 6. Debounce HTTP save (~450ms)
-    debounceTimersRef.current[questionId] = setTimeout(async () => {
-      try {
-        const payload = {
-          examId: currentExam.id,
-          accountId: Number(userId),
-          questionId: questionId,
-          answer: value,
-          clientTimestamp: new Date(timestamp).toISOString()
-        }
-
-        await api.post('/studentexamanswer/auto-save', payload)
-
-        // Only remove if this was the latest save request for this question
-        if (pendingSavesRef.current[questionId]?.timestamp === timestamp) {
-          delete pendingSavesRef.current[questionId]
-          if (userId && currentExam.id) {
-            storage.setItem(`exam_pending_${userId}_${currentExam.id}`, JSON.stringify(pendingSavesRef.current))
-          }
-        }
-
-        if (Object.keys(pendingSavesRef.current).length === 0) {
-          setSaveStatus('saved')
-        }
-      } catch (err) {
-        console.error('Auto-save error:', err)
-        if (!navigator.onLine) {
-          setSaveStatus('offline')
-        } else {
-          setSaveStatus('error')
-        }
-      }
-    }, 450)
   }, [currentExam, isReviewMode])
 
   // FEATURE: AUTOMATIC ANSWER SAVING - Start Exam with restoration from backend drafts and local cache
@@ -611,17 +498,8 @@ export default function StudentPage() {
         storage.setItem(orderKey, JSON.stringify(orderedQuestions.map(q => q.id)))
       }
 
-      // FEATURE: AUTOMATIC ANSWER SAVING - Rehydrate answers (Backend authoritative + LocalStorage overlay)
+      // Rehydrate answers and review marks from localStorage for refresh recovery
       const initialAnswers = {}
-
-      // 1. Backend saved drafts
-      (examData.questions || []).forEach(q => {
-        if (q.userAnswer !== undefined && q.userAnswer !== null && q.userAnswer !== '') {
-          initialAnswers[q.questionId] = q.userAnswer
-        }
-      })
-
-      // 2. Local draft overlay
       const draftKey = `exam_draft_${userId}_${examData.examId}`
       const savedDraft = storage.getItem(draftKey)
       if (savedDraft) {
@@ -632,24 +510,22 @@ export default function StudentPage() {
           console.warn('Failed to parse local draft:', e)
         }
       }
+      setExamAnswers(initialAnswers)
 
-      // 3. Local pending saves queue
-      const pendingKey = `exam_pending_${userId}_${examData.examId}`
-      const savedPending = storage.getItem(pendingKey)
-      if (savedPending) {
+      // Rehydrate review marks
+      const reviewMarksKey = `exam_review_marks_${userId}_${examData.examId}`
+      const savedMarks = storage.getItem(reviewMarksKey)
+      if (savedMarks) {
         try {
-          pendingSavesRef.current = JSON.parse(savedPending) || {}
+          setReviewMarks(JSON.parse(savedMarks) || {})
         } catch (e) {
-          pendingSavesRef.current = {}
+          setReviewMarks({})
         }
       } else {
-        pendingSavesRef.current = {}
+        setReviewMarks({})
       }
 
-      setExamAnswers(initialAnswers)
-      setSaveStatus(Object.keys(pendingSavesRef.current).length > 0 ? (navigator.onLine ? 'saving' : 'offline') : 'saved')
-
-      // 4. Record active session marker for refresh auto-recovery
+      // Record active session marker for refresh auto-recovery
       storage.setItem('active_exam_session', JSON.stringify({
         examId: examData.examId,
         userId: userId
@@ -675,18 +551,13 @@ export default function StudentPage() {
       const timeRemainingMs = endDate.getTime() - now.getTime()
       setTimeRemaining(Math.max(0, Math.floor(timeRemainingMs / 1000)))
 
-      // If pending items exist and we are online, trigger sync
-      if (Object.keys(pendingSavesRef.current).length > 0 && navigator.onLine) {
-        setTimeout(() => syncPendingAnswers(), 500)
-      }
-
     } catch (err) {
       console.error('Error starting exam:', err)
       showModal('Error', 'Failed to load exam questions. Please try again.')
     } finally {
       setLoading(false)
     }
-  }, [isExamActive, getTimeUntilDeadline, syncPendingAnswers])
+  }, [isExamActive, getTimeUntilDeadline])
 
   // FEATURE: AUTOMATIC ANSWER SAVING - Auto-resume active exam on page refresh (F5)
   useEffect(() => {
@@ -728,15 +599,21 @@ export default function StudentPage() {
     submitExam(true)
   }
 
-  // FEATURE: AUTOMATIC ANSWER SAVING - Final exam submission finalizing drafts
+  // Final exam submission
   const submitExam = useCallback(async (autoSubmit = false) => {
     if (!currentExam) return
 
-    try {
-      // Clear any pending debounce timers
-      Object.values(debounceTimersRef.current).forEach(timer => clearTimeout(timer))
-      debounceTimersRef.current = {}
+    // If manual submit and student has marked questions, prompt confirmation
+    const markedCount = Object.values(reviewMarks).filter(Boolean).length
+    if (!autoSubmit && markedCount > 0) {
+      const confirmed = await showModal(
+        'Review Marked Questions',
+        `You have ${markedCount} question(s) marked for review. Do you want to submit your exam anyway?`
+      )
+      if (!confirmed) return
+    }
 
+    try {
       // Get user ID from token
       const token = storage.getItem('token')
       let userId = null
@@ -796,12 +673,11 @@ export default function StudentPage() {
       storage.removeItem('active_exam_session')
       if (userId && currentExam.id) {
         storage.removeItem(`exam_draft_${userId}_${currentExam.id}`)
-        storage.removeItem(`exam_pending_${userId}_${currentExam.id}`)
+        storage.removeItem(`exam_review_marks_${userId}_${currentExam.id}`)
         storage.removeItem(`exam_order_${userId}_${currentExam.id}`)
       }
-      pendingSavesRef.current = {}
       setExamAnswers({})
-      setSaveStatus('saved')
+      setReviewMarks({})
 
       // Move exam from available to completed
       setExams(prev => ({
@@ -868,7 +744,7 @@ export default function StudentPage() {
       }
       showModal('Error', errorMessage)
     }
-  }, [currentExam, examAnswers])
+  }, [currentExam, examAnswers, reviewMarks])
 
   function showSection(section) {
     setCurrentSection(section)
@@ -1707,7 +1583,7 @@ export default function StudentPage() {
                   timeRemaining={timeRemaining}
                   submitQuiz={submitExam}
                   backToDashboard={isReviewMode ? backToCompleted : () => {
-                    showModal('Exam in Progress', 'Your answers are saved automatically. Are you sure you want to return to the dashboard?').then((confirmed) => {
+                    showModal('Exam in Progress', 'Are you sure you want to return to the dashboard? Your progress is saved locally.').then((confirmed) => {
                       if (confirmed) {
                         setIsExamActive(false)
                         setCurrentSection('available')
@@ -1718,8 +1594,8 @@ export default function StudentPage() {
                   }}
                   answers={examAnswers}
                   onAnswerChange={handleAnswerChange}
-                  saveStatus={saveStatus}
-                  onRetrySave={syncPendingAnswers}
+                  reviewMarks={reviewMarks}
+                  onToggleReviewMark={handleToggleReviewMark}
                 />
               )}
             </>
