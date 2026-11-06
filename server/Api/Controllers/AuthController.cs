@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using QuizesApi.Models;
@@ -238,11 +239,43 @@ public class AuthController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Returns the AccountId of the currently authenticated user from the JWT token.
+    /// Returns 0 if the claim is absent or unparseable.
+    /// </summary>
+    private long GetRequesterAccountId()
+    {
+        var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value
+            ?? User.FindFirst("id")?.Value;
+        long.TryParse(claim, out long accountId);
+        return accountId;
+    }
+
+    /// <summary>
+    /// Returns true when the requester holds an elevated role (Admin, Board, Superadmin)
+    /// that is allowed to access or modify any user's profile.
+    /// </summary>
+    private bool IsAdmin() =>
+        User.IsInRole("Admin") || User.IsInRole("Board") || User.IsInRole("Superadmin");
+
+    // GET /api/auth/profile/{id}
+    // Requires authentication. Users may only read their own profile.
+    // Admins, Board, and Superadmins may read any profile.
     [HttpGet("profile/{id}")]
+    [Authorize]
     public async Task<IActionResult> GetProfile(long id)
     {
         try
         {
+            var requesterId = GetRequesterAccountId();
+
+            if (requesterId <= 0)
+                return Unauthorized(new { message = "Unable to identify the requesting user. Please log in again." });
+
+            if (!IsAdmin() && requesterId != id)
+                return StatusCode(403, new { message = "You are not authorised to view another user's profile." });
+
             var account = await _db.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id);
             if (account == null)
                 return NotFound(new { message = "User not found" });
@@ -256,7 +289,7 @@ public class AuthController : ControllerBase
                 phone = account.Phone,
                 isActive = account.IsActive,
                 createdAt = account.CreatedAt,
-                updatedAt = DateTime.UtcNow 
+                updatedAt = DateTime.UtcNow
             });
         }
         catch (Exception ex)
@@ -265,16 +298,27 @@ public class AuthController : ControllerBase
         }
     }
 
+    // PUT /api/auth/profile/{id}
+    // Requires authentication. Users may only update their own profile.
+    // Admins, Board, and Superadmins may update any profile.
     [HttpPut("profile/{id}")]
+    [Authorize]
     public async Task<IActionResult> UpdateProfile(long id, [FromBody] UpdateProfileModel model)
     {
         try
         {
+            var requesterId = GetRequesterAccountId();
+
+            if (requesterId <= 0)
+                return Unauthorized(new { message = "Unable to identify the requesting user. Please log in again." });
+
+            if (!IsAdmin() && requesterId != id)
+                return StatusCode(403, new { message = "You are not authorised to update another user's profile." });
+
             var account = await _db.Accounts.FirstOrDefaultAsync(a => a.Id == id);
             if (account == null)
                 return NotFound(new { message = "User not found" });
 
-            // Update fields
             if (!string.IsNullOrWhiteSpace(model.FullNameEn))
                 account.FullNameEn = model.FullNameEn;
             if (!string.IsNullOrWhiteSpace(model.FullNameAr))

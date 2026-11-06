@@ -116,12 +116,15 @@ public class DashboardController : ControllerBase
                 ?? User.FindFirst("id")?.Value;
             
             var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
-            var isAdmin = roles.Contains("Superadmin") || roles.Contains("Admin");
+            // Staff roles are allowed to view any student's dashboard
+            var isAdmin = roles.Contains("Superadmin") || roles.Contains("Admin") || roles.Contains("Board") || roles.Contains("Teacher");
             var isSelf = accountIdClaim != null && long.TryParse(accountIdClaim, out long requesterId) && requesterId == id;
 
+            // Ownership check: a Student may only view their own dashboard.
+            // Teachers, Admins, Board, and Superadmins may view any student's dashboard.
             if (!isAdmin && !isSelf)
             {
-                // return Forbid(); // Commenting out for easier testing in dev, strict auth can block legitimate requests if token claims vary
+                return Forbid();
             }
 
             var dashboard = await _dashboardRepo.GetStudentDashboardAsync(id, filters);
@@ -177,12 +180,15 @@ public class DashboardController : ControllerBase
                 ?? User.FindFirst("id")?.Value;
             
             var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
-            var isAdmin = roles.Contains("Superadmin") || roles.Contains("Admin");
+            // Admins, Board, and Superadmins may view any teacher's dashboard
+            var isAdmin = roles.Contains("Superadmin") || roles.Contains("Admin") || roles.Contains("Board");
             var isSelf = accountIdClaim != null && long.TryParse(accountIdClaim, out long requesterId) && requesterId == id;
 
+            // Ownership check: a Teacher may only view their own dashboard.
+            // Admins, Board, and Superadmins may view any teacher's dashboard.
             if (!isAdmin && !isSelf)
             {
-                // return Forbid(); 
+                return Forbid();
             }
 
             var dashboard = await _dashboardRepo.GetTeacherDashboardAsync(id, filters);
