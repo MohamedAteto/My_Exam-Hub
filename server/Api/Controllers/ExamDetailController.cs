@@ -82,7 +82,7 @@ namespace QuizesApi.Controllers
                 }
             }
 
-            return Ok(exams.Select(MapToDto));
+            return Ok(exams.Select(e => IsStaff(roles) ? MapToDto(e) : MapToDtoForStudent(e)));
         }
 
         // ---------------------------------------------------------------------------
@@ -116,7 +116,7 @@ namespace QuizesApi.Controllers
                 }
             }
 
-            return Ok(MapToDto(exam));
+            return Ok(IsStaff(roles) ? MapToDto(exam) : MapToDtoForStudent(exam));
         }
 
         // ---------------------------------------------------------------------------
@@ -272,9 +272,13 @@ namespace QuizesApi.Controllers
         }
 
         // ---------------------------------------------------------------------------
-        // Mapping helper
+        // Mapping helpers
         // ---------------------------------------------------------------------------
 
+        /// <summary>
+        /// Full mapping used by Teachers and Admin-level roles.
+        /// Includes CorrectAnswer so staff can manage and verify exam content.
+        /// </summary>
         private static ExamReadDto MapToDto(ExamDetail e)
         {
             return new ExamReadDto
@@ -303,7 +307,54 @@ namespace QuizesApi.Controllers
                         OptionG = eq.Question.OptionG,
                         OptionH = eq.Question.OptionH,
                         UsedOptions = eq.Question.UsedOptions ?? 4,
-                        CorrectAnswer = eq.Question.CorrectAnswer,
+                        CorrectAnswer = eq.Question.CorrectAnswer,   // ← included for staff
+                        QuestionSubject = eq.Question.QuestionSubject,
+                        Mark = eq.Question.Mark ?? 0
+                    }).ToList(),
+                TotalMarks = e.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0)
+            };
+        }
+
+        /// <summary>
+        /// Student-safe mapping.  Identical to MapToDto except CorrectAnswer is
+        /// explicitly set to null so it is never serialised into the response.
+        /// Used for GET /examdetail and GET /examdetail/{id} when the requester is a Student.
+        ///
+        /// NOTE: Students should start exams via the dedicated
+        /// GET /studentexamanswer/student/{id}/exam/{id}/questions endpoint which uses the
+        /// even more restrictive ExamForStudentDto.  This mapping covers the exam-listing
+        /// page where questions are included in the list response for display purposes
+        /// (question count, marks) but must not expose the correct answer.
+        /// </summary>
+        private static ExamReadDto MapToDtoForStudent(ExamDetail e)
+        {
+            return new ExamReadDto
+            {
+                ExamId = e.ExamId,
+                Title = e.Title,
+                SubjectName = e.Subject?.StatusName ?? e.ExamSubject,
+                ExamDescription = e.ExamDescription,
+                GradeId = e.GradeId,
+                SubjectId = e.SubjectId,
+                ClassId = e.ClassId,
+                StartDate = DateTime.SpecifyKind(e.StartDate.GetValueOrDefault(), DateTimeKind.Utc),
+                EndDate = DateTime.SpecifyKind(e.EndDate.GetValueOrDefault(), DateTimeKind.Utc),
+                Questions = e.ExamQuestionBanks
+                    .Where(eq => eq.Question != null)
+                    .Select(eq => new QuestionBankReadDto
+                    {
+                        QuestionId = eq.Question!.QuestionId,
+                        QuestionTitle = eq.Question.QuestionTitle,
+                        OptionA = eq.Question.OptionA,
+                        OptionB = eq.Question.OptionB,
+                        OptionC = eq.Question.OptionC,
+                        OptionD = eq.Question.OptionD,
+                        OptionE = eq.Question.OptionE,
+                        OptionF = eq.Question.OptionF,
+                        OptionG = eq.Question.OptionG,
+                        OptionH = eq.Question.OptionH,
+                        UsedOptions = eq.Question.UsedOptions ?? 4,
+                        CorrectAnswer = null,    // ← never sent to students
                         QuestionSubject = eq.Question.QuestionSubject,
                         Mark = eq.Question.Mark ?? 0
                     }).ToList(),

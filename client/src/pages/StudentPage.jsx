@@ -382,8 +382,10 @@ export default function StudentPage() {
         return
       }
 
-      // Fetch detailed exam with questions
-      const response = await api.get(`/studentexamanswer/student/${userId}/exam/${exam.examId || exam.id}`)
+      // Fetch exam questions using the safe student endpoint.
+      // This endpoint never returns CorrectAnswer, IsCorrect, or any grading data.
+      // The existing review endpoint (without /questions) is used only after submission.
+      const response = await api.get(`/studentexamanswer/student/${userId}/exam/${exam.examId || exam.id}/questions`)
       const examData = response.data
 
       // Map raw questions to the structure QuizInterface expects

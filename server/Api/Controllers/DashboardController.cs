@@ -373,7 +373,7 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("students")]
-    [Authorize]
+    [Authorize(Roles = "Teacher,Admin,Board,Superadmin")]
     public async Task<ActionResult<List<StudentPerformanceDto>>> GetStudents()
     {
         try

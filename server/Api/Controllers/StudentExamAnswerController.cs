@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using QuizesApi.DTOs;
 using QuizesApi.Models;
 using System.Security.Claims;
 
@@ -269,6 +270,120 @@ namespace QuizesApi.Controllers
             };
 
             return Ok(result);
+        }
+
+        // ---------------------------------------------------------------------------
+        // GET /api/studentexamanswer/student/{accountId}/exam/{examId}/questions
+        // ---------------------------------------------------------------------------
+        /// <summary>
+        /// Returns the questions for an active exam in a form that is safe for
+        /// the student to receive BEFORE submission.
+        ///
+        /// Security guarantees:
+        ///   - The response never contains CorrectAnswer, IsCorrect, Score,
+        ///     UserAnswer, EarnedMarks, or any other grading information.
+        ///   - The response uses the dedicated ExamForStudentDto / QuestionForStudentDto
+        ///     types which have no sensitive fields at all.
+        ///   - Students may only request their own exam data (ownership check).
+        ///   - A student who has already submitted this exam is blocked (403).
+        ///     This is enforced using the existing schema: submission always writes
+        ///     one StudentExamAnswer row per exam question in a single transaction,
+        ///     so the presence of ANY answer row reliably indicates a completed
+        ///     submission.  No database change is required.
+        ///   - Existing class-assignment and exam availability rules are respected
+        ///     by verifying the student is in a class that the exam is assigned to.
+        ///   - Staff (Teacher/Admin/Board/Superadmin) bypass the ownership and
+        ///     submission checks — they are allowed to inspect exam questions at
+        ///     any time for management purposes.
+        /// </summary>
+        [HttpGet("student/{accountId}/exam/{examId}/questions")]
+        public async Task<ActionResult<ExamForStudentDto>> GetExamQuestionsForStudent(
+            long accountId, long examId)
+        {
+            var (requesterId, roles) = GetRequesterInfo();
+
+            if (requesterId <= 0)
+                return Unauthorized(new { message = "Unable to identify the requesting user. Please log in again." });
+
+            bool isStaff = IsStaff(roles);
+
+            // Ownership check: a Student may only fetch their own exam session.
+            if (!isStaff && requesterId != accountId)
+                return StatusCode(403, new { message = "You are not authorised to access another student's exam." });
+
+            // Load the exam.
+            var exam = await _context.ExamDetails
+                .Include(e => e.Subject)
+                .FirstOrDefaultAsync(e => e.ExamId == examId);
+
+            if (exam == null)
+                return NotFound(new { message = "Exam not found." });
+
+            // For students: enforce the class-assignment rule that already exists in
+            // ExamDetailController so that a student who guesses a URL cannot bypass it.
+            if (!isStaff)
+            {
+                var studentExtension = await _context.StudentExtensions
+                    .FirstOrDefaultAsync(se => se.AccountId == accountId);
+
+                if (studentExtension != null && studentExtension.ClassId.HasValue)
+                {
+                    var studentClassId = studentExtension.ClassId.Value.ToString();
+                    bool hasClassAccess = string.IsNullOrEmpty(exam.ClassId) ||
+                        exam.ClassId.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                    .Contains(studentClassId);
+
+                    if (!hasClassAccess)
+                        return StatusCode(403, new { message = "This exam is not assigned to your class." });
+                }
+
+                // Submission check: if any answer row exists for this student + exam,
+                // the exam has already been submitted.  Students must use the review
+                // endpoint (GET .../exam/{examId}) instead.
+                // Rationale: SubmitStudentAnswers always inserts a row for every question
+                // (including blank placeholders) in a single SaveChangesAsync call, so
+                // the presence of ANY row is a reliable, schema-safe submission indicator.
+                bool alreadySubmitted = await _context.StudentExamAnswers
+                    .AnyAsync(sea => sea.AccountId == accountId && sea.ExamDetailsId == examId);
+
+                if (alreadySubmitted)
+                    return StatusCode(403, new { message = "You have already submitted this exam. Use the review endpoint to see your results." });
+            }
+
+            // Load questions for this exam.
+            await PopulateExamQuestions(new List<ExamDetail> { exam });
+
+            // Build the safe response — QuestionForStudentDto has no CorrectAnswer field.
+            var dto = new ExamForStudentDto
+            {
+                ExamId = exam.ExamId,
+                Title = exam.Title ?? string.Empty,
+                SubjectName = exam.Subject?.StatusName ?? exam.ExamSubject,
+                ExamDescription = exam.ExamDescription,
+                StartDate = DateTime.SpecifyKind(exam.StartDate.GetValueOrDefault(), DateTimeKind.Utc),
+                EndDate = DateTime.SpecifyKind(exam.EndDate.GetValueOrDefault(), DateTimeKind.Utc),
+                TotalMarks = exam.ExamQuestionBanks.Sum(eq => eq.Question?.Mark ?? 0),
+                Questions = exam.ExamQuestionBanks
+                    .Where(eq => eq.Question != null)
+                    .Select(eq => new QuestionForStudentDto
+                    {
+                        QuestionId = eq.Question!.QuestionId,
+                        QuestionTitle = eq.Question.QuestionTitle,
+                        OptionA = eq.Question.OptionA,
+                        OptionB = eq.Question.OptionB,
+                        OptionC = eq.Question.OptionC,
+                        OptionD = eq.Question.OptionD,
+                        OptionE = eq.Question.OptionE,
+                        OptionF = eq.Question.OptionF,
+                        OptionG = eq.Question.OptionG,
+                        OptionH = eq.Question.OptionH,
+                        UsedOptions = eq.Question.UsedOptions ?? 4,
+                        Mark = eq.Question.Mark ?? 0
+                        // CorrectAnswer is intentionally absent from this DTO
+                    }).ToList()
+            };
+
+            return Ok(dto);
         }
 
         // ---------------------------------------------------------------------------
