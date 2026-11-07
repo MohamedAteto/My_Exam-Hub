@@ -1,5 +1,7 @@
 ﻿using QuizesApi.Models;
 
+namespace QuizesApi.Repositories.Interfaces;
+
 public interface IQuestionBankRepo
 {
     Task<IEnumerable<QuestionBank>> GetAllAsync();

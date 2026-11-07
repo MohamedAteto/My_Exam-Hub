@@ -5,6 +5,7 @@ using QuizesApi.Models;
 using QuizesApi.Repositories;
 using QuizesApi.Repositories.Interfaces;
 using QuizesApi.Repositories.Implementation;
+using QuizesApi.Services;
 using System;
 using System.Text;
 
@@ -84,6 +85,10 @@ namespace QuizesApi
             builder.Services.AddScoped<IExamRepo, ExamRepo>();
             builder.Services.AddScoped<IQuestionBankRepo, QuestionBankRepo>();
             builder.Services.AddScoped<IDashboardRepo, DashboardRepo>();
+
+            // Dependency Injection for Services
+            builder.Services.AddScoped<IStudentExamService, StudentExamService>();
+            builder.Services.AddScoped<IAuthService, AuthService>();
 
             var app = builder.Build();
 

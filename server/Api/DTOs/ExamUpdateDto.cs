@@ -1,4 +1,6 @@
-﻿public class ExamUpdateDto
+﻿namespace QuizesApi.DTOs;
+
+public class ExamUpdateDto
 {
     public string Title { get; set; }
     public long? SubjectId { get; set; }

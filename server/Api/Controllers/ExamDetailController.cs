@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using QuizesApi.DTOs;
+using QuizesApi.Helpers;
 using QuizesApi.Models;
 using QuizesApi.Repositories.Interfaces;
 using System.Security.Claims;
-using QuizesApi.DTOs;
 
 namespace QuizesApi.Controllers
 {
@@ -15,36 +17,24 @@ namespace QuizesApi.Controllers
     {
         private readonly IExamRepo _repo;
         private readonly ElsewedySchoolSysDbDevContext _context;
+        private readonly ILogger<ExamDetailController> _logger;
 
-        public ExamDetailController(IExamRepo repo, ElsewedySchoolSysDbDevContext context)
+        public ExamDetailController(IExamRepo repo, ElsewedySchoolSysDbDevContext context, ILogger<ExamDetailController> logger)
         {
             _repo = repo;
             _context = context;
+            _logger = logger;
         }
 
         // ---------------------------------------------------------------------------
-        // Internal helpers
+        // Internal helpers — delegate to ClaimsHelper to avoid duplication
         // ---------------------------------------------------------------------------
 
-        /// <summary>
-        /// Reads the authenticated user's AccountId and role list from JWT claims.
-        /// </summary>
-        private (long AccountId, List<string> Roles) GetRequesterInfo()
-        {
-            var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-                ?? User.FindFirst("sub")?.Value
-                ?? User.FindFirst("id")?.Value;
-
-            long.TryParse(accountIdClaim, out long accountId);
-            var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
-            return (accountId, roles);
-        }
+        private (long AccountId, List<string> Roles) GetRequesterInfo() =>
+            ClaimsHelper.GetRequesterInfo(User);
 
         private static bool IsStaff(List<string> roles) =>
-            roles.Contains("Teacher") ||
-            roles.Contains("Admin") ||
-            roles.Contains("Board") ||
-            roles.Contains("Superadmin");
+            ClaimsHelper.IsStaff(roles);
 
         // ---------------------------------------------------------------------------
         // GET /api/examdetail
@@ -65,20 +55,23 @@ namespace QuizesApi.Controllers
                 var studentExtension = await _context.StudentExtensions
                     .FirstOrDefaultAsync(se => se.AccountId == accountId);
 
-                if (studentExtension != null)
+                if (studentExtension == null)
                 {
-                    if (studentExtension.ClassId.HasValue)
-                    {
-                        var filterClassId = studentExtension.ClassId.Value.ToString();
-                        exams = exams.Where(e =>
-                            !string.IsNullOrEmpty(e.ClassId) &&
-                            e.ClassId.Split(',', StringSplitOptions.RemoveEmptyEntries).Contains(filterClassId));
-                    }
-                    else
-                    {
-                        // Student has no class assigned — show no exams
-                        exams = Enumerable.Empty<ExamDetail>();
-                    }
+                    // Student has no extension record — show all exams without class filtering.
+                    // This is a safe fallback: the exam-start endpoint will enforce class checks
+                    // independently. Showing exams in the listing does not grant access to them.
+                }
+                else if (!studentExtension.ClassId.HasValue)
+                {
+                    // Student has an extension record but no class assigned — show no exams
+                    exams = Enumerable.Empty<ExamDetail>();
+                }
+                else
+                {
+                    var filterClassId = studentExtension.ClassId.Value.ToString();
+                    exams = exams.Where(e =>
+                        !string.IsNullOrEmpty(e.ClassId) &&
+                        e.ClassId.Split(',', StringSplitOptions.RemoveEmptyEntries).Contains(filterClassId));
                 }
             }
 
@@ -127,7 +120,8 @@ namespace QuizesApi.Controllers
         [Authorize(Roles = "Teacher,Admin,Board,Superadmin")]
         public async Task<ActionResult<ExamReadDto>> Create(ExamCreateDto dto)
         {
-            Console.WriteLine($"[DIAG] Create Exam called. Title={dto.Title}, GradeId={dto.GradeId}, ClassIds={dto.ClassIds?.Count}");
+            _logger.LogInformation("[Create Exam] Title={Title}, GradeId={GradeId}, ClassIds={ClassIdsCount}",
+                dto.Title, dto.GradeId, dto.ClassIds?.Count);
             try
             {
                 var (accountId, _) = GetRequesterInfo();
@@ -170,7 +164,7 @@ namespace QuizesApi.Controllers
                 if (classIdsToProcess.Count == 0)
                     return BadRequest(new { message = "At least one class must be selected." });
 
-                Console.WriteLine($"[DIAG] Creating exam for classes: {string.Join(", ", classIdsToProcess)}");
+                _logger.LogInformation("[Create Exam] Creating exam for classes: {ClassIds}", string.Join(", ", classIdsToProcess));
 
                 var newExam = new ExamDetail
                 {
@@ -194,7 +188,7 @@ namespace QuizesApi.Controllers
             catch (Exception ex)
             {
                 var innerMessage = ex.InnerException?.Message ?? "No inner details";
-                Console.WriteLine($"[ERROR] Exam creation failed: {ex.Message} | Inner: {innerMessage}");
+                _logger.LogError(ex, "[Create Exam] Failed. Message={Message} | Inner={Inner}", ex.Message, innerMessage);
                 return StatusCode(500, new { message = $"Error creating exam: {ex.Message}" });
             }
         }
@@ -236,9 +230,9 @@ namespace QuizesApi.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ERROR] Update Exam failed: {ex.Message}");
+                _logger.LogError(ex, "[Update Exam] Failed for ExamId={ExamId}. Message={Message}", id, ex.Message);
                 if (ex.InnerException != null)
-                    Console.WriteLine($"[Inner] {ex.InnerException.Message}");
+                    _logger.LogError("[Update Exam] Inner exception: {Inner}", ex.InnerException.Message);
 
                 return StatusCode(500, new { message = $"Failed to save exam: {ex.Message}" });
             }

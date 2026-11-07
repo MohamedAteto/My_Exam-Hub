@@ -811,7 +811,8 @@ export default function TeacherPage() {
 
     const quizData = {
       title,
-      examSubject: dbSubjects.find(s => String(s.id) === String(subjectId))?.subjectName || '',
+      // dbSubjects from GET /api/examdetail/subjects returns { id, statusName } — use statusName not subjectName
+      examSubject: dbSubjects.find(s => String(s.id) === String(subjectId))?.statusName || '',
       subjectId: subjectId ? Number(subjectId) : null,
       examDescription: description || "",
       gradeId: gradeId ? Number(gradeId) : null,
@@ -836,7 +837,8 @@ export default function TeacherPage() {
             description: updated.examDescription,
             grade: updated.grade,
             class: updated.class,
-            subject: updated.examSubject,
+            // ExamReadDto returns subjectName (not examSubject) — use fallback chain
+            subject: updated.subjectName || updated.examSubject || updated.subject || quizData.examSubject || '',
             startDate: updated.startDate,
             datetime: updated.endDate,
             endDate: updated.endDate,
@@ -879,7 +881,8 @@ export default function TeacherPage() {
           description: saved.examDescription,
           grade: saved.grade,
           class: saved.class,
-          subject: saved.examSubject,
+          // ExamReadDto returns subjectName (not examSubject) — use fallback chain for compatibility
+          subject: saved.subjectName || saved.examSubject || saved.subject || quizData.examSubject || '',
           startDate: saved.startDate,
           datetime: saved.endDate,
           endDate: saved.endDate,

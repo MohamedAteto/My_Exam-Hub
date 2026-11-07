@@ -29,6 +29,22 @@ export default function StudentPage() {
   const [completedSearchTerm, setCompletedSearchTerm] = useState('')
   const quizTimerRef = useRef(null)
 
+  // ── Phase 3: exam-session state ─────────────────────────────────────
+  // answers keyed by question ID (string) → answer string
+  const [examAnswers, setExamAnswers] = useState({})
+  // Set of question IDs the student has flagged for review
+  const [markedForReview, setMarkedForReview] = useState(new Set())
+  // 0-based index of the currently displayed question
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+
+  // Keep a ref that always reflects the latest examAnswers so the
+  // timer-triggered auto-submit (which closes over the initial value)
+  // always reads the most recent answers without stale closure issues.
+  const examAnswersRef = useRef({})
+  useEffect(() => {
+    examAnswersRef.current = examAnswers
+  }, [examAnswers])
+
   // Real data from backend
   const [exams, setExams] = useState({ available: [], upcoming: [] })
   const [completedExams, setCompletedExams] = useState([])
@@ -246,6 +262,93 @@ export default function StudentPage() {
     fetchData()
   }, [])
 
+  // ── Phase 3: sessionStorage persistence helpers ─────────────────────
+  // Keys are namespaced by userId + examId so different accounts on the
+  // same device never see each other's in-progress data.
+
+  function getSessionKeys(userId, examId) {
+    return {
+      answers:  `exam_answers_${userId}_${examId}`,
+      review:   `exam_review_${userId}_${examId}`,
+      index:    `exam_index_${userId}_${examId}`,
+      questions:`exam_questions_${userId}_${examId}`,
+    }
+  }
+
+  function saveExamSession(userId, examId, answers, reviewSet, index, questions) {
+    try {
+      const keys = getSessionKeys(userId, examId)
+      sessionStorage.setItem(keys.answers,   JSON.stringify(answers))
+      sessionStorage.setItem(keys.review,    JSON.stringify([...reviewSet]))
+      sessionStorage.setItem(keys.index,     String(index))
+      // Persist the shuffled question order so a refresh restores the same sequence
+      sessionStorage.setItem(keys.questions, JSON.stringify(questions.map(q => q.id)))
+    } catch (e) {
+      // sessionStorage unavailable (private browsing quota) — fail silently
+    }
+  }
+
+  function loadExamSession(userId, examId) {
+    try {
+      const keys = getSessionKeys(userId, examId)
+      const rawAnswers   = sessionStorage.getItem(keys.answers)
+      const rawReview    = sessionStorage.getItem(keys.review)
+      const rawIndex     = sessionStorage.getItem(keys.index)
+      const rawQuestions = sessionStorage.getItem(keys.questions)
+      return {
+        answers:       rawAnswers   ? JSON.parse(rawAnswers)   : null,
+        reviewArray:   rawReview    ? JSON.parse(rawReview)    : null,
+        index:         rawIndex     !== null ? Number(rawIndex) : null,
+        questionOrder: rawQuestions ? JSON.parse(rawQuestions) : null,
+      }
+    } catch (e) {
+      return { answers: null, reviewArray: null, index: null, questionOrder: null }
+    }
+  }
+
+  function clearExamSession(userId, examId) {
+    try {
+      const keys = getSessionKeys(userId, examId)
+      Object.values(keys).forEach(k => sessionStorage.removeItem(k))
+    } catch (e) { /* ignore */ }
+  }
+
+  // Persist exam session whenever answers, review flags, or question index change.
+  // Only fires while an active (non-review) exam is in progress.
+  useEffect(() => {
+    if (!isExamActive || isReviewMode || !currentExam) return
+    const token = storage.getItem('token')
+    let userId = null
+    try { userId = JSON.parse(atob(token.split('.')[1])).sub || JSON.parse(atob(token.split('.')[1])).id } catch (e) { /* ignore */ }
+    if (!userId) return
+    saveExamSession(userId, currentExam.id, examAnswers, markedForReview, currentQuestionIndex, currentExam.questions)
+  }, [examAnswers, markedForReview, currentQuestionIndex, isExamActive, isReviewMode, currentExam])
+
+  // ── Phase 3: answer + navigation handlers ───────────────────────────
+  function handleAnswerChange(questionId, value) {
+    setExamAnswers(prev => ({ ...prev, [questionId]: value }))
+  }
+
+  function handleToggleReview(questionId) {
+    setMarkedForReview(prev => {
+      const next = new Set(prev)
+      if (next.has(questionId)) next.delete(questionId)
+      else next.add(questionId)
+      return next
+    })
+  }
+
+  function handleNavigate(index) {
+    setCurrentQuestionIndex(index)
+  }
+
+  function resetExamSessionState() {
+    setExamAnswers({})
+    setMarkedForReview(new Set())
+    setCurrentQuestionIndex(0)
+    examAnswersRef.current = {}
+  }
+
   function showModal(title, message) {
     return new Promise((resolve) => {
       setIsModalActive(true)
@@ -358,7 +461,13 @@ export default function StudentPage() {
     }
 
     const timeUntil = getTimeUntilDeadline(exam.deadline || exam.endDate)
-    if (!timeUntil) {
+    // Only block if deadline is a valid, real future date that has already passed.
+    // A null/zero/epoch deadline means "no expiry" — let the server decide access.
+    // The backend enforces business rules; the frontend guard is for UX only.
+    const deadlineRaw = exam.deadline || exam.endDate
+    const deadlineDate = deadlineRaw ? new Date(deadlineRaw) : null
+    const isValidRealDate = deadlineDate && !isNaN(deadlineDate) && deadlineDate.getFullYear() > 1971
+    if (isValidRealDate && !timeUntil) {
       showModal('Exam Expired', 'This exam has expired and is no longer available.')
       return
     }
@@ -431,14 +540,54 @@ export default function StudentPage() {
       const randomizedExam = {
         id: examData.examId,
         name: examData.title,
-        subject: examData.examSubject,
+        subject: examData.subjectName || examData.examSubject || exam.subject || 'General',
         duration: examData.duration || 60,
         startDate: examData.startDate,
         endDate: examData.endDate,
         questions: shuffleArray(mappedQuestions)
       }
 
-      setCurrentExam(randomizedExam)
+      // ── Phase 3: restore or initialise session state ──────────────
+      const session = loadExamSession(userId, examData.examId)
+
+      let finalQuestions = randomizedExam.questions
+      let restoredAnswers = {}
+      let restoredReview = new Set()
+      let restoredIndex = 0
+
+      if (session.questionOrder && session.answers) {
+        // A saved session exists for this exam.
+        // Restore the shuffled question order by matching stored IDs.
+        const questionById = Object.fromEntries(
+          randomizedExam.questions.map(q => [q.id, q])
+        )
+        const reordered = session.questionOrder
+          .map(id => questionById[id])
+          .filter(Boolean) // drop any IDs that no longer exist in the exam
+
+        // If every question is accounted for, use the saved order;
+        // otherwise fall back to the freshly-shuffled order.
+        if (reordered.length === randomizedExam.questions.length) {
+          finalQuestions = reordered
+        }
+
+        restoredAnswers = session.answers || {}
+        restoredReview  = new Set(session.reviewArray || [])
+        // Clamp saved index to valid range
+        restoredIndex   = Math.min(
+          Math.max(0, session.index ?? 0),
+          finalQuestions.length - 1
+        )
+      }
+
+      const finalExam = { ...randomizedExam, questions: finalQuestions }
+
+      // Reset then apply restored state atomically
+      examAnswersRef.current = restoredAnswers
+      setExamAnswers(restoredAnswers)
+      setMarkedForReview(restoredReview)
+      setCurrentQuestionIndex(restoredIndex)
+      setCurrentExam(finalExam)
       setIsExamActive(true)
       setCurrentSection('quiz')
 
@@ -450,7 +599,19 @@ export default function StudentPage() {
 
     } catch (err) {
       console.error('Error starting exam:', err)
-      showModal('Error', 'Failed to load exam questions. Please try again.')
+      // Show the specific server error message so students understand WHY access was denied
+      // (e.g. "not assigned to your class", "already submitted", "exam not found")
+      const serverMessage = err.response?.data?.message
+      const status = err.response?.status
+      if (status === 403) {
+        showModal('Access Denied', serverMessage || 'You do not have access to this exam.')
+      } else if (status === 404) {
+        showModal('Not Found', serverMessage || 'This exam could not be found.')
+      } else if (err.code === 'ERR_NETWORK' || !err.response) {
+        showModal('Connection Error', 'Failed to reach the server. Please check your connection and try again.')
+      } else {
+        showModal('Error', serverMessage || 'Failed to load exam questions. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
@@ -481,28 +642,16 @@ export default function StudentPage() {
         return
       }
 
-      // Collect answers from the form
-      const form = document.getElementById('quiz-form')
-      // If auto-submitting and form is missing (e.g. tab closed), we might need a fallback
-      // But usually the component is still mounted.
-
-      let answers = []
-      if (form) {
-        const formData = new FormData(form)
-        answers = currentExam.questions.map((question, index) => {
-          const questionName = `question_${index + 1}`
-          const answer = formData.get(questionName)
-          const answerValue = answer ? String(answer).trim() : ''
-
-          return {
-            questionId: question.id,
-            answer: answerValue
-          }
-        }).filter(a => a.questionId)
-      } else {
-        // Fallback if form is not found (should not happen in normal flow)
-        console.warn("Exam form not found during submission")
-      }
+      // ── Phase 3: collect answers from React state (not DOM FormData) ──
+      // examAnswersRef always holds the latest value even in the timer
+      // auto-submit path where a stale closure could otherwise return {}.
+      const latestAnswers = examAnswersRef.current
+      const answers = (currentExam.questions || [])
+        .filter(q => q.id)
+        .map(q => ({
+          questionId: q.id,
+          answer: (latestAnswers[q.id] ?? '').toString().trim()
+        }))
 
       // Prepare submission payload
       const submissionPayload = {
@@ -520,6 +669,9 @@ export default function StudentPage() {
 
       // Submit answers to backend
       const response = await api.post('/studentexamanswer/submit', submissionPayload)
+
+      // ── Phase 3: clear session storage only on successful submission ──
+      clearExamSession(userId, currentExam.id)
 
       // Move exam from available to completed
       setExams(prev => ({
@@ -551,6 +703,7 @@ export default function StudentPage() {
         const scoreRounded = Math.round(response.data.score * 100) / 100
         const scoreDisplay = scoreRounded % 1 === 0 ? scoreRounded : scoreRounded.toFixed(2)
         showModal('Exam Completed!', `Great job! Your exam has been submitted successfully. Score: ${response.data.earnedMarks}/${response.data.totalMarks} (${scoreDisplay}%)`).then(() => {
+          resetExamSessionState()
           setIsExamActive(false)
           setCurrentSection('completed')
           setCurrentExam(null)
@@ -560,6 +713,7 @@ export default function StudentPage() {
         const scoreRounded = Math.round(response.data.score * 100) / 100
         const scoreDisplay = scoreRounded % 1 === 0 ? scoreRounded : scoreRounded.toFixed(2)
         showModal('Time Up!', `Your exam has been automatically submitted. Score: ${response.data.earnedMarks}/${response.data.totalMarks} (${scoreDisplay}%)`).then(() => {
+          resetExamSessionState()
           setIsExamActive(false)
           setCurrentSection('completed')
           setCurrentExam(null)
@@ -664,7 +818,7 @@ export default function StudentPage() {
       const reviewExamData = {
         id: examData.examId,
         name: examData.title,
-        subject: examData.examSubject,
+        subject: examData.subjectName || examData.examSubject || 'General',
         deadline: examData.endDate,
         score: examData.score || 0,
         totalMarks: examData.totalMarks || 0,
@@ -683,7 +837,34 @@ export default function StudentPage() {
     }
   }
 
+  // ── Phase 3: guarded exit from active exam ──────────────────────────
+  // Called when a student attempts to leave an active exam without submitting.
+  // Shows a confirmation dialog before clearing any answers or sessionStorage.
+  // Dismissing the dialog preserves all answers, review marks, and the current
+  // question index — nothing is modified until the student explicitly confirms.
+  async function handleExitActiveExam() {
+    const confirmed = await showModal(
+      'Exit Exam?',
+      'Are you sure you want to leave this exam? Your progress and answers will be saved and you can return to continue, but your timer will keep running.'
+    )
+    if (!confirmed) return  // Student cancelled — preserve everything
+    // Student confirmed exit — clear session and return to available exams
+    const token = storage.getItem('token')
+    let userId = null
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      userId = payload.sub || payload.id
+    } catch (e) { /* ignore */ }
+    if (userId && currentExam) clearExamSession(userId, currentExam.id)
+    resetExamSessionState()
+    setIsExamActive(false)
+    setCurrentSection('available')
+    setCurrentExam(null)
+    setTimeRemaining(0)
+  }
+
   function backToCompleted() {
+    resetExamSessionState()
     setIsReviewMode(false)
     setCurrentExam(null)
     setCurrentSection('completed')
@@ -1424,12 +1605,13 @@ export default function StudentPage() {
                   }}
                   timeRemaining={timeRemaining}
                   submitQuiz={submitExam}
-                  backToDashboard={isReviewMode ? backToCompleted : () => {
-                    setIsExamActive(false)
-                    setCurrentSection('available')
-                    setCurrentExam(null)
-                    setTimeRemaining(0)
-                  }}
+                  backToDashboard={isReviewMode ? backToCompleted : handleExitActiveExam}
+                  answers={examAnswers}
+                  onAnswerChange={handleAnswerChange}
+                  markedForReview={markedForReview}
+                  onToggleReview={handleToggleReview}
+                  currentQuestionIndex={currentQuestionIndex}
+                  onNavigate={handleNavigate}
                 />
               )}
             </>

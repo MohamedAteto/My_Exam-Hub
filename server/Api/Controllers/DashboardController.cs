@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QuizesApi.DTOs;
+using QuizesApi.Helpers;
 using QuizesApi.Models;
 using QuizesApi.Repositories.Interfaces;
-using System.Security.Claims;
 
 namespace QuizesApi.Controllers;
 
@@ -14,11 +15,13 @@ public class DashboardController : ControllerBase
 {
     private readonly IDashboardRepo _dashboardRepo;
     private readonly ElsewedySchoolSysDbDevContext _context;
+    private readonly ILogger<DashboardController> _logger;
 
-    public DashboardController(IDashboardRepo dashboardRepo, ElsewedySchoolSysDbDevContext context)
+    public DashboardController(IDashboardRepo dashboardRepo, ElsewedySchoolSysDbDevContext context, ILogger<DashboardController> logger)
     {
         _dashboardRepo = dashboardRepo;
         _context = context;
+        _logger = logger;
     }
 
     [HttpGet("lookup-data")]
@@ -35,9 +38,9 @@ public class DashboardController : ControllerBase
         
         if (classes.Any()) {
             var s = classes[0];
-            Console.WriteLine($"[DIAG] Sample Class: ID={s.id}, Name={s.className}, GradeId={s.gradeId}");
+            _logger.LogDebug("[Lookup] Sample Class: ID={Id}, Name={Name}, GradeId={GradeId}", s.id, s.className, s.gradeId);
         } else {
-            Console.WriteLine("[DIAG] No classes found in Tbl_Class");
+            _logger.LogDebug("[Lookup] No classes found in Tbl_Class");
         }
 
         var exams = await _context.ExamDetails.ToListAsync();
@@ -67,7 +70,7 @@ public class DashboardController : ControllerBase
             };
         });
 
-        Console.WriteLine("[DIAG] Exams mapped: " + mappedExams.Count());
+        _logger.LogDebug("[Lookup] Exams mapped: {Count}", mappedExams.Count());
 
         var subjects = await _context.Statuses
             .Where(s => s.BusinessEntity == "Exams")
@@ -110,15 +113,10 @@ public class DashboardController : ControllerBase
                 StartDate = startDate,
                 EndDate = endDate
             };
-            // Optional: Verify the requesting user is the student or an admin
-            var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
-                ?? User.FindFirst("sub")?.Value 
-                ?? User.FindFirst("id")?.Value;
-            
-            var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
-            // Staff roles are allowed to view any student's dashboard
-            var isAdmin = roles.Contains("Superadmin") || roles.Contains("Admin") || roles.Contains("Board") || roles.Contains("Teacher");
-            var isSelf = accountIdClaim != null && long.TryParse(accountIdClaim, out long requesterId) && requesterId == id;
+            // Verify the requesting user is the student or an authorised staff member
+            var (requesterId, roles) = ClaimsHelper.GetRequesterInfo(User);
+            var isAdmin = ClaimsHelper.IsStaff(roles); // Teachers and above may view any student's dashboard
+            var isSelf = requesterId == id;
 
             // Ownership check: a Student may only view their own dashboard.
             // Teachers, Admins, Board, and Superadmins may view any student's dashboard.
@@ -173,16 +171,12 @@ public class DashboardController : ControllerBase
                 StartDate = startDate,
                 EndDate = endDate
             };
-            Console.WriteLine($"[FILTER] Teacher: {id}, Grade={gradeId}, Class={classId}, Subject={subjectId}");
-            // Optional: Verify the requesting user is the teacher or an admin
-            var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
-                ?? User.FindFirst("sub")?.Value 
-                ?? User.FindFirst("id")?.Value;
-            
-            var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+            _logger.LogDebug("[Teacher Dashboard] id={Id}, Grade={Grade}, Class={Class}, Subject={Subject}", id, gradeId, classId, subjectId);
+            // Verify the requesting user is the teacher or an authorised admin
+            var (requesterId, roles) = ClaimsHelper.GetRequesterInfo(User);
             // Admins, Board, and Superadmins may view any teacher's dashboard
-            var isAdmin = roles.Contains("Superadmin") || roles.Contains("Admin") || roles.Contains("Board");
-            var isSelf = accountIdClaim != null && long.TryParse(accountIdClaim, out long requesterId) && requesterId == id;
+            var isAdmin = ClaimsHelper.IsAdmin(roles);
+            var isSelf = requesterId == id;
 
             // Ownership check: a Teacher may only view their own dashboard.
             // Admins, Board, and Superadmins may view any teacher's dashboard.

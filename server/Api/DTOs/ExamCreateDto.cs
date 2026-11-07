@@ -1,4 +1,6 @@
-﻿public class ExamCreateDto
+﻿namespace QuizesApi.DTOs;
+
+public class ExamCreateDto
 {
     public string Title { get; set; }
     public long? SubjectId { get; set; }
